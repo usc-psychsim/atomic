@@ -28,7 +28,7 @@ class Victims:
             Victims.world.defineState(victim.name,'status',list,['unsaved','saved','dead'])
             victim.setState('status','unsaved')
         
-            Victims.world.defineState(victim.name,'danger',float,description='How far this victim is health')
+            Victims.world.defineState(victim.name,'danger',float,description='How far victim is from health')
             victim.setState('danger', Victims.TYPE_REQD_TIMES[Victims.VICTIM_TYPES[vi]])
         
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
@@ -46,8 +46,8 @@ class Victims:
         """
         Create a triage action per victim
         Legal action if: 1) human and victim are in same location; 2)victim is unsaved
-        Action effects: a) if victim health is 0: 1) victim is saved, 2) victim remembers savior's name       
-        b) if victim health < 0, increment victim health
+        Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name       
+        b) Always decrement victim's danger
         """        
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
@@ -69,17 +69,17 @@ class Victims:
                              True: setToConstantMatrix(statusKey, 'saved'),
                              False: setToConstantMatrix(statusKey, 'unsaved')})
             Victims.world.setDynamics(statusKey,action,tree)
-            
-            ## Danger: if in danger, dencrement danger by 1
-            tree = makeTree(incrementMatrix(dangerKey,-1))
-            Victims.world.setDynamics(dangerKey,action,tree)
-            
+                        
             ## Savior name: if danger is down to 0, set to human's name. Else none
             saviorKey = stateKey(victim.name,'savior')
             tree = makeTree({'if': equalRow(dangerKey, 1),
                              True: setToConstantMatrix(saviorKey, human.name),
                              False:setToConstantMatrix(saviorKey, 'none')})
             Victims.world.setDynamics(saviorKey,action,tree)  
+                        
+            ## Danger: dencrement danger by 1
+            tree = makeTree(incrementMatrix(dangerKey,-1))
+            Victims.world.setDynamics(dangerKey,action,tree)
 
     def makeVictimReward(human):
         """
