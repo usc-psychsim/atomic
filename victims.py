@@ -5,15 +5,17 @@ Created on Thu Feb 20 11:23:22 2020
 @author: mostafh
 """
 
-from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey
+from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
+    equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey
 
 class Victims:
     ## One entry per victim
-    VICTIMS_LOCS = [2]
-    VICTIM_TYPES = [2]
+    VICTIMS_LOCS = [2,3]
+    VICTIM_TYPES = [0,1]
     numVictims = len(VICTIM_TYPES)
     ## One entry per victim type
     TYPE_REWARDS = [10, 20, 30]
+    TYPE_REQD_TIMES = [2, 3, 5]     # number of applications of triage action needed to restore victim to health
 
     victimAgents = []
     triageActions = {}    
@@ -26,8 +28,8 @@ class Victims:
             Victims.world.defineState(victim.name,'status',list,['unsaved','saved','dead'])
             victim.setState('status','unsaved')
         
-            Victims.world.defineState(victim.name,'health',float,description='How far away this victim is from dying')
-            victim.setState('health',1)
+            Victims.world.defineState(victim.name,'danger',float,description='How far this victim is health')
+            victim.setState('danger', Victims.TYPE_REQD_TIMES[Victims.VICTIM_TYPES[vi]])
         
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
             victim.setState('reward', Victims.TYPE_REWARDS[Victims.VICTIM_TYPES[vi]])
@@ -44,7 +46,8 @@ class Victims:
         """
         Create a triage action per victim
         Legal action if: 1) human and victim are in same location; 2)victim is unsaved
-        Action effects: 1) victim is saved, 2) victim remembers savior's name       
+        Action effects: a) if victim health is 0: 1) victim is saved, 2) victim remembers savior's name       
+        b) if victim health < 0, increment victim health
         """        
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
@@ -58,17 +61,29 @@ class Victims:
             action = human.addAction({'verb': 'triage', 'object':victim.name}, legalityTree)
             Victims.triageActions[human.name].append(action)
                         
-            key = stateKey(victim.name,'status')
-            tree = makeTree(setToConstantMatrix(key, 'saved'))
-            Victims.world.setDynamics(key,action,tree)
-
-            key = stateKey(victim.name,'savior')
-            tree = makeTree(setToConstantMatrix(key, human.name))
-            Victims.world.setDynamics(key,action,tree)  
+            statusKey = stateKey(victim.name,'status')
+            dangerKey = stateKey(victim.name,'danger')
+            
+            ## Status: if danger is down to 0, victim is saved
+            tree = makeTree({'if': equalRow(dangerKey, 1),
+                             True: setToConstantMatrix(statusKey, 'saved'),
+                             False: setToConstantMatrix(statusKey, 'unsaved')})
+            Victims.world.setDynamics(statusKey,action,tree)
+            
+            ## Danger: if in danger, dencrement danger by 1
+            tree = makeTree(incrementMatrix(dangerKey,-1))
+            Victims.world.setDynamics(dangerKey,action,tree)
+            
+            ## Savior name: if danger is down to 0, set to human's name. Else none
+            saviorKey = stateKey(victim.name,'savior')
+            tree = makeTree({'if': equalRow(dangerKey, 1),
+                             True: setToConstantMatrix(saviorKey, human.name),
+                             False:setToConstantMatrix(saviorKey, 'none')})
+            Victims.world.setDynamics(saviorKey,action,tree)  
 
     def makeVictimReward(human):
         """
-        Human doesn't know about victims a priori
+        Human gets reward when
         
         """
         pass

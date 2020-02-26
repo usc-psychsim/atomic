@@ -44,16 +44,25 @@ Fires.makeFirePenalty(fireAgent)
            
 world.setOrder([{triageAgent.name}]) #, ,{fireAgent.name}
 
+print('================= INIT')
 world.printState()
 
-Locations.move(triageAgent, 1)
+#Locations.move(triageAgent, 1)
 
-world.printState()
-
-Locations.move(triageAgent, 2)
-
+#print('================= T MOVED TO 1')
+#world.printState()
+#
+#Locations.move(triageAgent, 2)
+#
+#print('================= T MOVED TO 2')
+#world.printState()
+#
+Victims.triage(triageAgent, 0)
+    
+print('================= T TRIAGED ONCE')
 world.printState()
 
 Victims.triage(triageAgent, 0)
     
+print('================= T TRIAGED TWICE')
 world.printState()
