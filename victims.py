@@ -83,10 +83,18 @@ class Victims:
 
     def makeVictimReward(human):
         """
-        Human gets reward when
+        Human gets reward if: a) victim is saved; b) human is the savior; 
+        c) last human action was to save this victim (so reward only obtained once)
         
-        """
-        pass
+        """        
+        for victim in Victims.victimAgents:
+            goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
+                            True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
+                                   True: setToFeatureMatrix(rewardKey(human.name),stateKey(victim.name,'reward')),
+                                   False: setToConstantMatrix(rewardKey(human.name),0)},
+                            False: setToConstantMatrix(rewardKey(human.name),0)})
+            human.setReward(goal,1)
+            break
     
     
     def triage(human, victimID):
