@@ -10,7 +10,7 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
 
 class Victims:
     ## One entry per victim
-    VICTIMS_LOCS = [5,2]
+    VICTIMS_LOCS = [5,3]
     VICTIM_TYPES = [0,1]
     numVictims = len(VICTIM_TYPES)
     

@@ -9,18 +9,20 @@ from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateK
 from psychsim.world import WORLD
 
 class Fires:
-    FIRE_PENALTY = -1000
+    FIRE_PENALTY = -100
+    fireLocations = []
     fireFlags = []
     fireActions = {}
     world = None
     
-    def makeFires(fireLocations):
+    def makeFires(locs):
         """
         Assume locations set at time 0 and don't change except if extinguished
         """
+        Fires.fireLocations = locs
         for i in range(Locations.numLocations):
             key = Fires.world.defineState(WORLD, 'fire_'+str(i), bool)
-            if i in fireLocations:
+            if i in locs:
                 Fires.world.setFeature(key, True)
             else:
                 Fires.world.setFeature(key, False)
@@ -38,6 +40,7 @@ class Fires:
         for dest in range(Locations.numLocations):
             action = human.addAction({'verb': 'extinguish', 'object':str(dest)})
             
+            ## TODO fix this
             legalityTree = makeTree({'if': equalRow(stateKey(WORLD, 'fire_'+str(dest)), True),
                                 True: {'if': equalRow(stateKey(WORLD, 'adj_' + \
                                                                str(Fires.world.getState(human.name, 'loc').max()) + \
@@ -55,15 +58,13 @@ class Fires:
 
     def makeFirePenalty(human):
         """
-        Fire penalty: if fire flag at human's location is True
+        Fire penalty: For every fire location, add a reward tree
         """
-        costTree = makeTree({'if': equalRow( stateKey(WORLD, 
-                                                      Fires.fireFlags[int( human.getState('loc').max() )]), 
-                                          True),
+        for fire in Fires.fireLocations:
+            costTree = makeTree({'if': equalRow(stateKey(human.name, 'loc'),fire),
                                 True: setToConstantMatrix(rewardKey(human.name), Fires.FIRE_PENALTY) ,
-                                False: setToConstantMatrix(rewardKey(human.name),0)})
-        
-        human.setReward(costTree, 1)
+                                False: setToConstantMatrix(rewardKey(human.name),0)})        
+            human.setReward(costTree, 1)
 
     def extinguish(human, fireLoc):
         Fires.world.step(Fires.fireActions[human.name][fireLoc])

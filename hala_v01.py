@@ -28,8 +28,6 @@ Locations.makeMap(6, [(0,1), (1,2), (2,3), (3,4), (1,5)])
 Locations.makePlayerLocation(fireAgent, 0)
 Locations.makePlayerLocation(triageAgent, 1)
 
-tr = Locations.makeLegalTree(Locations.nbrs[1], stateKey(triageAgent.name, 'loc'))
-
 Locations.makeMoveActions(fireAgent)
 Locations.makeMoveActions(triageAgent)
 
@@ -41,8 +39,9 @@ Victims.makeVictimReward(triageAgent)
 
 ################# Fires and extinguish actions
 Fires.world = world
-Fires.makeFires([4])
+Fires.makeFires([2])
 Fires.makeExtinguishActions(fireAgent)
+Fires.makeFirePenalty(triageAgent)
 Fires.makeFirePenalty(fireAgent)
 
 ################# Do stuff !!
@@ -77,18 +76,18 @@ agent.omega = {key for key in world.state.keys() if key not in {modelKey(triageA
 #Locations.move(triageAgent, 3)
 #world.printBeliefs(agent.name)
 #
-for model in ['myopicMod','strategicMod']:
-    result = triageAgent.decide(model=model)
-    print(model, 'chooses:\n%s' % (result['action']))
-
-
-sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
-for action in sequence:
-    print('Agent observes: %s' % (action))
-    result = world.step(action)
-    beliefs = agent.getBelief()
-    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
-    belief = next(iter(agent.getBelief().values()))
-    print('Agent now models player as:')
-    key = modelKey(triageAgent.name)
-    print(world.float2value(key,belief[key]))
+#for model in ['myopicMod','strategicMod']:
+#    result = triageAgent.decide(model=model)
+#    print(model, 'chooses:\n%s' % (result['action']))
+#
+#
+#sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
+#for action in sequence:
+#    print('Agent observes: %s' % (action))
+#    result = world.step(action)
+#    beliefs = agent.getBelief()
+#    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
+#    belief = next(iter(agent.getBelief().values()))
+#    print('Agent now models player as:')
+#    key = modelKey(triageAgent.name)
+#    print(world.float2value(key,belief[key]))
