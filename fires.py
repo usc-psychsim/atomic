@@ -10,18 +10,17 @@ from psychsim.world import WORLD
 
 class Fires:
     FIRE_PENALTY = -1000
-    fireLocations = [1]
     fireFlags = []
     fireActions = {}
     world = None
     
-    def makeFires():
+    def makeFires(fireLocations):
         """
         Assume locations set at time 0 and don't change except if extinguished
         """
         for i in range(Locations.numLocations):
             key = Fires.world.defineState(WORLD, 'fire_'+str(i), bool)
-            if i in Fires.fireLocations:
+            if i in fireLocations:
                 Fires.world.setFeature(key, True)
             else:
                 Fires.world.setFeature(key, False)

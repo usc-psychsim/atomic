@@ -10,12 +10,14 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
 
 class Victims:
     ## One entry per victim
-    VICTIMS_LOCS = [2,3]
+    VICTIMS_LOCS = [5,2]
     VICTIM_TYPES = [0,1]
     numVictims = len(VICTIM_TYPES)
-    ## One entry per victim type
-    TYPE_REWARDS = [10, 20, 30]
-    TYPE_REQD_TIMES = [2, 3, 5]     # number of applications of triage action needed to restore victim to health
+    
+    ## Reward per victim type
+    TYPE_REWARDS = [10, 200, 30]
+    # number of triage actions needed to restore victim to health
+    TYPE_REQD_TIMES = [1, 1, 5]     
 
     victimAgents = []
     triageActions = {}    
@@ -94,7 +96,7 @@ class Victims:
                                    False: setToConstantMatrix(rewardKey(human.name),0)},
                             False: setToConstantMatrix(rewardKey(human.name),0)})
             human.setReward(goal,1)
-            break
+            
     
     
     def triage(human, victimID):
