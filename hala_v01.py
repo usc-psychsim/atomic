@@ -46,7 +46,8 @@ Fires.makeFirePenalty(fireAgent)
 
 ################# Do stuff !!
            
-world.setOrder([{triageAgent.name}]) #, ,{fireAgent.name}
+#world.setOrder([{fireAgent.name}, {triageAgent.name}]) #, 
+world.setOrder([{triageAgent.name}]) #, 
 
 print('================= INIT')
 world.printState()
@@ -68,26 +69,26 @@ agent.resetBelief(ignore={modelKey(agent.name)})
 # Agent starts with uniform distribution over possible triageAgent models
 world.setMentalModel(agent.name,triageAgent.name,Distribution({'myopicMod': 0.5,'strategicMod': 0.5}))
 
-# Agent observes everything except triageAgent's reward received and true models
-agent.omega = {key for key in world.state.keys() if key not in {modelKey(triageAgent.name),modelKey(agent.name),rewardKey(triageAgent.name)}}
+# Agent observes everything except triageAgent's reward received and true models ,rewardKey(triageAgent.name)
+agent.omega = {key for key in world.state.keys() if key not in {modelKey(triageAgent.name),modelKey(agent.name)}}
 
 #Locations.move(triageAgent, 2)
 #world.printBeliefs(agent.name)
 #Locations.move(triageAgent, 3)
 #world.printBeliefs(agent.name)
 #
-#for model in ['myopicMod','strategicMod']:
-#    result = triageAgent.decide(model=model)
-#    print(model, 'chooses:\n%s' % (result['action']))
-#
-#
-#sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
-#for action in sequence:
-#    print('Agent observes: %s' % (action))
-#    result = world.step(action)
-#    beliefs = agent.getBelief()
-#    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
-#    belief = next(iter(agent.getBelief().values()))
-#    print('Agent now models player as:')
-#    key = modelKey(triageAgent.name)
-#    print(world.float2value(key,belief[key]))
+for model in ['myopicMod','strategicMod']:
+    result = triageAgent.decide(model=model)
+    print(model, 'chooses:\n%s' % (result['action']))
+
+
+sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
+for action in sequence:
+    print('Agent observes: %s' % (action))
+    result = world.step(action)
+    beliefs = agent.getBelief()
+    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
+    belief = next(iter(agent.getBelief().values()))
+    print('Agent now models player as:')
+    key = modelKey(triageAgent.name)
+    print(world.float2value(key,belief[key]))

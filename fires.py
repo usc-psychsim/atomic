@@ -5,13 +5,12 @@ Created on Thu Feb 20 11:24:46 2020
 @author: mostafh
 """
 from locations import Locations
-from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey
+from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, stateKey, rewardKey, actionKey
 from psychsim.world import WORLD
 
 class Fires:
     FIRE_PENALTY = -100
     fireLocations = []
-    fireFlags = []
     fireActions = {}
     world = None
     
@@ -26,7 +25,6 @@ class Fires:
                 Fires.world.setFeature(key, True)
             else:
                 Fires.world.setFeature(key, False)
-            Fires.fireFlags.append(key)
     
 
     def makeExtinguishActions(human):
@@ -35,24 +33,19 @@ class Fires:
         Legal if 1) location's fire flag is on; and 2) agent adjacent to location
         Action effects: reset fire flag
         """
-        Fires.fireActions[human.name] = []        
+        Fires.fireActions[human.name] = {}   
  
-        for dest in range(Locations.numLocations):
-            action = human.addAction({'verb': 'extinguish', 'object':str(dest)})
+        for fireLoc in Fires.fireLocations:
+            action = human.addAction({'verb': 'extinguish', 'object':str(fireLoc)})
             
-            ## TODO fix this
-            legalityTree = makeTree({'if': equalRow(stateKey(WORLD, 'fire_'+str(dest)), True),
-                                True: {'if': equalRow(stateKey(WORLD, 'adj_' + \
-                                                               str(Fires.world.getState(human.name, 'loc').max()) + \
-                                                               str(dest)), True),
-                                       True: True,
-                                       False: False},
+            legalityTree = makeTree({'if': equalRow(stateKey(WORLD, 'fire_'+str(fireLoc)), True),
+                                True:  Locations.makeIsNeighborTree(fireLoc, human),
                                 False: False})
                                 
             human.setLegal(action,legalityTree)
-            Fires.fireActions[human.name].append(action)
+            Fires.fireActions[human.name][fireLoc] = action
             
-            key = stateKey(WORLD, 'fire_'+str(dest))
+            key = stateKey(WORLD, 'fire_'+str(fireLoc))
             tree = makeTree(setToConstantMatrix(key, False))
             Fires.world.setDynamics(key,action,tree)
 
@@ -62,7 +55,9 @@ class Fires:
         """
         for fire in Fires.fireLocations:
             costTree = makeTree({'if': equalRow(stateKey(human.name, 'loc'),fire),
-                                True: setToConstantMatrix(rewardKey(human.name), Fires.FIRE_PENALTY) ,
+                                True: {'if': equalRow(stateKey(WORLD, 'fire_'+str(fire)), True),
+                                    True: setToConstantMatrix(rewardKey(human.name), Fires.FIRE_PENALTY) ,
+                                    False: setToConstantMatrix(rewardKey(human.name),0)},
                                 False: setToConstantMatrix(rewardKey(human.name),0)})        
             human.setReward(costTree, 1)
 

@@ -36,19 +36,22 @@ class Locations:
         Locations.world.defineState(human,'loc',int,lo=0,hi=Locations.numLocations-1, description='Location')
         Locations.world.setState(human.name, 'loc', initLoc)
 
-    def makeLegalTree(destNbrs, key):
+    def makeIsNeighborDict(destNbrs, key):
         if destNbrs == []:
             return False
         new = {'if': equalRow(key, destNbrs[0]), 
                True:True, 
-               False:Locations.makeLegalTree(destNbrs[1:], key)}
+               False:Locations.makeIsNeighborDict(destNbrs[1:], key)}
         return new
+    
+    def makeIsNeighborTree(loc, human):
+        return makeTree(Locations.makeIsNeighborDict(Locations.nbrs[loc], stateKey(human.name, 'loc')))
 
     def makeMoveActions(human):
         Locations.moveActions[human.name] = []
         
         for dest in range(Locations.numLocations):         
-            legalityTree = makeTree(Locations.makeLegalTree(Locations.nbrs[dest], stateKey(human.name, 'loc')))
+            legalityTree = Locations.makeIsNeighborTree(dest, human)
             action = human.addAction({'verb': 'move', 'object':str(dest)}, legalityTree)
             Locations.moveActions[human.name].append(action)
             
