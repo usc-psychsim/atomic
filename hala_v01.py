@@ -28,9 +28,6 @@ Locations.makeMap(6, [(0,1), (1,2), (2,3), (3,4), (1,5)])
 Locations.makePlayerLocation(fireAgent, 0)
 Locations.makePlayerLocation(triageAgent, 1)
 
-Locations.makeMoveActions(fireAgent)
-Locations.makeMoveActions(triageAgent)
-
 ################# Victims and triage actions
 Victims.world = world
 Victims.makeVictims([human.name for human in [fireAgent, triageAgent]])
@@ -39,10 +36,9 @@ Victims.makeVictimReward(triageAgent)
 
 ################# Fires and extinguish actions
 Fires.world = world
-Fires.makeFires([2])
-Fires.makeExtinguishActions(fireAgent)
-Fires.makeFirePenalty(triageAgent)
-Fires.makeFirePenalty(fireAgent)
+Fires.firemen = [fireAgent]
+Fires.allPlayers = [triageAgent, fireAgent]
+Fires.makeFires([0])
 
 ################# Do stuff !!
            
@@ -50,7 +46,7 @@ Fires.makeFirePenalty(fireAgent)
 world.setOrder([{triageAgent.name}]) #, 
 
 print('================= INIT')
-world.printState()
+#world.printState()
 
 
 ## Set players horizons and make them unuaware of agent
@@ -72,23 +68,42 @@ world.setMentalModel(agent.name,triageAgent.name,Distribution({'myopicMod': 0.5,
 # Agent observes everything except triageAgent's reward received and true models ,rewardKey(triageAgent.name)
 agent.omega = {key for key in world.state.keys() if key not in {modelKey(triageAgent.name),modelKey(agent.name)}}
 
-#Locations.move(triageAgent, 2)
-#world.printBeliefs(agent.name)
-#Locations.move(triageAgent, 3)
-#world.printBeliefs(agent.name)
+def ignoreVs(human):
+    for v in Victims.victimAgents:
+        human.ignore(v.name, human.name + '0')
+    belle = human.getBelief()[human.name + '0']
+    return belle
 #
-for model in ['myopicMod','strategicMod']:
-    result = triageAgent.decide(model=model)
-    print(model, 'chooses:\n%s' % (result['action']))
+#
+###Locations.move(triageAgent, 2)
+###world.printBeliefs(agent.name)
+###Locations.move(triageAgent, 3)
+###world.printBeliefs(agent.name)
+###
+#
+def showOptions():
+    for model in ['myopicMod','strategicMod']:
+#        result = triageAgent.decide() #model=model
+#        print(model, 'chooses:\n%s' % (result[trueTriageModel]['action']))
 
+        result = triageAgent.decide(model=model)
+        print(model, 'chooses:\n%s' % (result['action']))
 
-sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
-for action in sequence:
-    print('Agent observes: %s' % (action))
-    result = world.step(action)
-    beliefs = agent.getBelief()
-    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
-    belief = next(iter(agent.getBelief().values()))
-    print('Agent now models player as:')
-    key = modelKey(triageAgent.name)
-    print(world.float2value(key,belief[key]))
+showOptions()
+triageLoc = stateKey(triageAgent.name, 'loc')
+Locations.move(triageAgent, 5)
+triageBel = triageAgent.getBelief()[trueTriageModel]
+print(triageBel[triageLoc], world.state[triageLoc])
+
+showOptions()
+#
+#sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
+#for action in sequence:
+#    print('Agent observes: %s' % (action))
+#    result = world.step(action)
+#    beliefs = agent.getBelief()
+#    assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
+#    belief = next(iter(agent.getBelief().values()))
+#    print('Agent now models player as:')
+#    key = modelKey(triageAgent.name)
+#    print(world.float2value(key,belief[key]))

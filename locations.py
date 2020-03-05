@@ -10,6 +10,8 @@ from psychsim.world import WORLD
 import numpy as np
 
 class Locations:
+    """ Exploration bonus"""    
+    EXPLORE = 1
     numLocations = 0
     moveActions = {}
     world = None
@@ -35,19 +37,29 @@ class Locations:
     def makePlayerLocation(human, initLoc):
         Locations.world.defineState(human,'loc',int,lo=0,hi=Locations.numLocations-1, description='Location')
         Locations.world.setState(human.name, 'loc', initLoc)
+        
+        ## Add a seen flag per location
+        for i in range(Locations.numLocations):
+            Locations.world.defineState(human,'seenloc_' + str(i),bool, description='Location seen or not')
+            Locations.world.setState(human.name, 'seenloc_' + str(i), False)
+        Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
+        
+        ## Make move actions
+        Locations.__makeMoveActions(human)
+        Locations.__makeExplorationBonus(human)
 
-    def makeIsNeighborDict(destNbrs, key):
+    def __makeIsNeighborDict(destNbrs, key):
         if destNbrs == []:
             return False
         new = {'if': equalRow(key, destNbrs[0]), 
                True:True, 
-               False:Locations.makeIsNeighborDict(destNbrs[1:], key)}
+               False:Locations.__makeIsNeighborDict(destNbrs[1:], key)}
         return new
     
     def makeIsNeighborTree(loc, human):
-        return makeTree(Locations.makeIsNeighborDict(Locations.nbrs[loc], stateKey(human.name, 'loc')))
+        return makeTree(Locations.__makeIsNeighborDict(Locations.nbrs[loc], stateKey(human.name, 'loc')))
 
-    def makeMoveActions(human):
+    def __makeMoveActions(human):
         Locations.moveActions[human.name] = []
         
         for dest in range(Locations.numLocations):         
@@ -59,6 +71,19 @@ class Locations:
             key = stateKey(human.name,'loc')
             tree = makeTree(setToConstantMatrix(key, dest))
             Locations.world.setDynamics(key,action,tree)
+            
+            key = stateKey(human.name,'seenloc_'+str(dest))
+            tree = makeTree(setToConstantMatrix(key, True))
+            Locations.world.setDynamics(key,action,tree)
+            
+    def __makeExplorationBonus(human):        
+        for dest in range(Locations.numLocations):
+            bonus = makeTree({'if': equalRow(stateKey(human.name, 'loc'), dest),
+                                True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),
+                                    True: setToConstantMatrix(rewardKey(human.name), Locations.EXPLORE) ,
+                                    False: setToConstantMatrix(rewardKey(human.name),0)},
+                                False: setToConstantMatrix(rewardKey(human.name),0)})        
+            human.setReward(bonus, 1)
 
     def move(human, dest):
         Locations.world.step(Locations.moveActions[human.name][dest])
