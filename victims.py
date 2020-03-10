@@ -6,7 +6,7 @@ Created on Thu Feb 20 11:23:22 2020
 """
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
-    equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey
+    equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent
 
 class Victims:
     ## One entry per victim
@@ -43,7 +43,27 @@ class Victims:
             victim.setState('savior', 'none')
             
             Victims.victimAgents.append(victim)
+    
+    def makeVictimObs(human):
+        """
+        Create observed varibles 
+        """
+        Victims.world.defineState(human, 'obs_victim_status', list,['null', 'unsaved','saved','dead'])
+        human.setState('obs_victim_status','null')
+        Victims.world.defineState(human, 'obs_victim_danger', float)
+        human.setState('obs_victim_danger', 0)
+        Victims.world.defineState(human, 'obs_victim_reward', float)
+        human.setState('obs_victim_reward', 0)
 
+
+    def ignoreVictims(human):           
+        """ Remove any victim ground truth from observation
+        """
+        omega = human.omega
+        for vi in Victims.victimAgents:
+            omega = {var for var in omega if not (isStateKey(var) and (state2agent(var) == vi.name))}
+        human.omega = omega
+        
     def makeTriageAction(human):
         """
         Create a triage action per victim
@@ -53,6 +73,7 @@ class Victims:
         """        
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
+            ## TODO change to use observed variables
             legalityTree = makeTree({'if': equalFeatureRow(
                                                 stateKey(victim.name, 'loc'), 
                                                 stateKey(human.name, 'loc')),        
@@ -82,13 +103,16 @@ class Victims:
             ## Danger: dencrement danger by 1
             tree = makeTree(incrementMatrix(dangerKey,-1))
             Victims.world.setDynamics(dangerKey,action,tree)
+            
+        Victims.makeVictimReward(human)
 
     def makeVictimReward(human):
         """
         Human gets reward if: a) victim is saved; b) human is the savior; 
         c) last human action was to save this victim (so reward only obtained once)
         
-        """        
+        """ 
+        ## TODO change to use observed variables
         for victim in Victims.victimAgents:
             goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
                             True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
@@ -97,7 +121,24 @@ class Victims:
                             False: setToConstantMatrix(rewardKey(human.name),0)})
             human.setReward(goal,1)
             
+   
+    def makeNearVDict(victims, humanLocKey, humanObsKey, victimKey, defaultValue):
+        """
+        Recursively test if human is co-located with any of the victims.
+        If True, set humanObsKey to the value of victimKey
+        If not co-located with any victim, set humanObsKey to the defaultValue
+        """
+        if victims == []:
+            return setToConstantMatrix(humanObsKey, defaultValue)
+        new = {'if': equalFeatureRow(humanLocKey, stateKey(victims[0].name, 'loc')), 
+               True: setToFeatureMatrix(humanObsKey, stateKey(victims[0].name, victimKey)), 
+               False: Victims.makeNearVDict(victims[1:], humanLocKey, humanObsKey, victimKey, defaultValue)}
+        return new
     
+    def makeNearVTree(humanLocKey, humanObsKey, victimKey, defaultValue):
+        return makeTree(Victims.makeNearVDict(Victims.victimAgents, 
+                                                humanLocKey, humanObsKey,
+                                                victimKey, defaultValue)) 
     
     def triage(human, victimID):
         Victims.world.step(Victims.triageActions[human.name][victimID])

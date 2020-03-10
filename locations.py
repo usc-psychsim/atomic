@@ -6,8 +6,7 @@ Created on Thu Feb 20 11:27:36 2020
 """
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey
 from psychsim.world import WORLD
-
-import numpy as np
+from victims import Victims
 
 class Locations:
     """ Exploration bonus"""    
@@ -60,6 +59,12 @@ class Locations:
         return makeTree(Locations.__makeIsNeighborDict(Locations.nbrs[loc], stateKey(human.name, 'loc')))
 
     def __makeMoveActions(human):
+        """
+        An action per destination
+        Legality: if neigbor to current location
+        Dynamics: 1) change human's location; 2) set the seen flag for new location to True
+        3) Set the observable victim variables to the first victim at the new location, if any
+        """
         Locations.moveActions[human.name] = []
         
         for dest in range(Locations.numLocations):         
@@ -68,13 +73,29 @@ class Locations:
             Locations.moveActions[human.name].append(action)
             
             # Dynamics of this move action: change the agent's location to 'this' location
-            key = stateKey(human.name,'loc')
-            tree = makeTree(setToConstantMatrix(key, dest))
-            Locations.world.setDynamics(key,action,tree)
+            locKey = stateKey(human.name,'loc')
+            tree = makeTree(setToConstantMatrix(locKey, dest))
+            Locations.world.setDynamics(locKey,action,tree)
             
+            # Set the seenloc flag
             key = stateKey(human.name,'seenloc_'+str(dest))
             tree = makeTree(setToConstantMatrix(key, True))
             Locations.world.setDynamics(key,action,tree)
+            
+            # Observe status of victim in destination
+            key = stateKey(human.name, 'obs_victim_status')
+            tree1 = Victims.makeNearVTree(locKey, key, 'status', 'none')
+            Locations.world.setDynamics(key,action,tree1)
+            
+            # Observe danger of victim in destination
+            key = stateKey(human.name, 'obs_victim_danger')
+            tree2 = Victims.makeNearVTree(locKey, key, 'danger', 0)
+            Locations.world.setDynamics(key,action,tree2)
+            
+            # Observe reward of victim in destination
+            key = stateKey(human.name, 'obs_victim_reward')
+            tree3 = Victims.makeNearVTree(locKey, key, 'reward', 0)
+            Locations.world.setDynamics(key,action,tree3)
             
     def __makeExplorationBonus(human):        
         for dest in range(Locations.numLocations):
