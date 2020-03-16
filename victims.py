@@ -59,7 +59,10 @@ class Victims:
     def ignoreVictims(human):           
         """ Remove any victim ground truth from observation
         """
-        omega = human.omega
+        if human.omega == True:
+            omega = {var for var in Victims.world.variables.keys()}
+        else:
+            omega = human.omega
         for vi in Victims.victimAgents:
             omega = {var for var in omega if not (isStateKey(var) and (state2agent(var) == vi.name))}
         human.omega = omega
