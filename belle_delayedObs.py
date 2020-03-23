@@ -30,7 +30,8 @@ if not Victims.FULL_OBS:
 ################# Locations and Move actions
 Locations.world = world
 Locations.makeMap([(0,1), (1,2)])
-Locations.makePlayerLocation(triageAgent, 0)
+initTLoc = 0
+Locations.makePlayerLocation(triageAgent, initTLoc)
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
@@ -38,28 +39,15 @@ triageAgent.omega = {actionKey(triageAgent.name)}
 
 ## Set uncertain beliefs
 if not Victims.FULL_OBS:
-    triageAgent.omega = triageAgent.omega.union({stateKey(triageAgent.name, obs) for obs in \
-                                                 ['obs_victim_status', 'obs_victim_reward', 'obs_victim_danger']})
+    triageAgent.omega = triageAgent.omega.union(\
+                        {stateKey(triageAgent.name, obs) for obs in \
+                        ['obs_victim_status', 'obs_victim_reward', 'obs_victim_danger']})
     Victims.beliefAboutVictims(triageAgent)
 
-          
+print('======= Init at', initTLoc)
 world.printBeliefs(triageAgent.name)
 
-Locations.move(triageAgent, 1)
-print('======= After moving')
-
-world.printBeliefs(triageAgent.name)
-
-#belief = next(iter(triageAgent.getBelief().values()))
-#print(world.float2value(triageLoc,belief[triageLoc]))
-
-#
-#
-#
-#''' The true model of triageAgent has incorrect beliefs about its location
-#    It also has info about victims, which shouldn't be there
-#'''
-#trueTriageModel = next(iter(triageAgent.models.keys())) 
-#print('triageAgent.models[trueTriageModel]')
-#print('triage loc', triageAgent.models[trueTriageModel]['beliefs'][triageLoc])
-#print('victim0 loc', triageAgent.models[trueTriageModel]['beliefs']['victim0\'s loc'])
+for nxt in [1,2]:
+    Locations.move(triageAgent, nxt)
+    print('======= After moving to ', nxt)    
+    world.printBeliefs(triageAgent.name)
