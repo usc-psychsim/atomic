@@ -49,14 +49,20 @@ if not Victims.FULL_OBS:
     Victims.beliefAboutVictims(triageAgent)
 
 
+print("Initial State")
 world.printBeliefs(triageAgent.name)
-input("Press key to advance")
+
+# move to victim and triage
+input("Press key for triageAgent to move ot victim and triage")
 Locations.move(triageAgent, 2)
 Victims.triage(triageAgent, 0)
-print('======= After moving')
-print("with 'vic_targeted'=%s, Reward was:",vic_targeted)
+# print results
+print('===REWARD GAINED AFTER TRIAGE===')
+print('state `vic_targeted` is: ', vic_targeted)
 print(triageAgent.reward())
+print('================================')
 
+print('Final State')
 world.printBeliefs(triageAgent.name)
 
 #belief = next(iter(triageAgent.getBelief().values()))
