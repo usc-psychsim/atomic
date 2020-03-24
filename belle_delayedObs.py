@@ -49,10 +49,10 @@ world.printBeliefs(triageAgent.name)
 
 """
 Victim is in loc 2.
-Triager originally in loc 1 where it has uniform belief over victim being in 1,2,3
-When Triager moves to 1, it's belief should assign 0 to victim being in 1. But that only happens
+Triager originally in loc 0 where it has uniform belief over victim being in 0,1,2
+When Triager moves to 1, its belief should assign 0 to victim being in 1. But that only happens
 when triager moves to 2.
-When Triager moves to 2, it's belief should assign 1 to victim being in 2. But that only happens
+When Triager moves to 2, its belief should assign 1 to victim being in 2. But that only happens
 when triager moves to back to 1.
 """
 
