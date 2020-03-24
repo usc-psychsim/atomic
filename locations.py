@@ -99,7 +99,9 @@ class Locations:
                 tree3 = Victims.makeNearVTree(locKey, key, 'reward', 0)
                 Locations.world.setDynamics(key,action,tree3)
             
-    def __makeExplorationBonus(human):        
+    def __makeExplorationBonus(human):    
+        if Locations.EXPLORE_BONUS <= 0:
+            return
         for dest in range(Locations.numLocations):
             bonus = makeTree({'if': equalRow(stateKey(human.name, 'loc'), dest),
                                 True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),

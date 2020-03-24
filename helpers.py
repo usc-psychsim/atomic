@@ -21,7 +21,8 @@ def showOptions(triageAgent):
 #        print(model, 'chooses:\n%s' % (result[trueTriageModel]['action']))            
             
 def setBeliefs(world, agent, triageAgent):    
-    trueTriageModel = next(iter(triageAgent.models.keys())) # Get the canonical name of the "true" player model
+    # Get the canonical name of the "true" player model
+    trueTriageModel = next(iter(triageAgent.models.keys())) 
     
     # Agent does not model itself
     agent.resetBelief(ignore={modelKey(agent.name)})
@@ -33,7 +34,7 @@ def setBeliefs(world, agent, triageAgent):
     
     # Agent observes everything except triageAgent's reward received and true models 
     agent.omega = {key for key in world.state.keys() if key not in \
-                   {rewardKey(triageAgent.name), modelKey(triageAgent.name),modelKey(agent.name)}}
+                   {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name), 
     
             
 def testMMBelUpdate(world, agent, triageAgent, destinations):
