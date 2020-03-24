@@ -20,16 +20,11 @@ def showOptions(triageAgent):
         print(model, 'chooses:\n%s' % (result['action']))
 #        print(model, 'chooses:\n%s' % (result[trueTriageModel]['action']))            
             
-def setBeliefs(world, agent, triageAgent, fireAgent):
-    ## Set players horizons and make them unuaware of agent and victims
-    for human in [triageAgent, fireAgent]:
-        human.setAttribute('horizon',4)
-        human.omega = {var for var in world.state.keys()}
-        human.ignore(agent.name,  next(iter(human.models.keys())))
-        Victims.ignoreVictims(human)
-    
-    ## MMs for triage agent 
+def setBeliefs(world, agent, triageAgent):    
     trueTriageModel = next(iter(triageAgent.models.keys())) # Get the canonical name of the "true" player model
+    
+    # Agent does not model itself
+    agent.resetBelief(ignore={modelKey(agent.name)})
     
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
@@ -41,11 +36,12 @@ def setBeliefs(world, agent, triageAgent, fireAgent):
                    {rewardKey(triageAgent.name), modelKey(triageAgent.name),modelKey(agent.name)}}
     
             
-def testAgentBelUpdate(world, agent, triageAgent):
-    sequence = [Locations.moveActions[triageAgent.name][2], Locations.moveActions[triageAgent.name][3]]
+def testMMBelUpdate(world, agent, triageAgent, destinations):
+    setBeliefs(world, agent, triageAgent)
+    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in destinations]
     for action in sequence:
-        print('Agent observes: %s' % (action))
-        result = world.step(action)
+        print('Agent action: %s' % (action))
+        world.step(action)  #result = 
         beliefs = agent.getBelief()
         assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
         belief = next(iter(agent.getBelief().values()))

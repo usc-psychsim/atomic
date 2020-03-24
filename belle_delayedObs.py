@@ -47,7 +47,16 @@ if not Victims.FULL_OBS:
 print('======= Init at', initTLoc)
 world.printBeliefs(triageAgent.name)
 
-for nxt in [1,2]:
+"""
+Victim is in loc 2.
+Triager originally in loc 1 where it has uniform belief over victim being in 1,2,3
+When Triager moves to 1, it's belief should assign 0 to victim being in 1. But that only happens
+when triager moves to 2.
+When Triager moves to 2, it's belief should assign 1 to victim being in 2. But that only happens
+when triager moves to back to 1.
+"""
+
+for nxt in [1,2,1]:
     Locations.move(triageAgent, nxt)
     print('======= After moving to ', nxt)    
     world.printBeliefs(triageAgent.name)

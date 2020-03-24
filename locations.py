@@ -10,7 +10,7 @@ from victims import Victims
 
 class Locations:
     """ Exploration bonus"""    
-    EXPLORE = 1
+    EXPLORE_BONUS = 1
     numLocations = 0
     moveActions = {}
     world = None
@@ -103,7 +103,7 @@ class Locations:
         for dest in range(Locations.numLocations):
             bonus = makeTree({'if': equalRow(stateKey(human.name, 'loc'), dest),
                                 True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),
-                                    True: setToConstantMatrix(rewardKey(human.name), Locations.EXPLORE) ,
+                                    True: setToConstantMatrix(rewardKey(human.name), Locations.EXPLORE_BONUS) ,
                                     False: setToConstantMatrix(rewardKey(human.name),0)},
                                 False: setToConstantMatrix(rewardKey(human.name),0)})        
             human.setReward(bonus, 1)
