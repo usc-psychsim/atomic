@@ -9,6 +9,13 @@ from psychsim.pwl import stateKey, Distribution, actionKey
 from locations import Locations
 from victims import Victims
 
+def print_methods(obj):
+    # useful for finding methods of an object
+    obj = triageAgent
+    object_methods = [method_name for method_name in dir(obj)
+                      if callable(getattr(obj, method_name))]
+    print(object_methods)
+
 # MDP or POMDP
 Victims.FULL_OBS = True
 
@@ -18,7 +25,7 @@ agent = world.addAgent('ATOMIC')
 
 # create a 'victim targeted' state that must be true for triage to be successful
 vic_trgt = world.defineState(triageAgent.name,'vic_targeted',bool)
-vic_targeted = True
+vic_targeted = False
 triageAgent.setState('vic_targeted',vic_targeted)
 
 ################# Victims and triage actions
@@ -27,6 +34,7 @@ VICTIMS_LOCS = [2]
 VICTIM_TYPES = [0]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
+Victims.makePreTriageAction(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
@@ -53,14 +61,25 @@ print("Initial State")
 world.printBeliefs(triageAgent.name)
 
 # move to victim and triage
-input("Press key for triageAgent to move ot victim and triage")
+move_to = 2
+print("moving to ", move_to)
 Locations.move(triageAgent, 2)
+x = input("Press 'y' to do preTriage, 'n' to skip preTriage: ")
+if x == 'y':
+    Victims.pre_triage(triageAgent, 0)
+elif x == 'n':
+    # do nothing since default is False
+    pass
+else:
+    print("did not recognize key, proceeding without preTriage")
+
+print('##########')
+print('victim_targeted:', triageAgent.getState('vic_targeted'))
+print('##########')
+
+input('Press key to apply triage')
 Victims.triage(triageAgent, 0)
-# print results
-print('===REWARD GAINED AFTER TRIAGE===')
-print('state `vic_targeted` is: ', vic_targeted)
 print(triageAgent.reward())
-print('================================')
 
 print('Final State')
 world.printBeliefs(triageAgent.name)

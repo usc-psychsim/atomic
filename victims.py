@@ -19,6 +19,7 @@ class Victims:
 
     victimAgents = []
     triageActions = {}
+    preTriageActions = {}
     world = None
 
     def makeVictims(vLocations, vTypes, humanNames):
@@ -80,6 +81,31 @@ class Victims:
 #        for vi in Victims.victimAgents:
 #            omega = {var for var in omega if not (isStateKey(var) and (state2agent(var) == vi.name))}
 #        human.omega = omega
+    def makePreTriageAction(human):
+        """
+        Create a pre-triage action per victim
+        Legal action if: Human and victim are in same location;
+        Action effects: Always decrement victim's danger
+        """
+        Victims.preTriageActions[human.name] = []
+        for victim in Victims.victimAgents:
+            # vic_target action
+            # if victim and player are in the same location
+            v_loc = stateKey(victim.name, 'loc')
+            h_loc = stateKey(human.name, 'loc')
+
+            vt_legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
+                                        True: True,
+                                        False: False})
+
+            vt_action = human.addAction({'verb': 'target victim', 'object':victim.name}, vt_legalityTree)
+
+            ## Change 'victim tareted' to True when making the 'target viction' action
+            vtKey = stateKey(human.name, 'vic_targeted')
+            vtTree = makeTree(setToConstantMatrix(vtKey,True))
+            Victims.world.setDynamics(vtKey,vt_action,vtTree)
+
+            Victims.preTriageActions[human.name].append(vt_action)
 
     def makeTriageAction(human):
         """
@@ -91,13 +117,17 @@ class Victims:
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
             ## TODO change to use observed variables
-            legalityTree = makeTree({'if': equalFeatureRow(
-                                                stateKey(victim.name, 'loc'),
-                                                stateKey(human.name, 'loc')),
-                                True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
-                                       True: True,
-                                       False: False},
-                                False: False})
+            # triage action
+            v_loc = stateKey(victim.name, 'loc')
+            h_loc = stateKey(human.name, 'loc')
+
+            legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
+                                    True: {'if': equalRow(stateKey(victim.name, 'vic_targeted'), True),
+                                        True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
+                                            True: True,
+                                            False: False},
+                                        False: False},
+                                    False: False})
             action = human.addAction({'verb': 'triage', 'object':victim.name}, legalityTree)
             Victims.triageActions[human.name].append(action)
 
@@ -161,3 +191,6 @@ class Victims:
 
     def triage(human, victimID):
         Victims.world.step(Victims.triageActions[human.name][victimID])
+
+    def pre_triage(human, victimID):
+        Victims.world.step(Victims.preTriageActions[human.name][victimID])
