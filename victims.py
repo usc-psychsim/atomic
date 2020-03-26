@@ -62,7 +62,7 @@ class Victims:
             d.normalize()
             human.setBelief(stateKey(vic.name, 'status'), d)
             
-            d = Distribution({loc:1 for loc in range(locations.Locations.numLocations)})
+            d = Distribution({loc:1 for loc in range(1,locations.Locations.numLocations)})
             d.normalize()            
             human.setBelief(stateKey(vic.name, 'loc'), d)
             
