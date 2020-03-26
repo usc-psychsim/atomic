@@ -4,7 +4,7 @@ Created on Thu Feb 20 11:27:36 2020
 
 @author: mostafh
 """
-from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey
+from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture
 from psychsim.world import WORLD
 from victims import Victims
 
@@ -86,17 +86,17 @@ class Locations:
                 # Set observed variables to victim's features
                 # 1. Observe status of victim in destination
                 key = stateKey(human.name, 'obs_victim_status')
-                tree1 = Victims.makeNearVTree(locKey, key, 'status', 'none')
+                tree1 = Victims.makeNearVTree(makeFuture(locKey), key, 'status', 'none')
                 Locations.world.setDynamics(key,action,tree1)
                 
                 # 2. Observe danger of victim in destination
                 key = stateKey(human.name, 'obs_victim_danger')
-                tree2 = Victims.makeNearVTree(locKey, key, 'danger', 0)
+                tree2 = Victims.makeNearVTree(makeFuture(locKey), key, 'danger', 0)
                 Locations.world.setDynamics(key,action,tree2)
                 
                 # 3. Observe reward of victim in destination
                 key = stateKey(human.name, 'obs_victim_reward')
-                tree3 = Victims.makeNearVTree(locKey, key, 'reward', 0)
+                tree3 = Victims.makeNearVTree(makeFuture(locKey), key, 'reward', 0)
                 Locations.world.setDynamics(key,action,tree3)
             
     def __makeExplorationBonus(human):    
