@@ -57,13 +57,24 @@ if not Victims.FULL_OBS:
     Victims.beliefAboutVictims(triageAgent)
 
 
+######################
+## Beign Simulation
+######################
 print("Initial State")
 world.printBeliefs(triageAgent.name)
 
 # move to victim and triage
-move_to = 1
+m = input("Move to '0', '1' or '2'?")
+if m == '0' or m == '1' or m == '2':
+    move_to = int(m)
+else:
+    print("didn't recognize option, moving to 0")
+    move_to = 0
+
 print("moving to ", move_to)
-Locations.move(triageAgent, mote_to)
+Locations.move(triageAgent, move_to)
+
+# choose whether to pre-triage
 x = input("Press 'y' to do preTriage, 'n' to skip preTriage: ")
 if x == 'y':
     Victims.pre_triage(triageAgent, 0)
@@ -83,17 +94,3 @@ print(triageAgent.reward())
 
 print('Final State')
 world.printBeliefs(triageAgent.name)
-
-#belief = next(iter(triageAgent.getBelief().values()))
-#print(world.float2value(triageLoc,belief[triageLoc]))
-
-#
-#
-#
-#''' The true model of triageAgent has incorrect beliefs about its location
-#    It also has info about victims, which shouldn't be there
-#'''
-#trueTriageModel = next(iter(triageAgent.models.keys()))
-#print('triageAgent.models[trueTriageModel]')
-#print('triage loc', triageAgent.models[trueTriageModel]['beliefs'][triageLoc])
-#print('victim0 loc', triageAgent.models[trueTriageModel]['beliefs']['victim0\'s loc'])
