@@ -61,9 +61,9 @@ print("Initial State")
 world.printBeliefs(triageAgent.name)
 
 # move to victim and triage
-move_to = 2
+move_to = 1
 print("moving to ", move_to)
-Locations.move(triageAgent, 2)
+Locations.move(triageAgent, mote_to)
 x = input("Press 'y' to do preTriage, 'n' to skip preTriage: ")
 if x == 'y':
     Victims.pre_triage(triageAgent, 0)
