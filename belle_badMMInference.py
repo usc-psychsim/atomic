@@ -8,7 +8,7 @@ from psychsim.world import World
 from psychsim.pwl import stateKey, Distribution, actionKey
 from locations import Locations
 from victims import Victims
-from helpers import testMMBelUpdate
+from helpers import testMMBelUpdate, tryHorizon
 
 Victims.FULL_OBS = True
 
