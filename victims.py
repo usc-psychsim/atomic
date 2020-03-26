@@ -129,13 +129,15 @@ class Victims:
         c) last human action was to save this victim (so reward only obtained once)
         
         """ 
-        ## TODO change to use observed variables
-        for victim in Victims.victimAgents:
+        rew = rewardKey(human.name)
+        for victimID, victim in enumerate(Victims.victimAgents):
             goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
                             True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
-                                   True: setToFeatureMatrix(rewardKey(human.name),stateKey(victim.name,'reward')),
-                                   False: setToConstantMatrix(rewardKey(human.name),0)},
-                            False: setToConstantMatrix(rewardKey(human.name),0)})
+                                   True: {'if': equalRow(actionKey(human.name), Victims.triageActions[human.name][victimID]),
+                                          True: setToFeatureMatrix(rew, stateKey(victim.name,'reward')),
+                                          False: setToConstantMatrix(rew, 0)},
+                                   False: setToConstantMatrix(rew, 0)},
+                            False: setToConstantMatrix(rew, 0)})
             human.setReward(goal,1)
             
    
