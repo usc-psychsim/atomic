@@ -122,7 +122,7 @@ class Victims:
             h_loc = stateKey(human.name, 'loc')
 
             legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
-                                    True: {'if': equalRow(stateKey(victim.name, 'vic_targeted'), True),
+                                    True: {'if': equalRow(stateKey(human.name, 'vic_targeted'), True),
                                         True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
                                             True: True,
                                             False: False},
