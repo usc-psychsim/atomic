@@ -31,8 +31,8 @@ triageAgent.setState('vic_targeted',vic_targeted)
 
 ################# Victims and triage actions
 ## One entry per victim
-VICTIMS_LOCS = [2]
-VICTIM_TYPES = [0]
+VICTIMS_LOCS = [2,4]
+VICTIM_TYPES = [0,0]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
 Victims.makePreTriageAction(triageAgent)
@@ -44,7 +44,7 @@ if not Victims.FULL_OBS:
 
 ################# Locations and Move actions
 Locations.world = world
-Locations.makeMap([(0,1), (1,2)])
+Locations.makeMap([(0,1), (1,2), (1,3), (3,4), (0,4)])
 Locations.makePlayerLocation(triageAgent, 0)
 
 ## These must come before setting triager's beliefs
@@ -82,8 +82,8 @@ while cmd != '':
         pass
 
     if cmd == 's':
-        print('Triage Agent Reward: ', triageAgent.reward())
         world.printBeliefs(triageAgent.name)
+        print('Triage Agent Reward: ', triageAgent.reward())
     elif cmd == '':
         print('Finishing Simulation')
 
