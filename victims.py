@@ -7,7 +7,7 @@ Created on Thu Feb 20 11:23:22 2020
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
-    Distribution
+    Distribution, setFalseMatrix, noChangeMatrix
 import locations
 
 class Victims:
@@ -94,14 +94,17 @@ class Victims:
             v_loc = stateKey(victim.name, 'loc')
             h_loc = stateKey(human.name, 'loc')
 
+            vtKey = stateKey(human.name, 'vic_targeted')
+
             vt_legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
-                                        True: True,
+                                        True: {'if': equalRow(vtKey,False),
+                                            True: True,
+                                            False: False},
                                         False: False})
 
             vt_action = human.addAction({'verb': 'target victim', 'object':victim.name}, vt_legalityTree)
 
             ## Change 'victim tareted' to True when making the 'target viction' action
-            vtKey = stateKey(human.name, 'vic_targeted')
             vtTree = makeTree(setToConstantMatrix(vtKey,True))
             Victims.world.setDynamics(vtKey,vt_action,vtTree)
 
@@ -156,18 +159,18 @@ class Victims:
     def makeVictimReward(human):
         """
         Human gets reward if: a) victim is saved; b) human is the savior;
-        c) last human action was to save this victim (so reward only obtained once), d) victim was targeted (i.e. cross-hair on victim)
+         c) victim is targeted (i.e. cross-hair on victim), d) last human action was to save this victim (so reward only obtained once),
 
         """
         ## TODO change to use observed variables
         for victim in Victims.victimAgents:
             goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
-                            True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
-                                True: {'if': equalRow(stateKey(human.name, 'vic_targeted'),True),
+                            True: {'if': equalRow(stateKey(human.name, 'vic_targeted'),True),
+                                True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
                                     True: setToFeatureMatrix(rewardKey(human.name),stateKey(victim.name,'reward')),
-                                    False: setToConstantMatrix(rewardKey(human.name),0)},
-                                False: setToConstantMatrix(rewardKey(human.name),0)},
-                            False: setToConstantMatrix(rewardKey(human.name),0)})
+                                    False: noChangeMatrix(rewardKey(human.name))},
+                                False: noChangeMatrix(rewardKey(human.name))},
+                            False: noChangeMatrix(rewardKey(human.name))})
             human.setReward(goal,1)
 
 
