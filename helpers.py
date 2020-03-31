@@ -5,9 +5,9 @@ Created on Mon Mar  9 18:11:14 2020
 @author: mostafh
 """
 
-from psychsim.pwl import state2agent, isStateKey, modelKey, rewardKey, Distribution
+from psychsim.pwl import state2agent, isStateKey, modelKey, rewardKey, Distribution, actionKey, stateKey
 from victims import Victims
-from locations import Locations
+from new_locations import Locations
 
 def printAgent(world, name):
     for key in world.state.keys():
@@ -37,9 +37,9 @@ def setBeliefs(world, agent, triageAgent):
                    {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name), 
     
             
-def testMMBelUpdate(world, agent, triageAgent, destinations):
+def testMMBelUpdate(world, agent, triageAgent, directions):
     setBeliefs(world, agent, triageAgent)
-    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in destinations]
+    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in directions]
     for action in sequence:
         print('Agent action: %s' % (action))
         world.step(action)  #result = 
@@ -49,3 +49,18 @@ def testMMBelUpdate(world, agent, triageAgent, destinations):
         print('Agent now models player as:')
         key = modelKey(triageAgent.name)
         print(world.float2value(key,belief[key]))
+        
+def tryHorizon(world, hz, triageAgent, initLoc):
+    pos = stateKey(triageAgent.name, 'loc')
+    for i in range(1, hz + 1):
+        print('====================================')
+        print('Horizon: {}'.format(str(i)), 'init pos', initLoc)
+    
+        # reset
+        world.setFeature(pos, initLoc)
+        triageAgent.setHorizon(i)
+    
+        for t in range(i):
+            print(triageAgent.getActions())
+            world.step()
+            print('>>> Took Action', world.getValue(actionKey(triageAgent.name)), triageAgent.reward())

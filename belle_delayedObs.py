@@ -6,7 +6,7 @@ Created on Wed Feb 19 14:35:40 2020
 """
 from psychsim.world import World
 from psychsim.pwl import stateKey, Distribution, actionKey
-from locations import Locations
+from new_locations import Locations, Directions
 from victims import Victims
 
 Victims.FULL_OBS = False
@@ -29,7 +29,7 @@ if not Victims.FULL_OBS:
 
 ################# Locations and Move actions
 Locations.world = world
-Locations.makeMap([(0,1), (1,2)])
+Locations.makeMap([(0,Directions.E, 1), (1,Directions.E,2)])
 initTLoc = 0
 Locations.makePlayerLocation(triageAgent, initTLoc)
 

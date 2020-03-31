@@ -8,7 +8,7 @@ Created on Thu Feb 20 11:23:22 2020
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution
-import locations
+import new_locations
 
 class Victims:
     FULL_OBS = None
@@ -62,7 +62,7 @@ class Victims:
             d.normalize()
             human.setBelief(stateKey(vic.name, 'status'), d)
             
-            d = Distribution({loc:1 for loc in range(1,locations.Locations.numLocations)})
+            d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations})
             d.normalize()            
             human.setBelief(stateKey(vic.name, 'loc'), d)
             
@@ -90,7 +90,6 @@ class Victims:
         """        
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
-            ## TODO change to use observed variables
             legalityTree = makeTree({'if': equalFeatureRow(
                                                 stateKey(victim.name, 'loc'), 
                                                 stateKey(human.name, 'loc')),        

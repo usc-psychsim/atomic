@@ -6,9 +6,9 @@ Created on Wed Feb 19 14:35:40 2020
 """
 from psychsim.world import World
 from psychsim.pwl import stateKey, Distribution, actionKey
-from locations import Locations
+from new_locations import Locations, Directions
 from victims import Victims
-from helpers import testMMBelUpdate, tryHorizon
+from helpers import testMMBelUpdate, tryHorizon, setBeliefs
 
 Victims.FULL_OBS = True
 
@@ -27,7 +27,7 @@ Victims.makeTriageAction(triageAgent)
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
-Locations.makeMap([(0,1), (1,2), (1,3)])
+Locations.makeMap([(0,Directions.E, 1), (1,Directions.E,2), (1,Directions.S,3)])
 Locations.makePlayerLocation(triageAgent, 0)
 
 ## These must come before setting triager's beliefs
@@ -45,3 +45,4 @@ But in the following, agent doesn't correctly update belief over MM
 and has 50-50 belief over myopic/strategic after player moves to 2.
 """          
 testMMBelUpdate(world, agent, triageAgent, [1,2])
+#setBeliefs(world, agent, triageAgent)

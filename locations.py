@@ -5,7 +5,6 @@ Created on Thu Feb 20 11:27:36 2020
 @author: mostafh
 """
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture
-from psychsim.world import WORLD
 from victims import Victims
 
 class Locations:
@@ -27,11 +26,6 @@ class Locations:
         for (i,j) in pairsList:        
             Locations.nbrs[i].append(j)
             Locations.nbrs[j].append(i)
-            
-        for i in range(Locations.numLocations):
-            for j in range(Locations.numLocations):
-                key = Locations.world.defineState(WORLD, 'adj_'+str(i) + str(j), bool)                
-                Locations.world.setFeature(key, ((i,j) in pairsList) or ((j,i) in pairsList))
                 
     def makePlayerLocation(human, initLoc):
         Locations.world.defineState(human,'loc',int,lo=0,hi=Locations.numLocations-1, description='Location')
