@@ -73,10 +73,17 @@ while cmd != '':
         print(n,': ',a)
 
     print()
+    cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
     try:
-        cmd = int(input('select action, press return with no entry to stop: '))
-        Victims.world.step(list(legalActions)[cmd])
+        cmd_int = int(cmd)
+        Victims.world.step(list(legalActions)[cmd_int])
     except:
-        cmd = ''
+        #do nothing
+        pass
+
+    if cmd == 's':
+        print('Triage Agent Reward: ', triageAgent.reward())
+        world.printBeliefs(triageAgent.name)
+    elif cmd == '':
         print('Finishing Simulation')
 
