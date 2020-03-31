@@ -16,6 +16,7 @@ def print_methods(obj):
                       if callable(getattr(obj, method_name))]
     print(object_methods)
 
+
 # MDP or POMDP
 Victims.FULL_OBS = True
 
@@ -60,37 +61,22 @@ if not Victims.FULL_OBS:
 ######################
 ## Beign Simulation
 ######################
-print("Initial State")
+print('Initial State')
 world.printBeliefs(triageAgent.name)
 
-# move to victim and triage
-#  m = input("Move to '0', '1' or '2'?")
-#  if m == '0' or m == '1' or m == '2':
-    #  move_to = int(m)
-#  else:
-    #  print("didn't recognize option, moving to 0")
-    #  move_to = 0
-#
-#  print("moving to ", move_to)
-#  Locations.move(triageAgent, move_to)
+cmd = 'blank'
 
-# choose whether to pre-triage
-#  x = input("Press 'y' to do preTriage, 'n' to skip preTriage: ")
-#  if x == 'y':
-    #  Victims.pre_triage(triageAgent, 0)
-#  elif x == 'n':
-    #  # do nothing since default is False
-    #  pass
-#  else:
-    #  print("did not recognize key, proceeding without preTriage")
-#
-#  print('##########')
-#  print('victim_targeted:', triageAgent.getState('vic_targeted'))
-#  print('##########')
-#
-#  input('Press key to apply triage')
-#  Victims.triage(triageAgent, 0)
-#  print(triageAgent.reward())
-#
-#  print('Final State')
-#  world.printBeliefs(triageAgent.name)
+while cmd != '':
+    legalActions = triageAgent.getActions()
+    print('Legal Actions:')
+    for a,n in zip(legalActions,range(len(legalActions))):
+        print(n,': ',a)
+
+    print()
+    try:
+        cmd = int(input('select action, press return with no entry to stop: '))
+        Victims.world.step(list(legalActions)[cmd])
+    except:
+        cmd = ''
+        print('Finishing Simulation')
+
