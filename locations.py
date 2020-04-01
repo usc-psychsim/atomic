@@ -4,17 +4,18 @@ Created on Thu Feb 20 11:27:36 2020
 
 @author: mostafh
 """
-from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture
+from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture, setFalseMatrix
+from psychsim.world import WORLD
 from victims import Victims
 
 class Locations:
-    """ Exploration bonus"""    
+    """ Exploration bonus"""
     EXPLORE_BONUS = 1
     numLocations = 0
     moveActions = {}
     world = None
     nbrs = []
-    
+
     def makeMap(pairsList):
         """
         Ground truth of initial map
@@ -22,10 +23,15 @@ class Locations:
         Locations.numLocations = max(max(pairsList)) + 1
         for i in range(Locations.numLocations):
             Locations.nbrs.append([])
-            
-        for (i,j) in pairsList:        
+
+        for (i,j) in pairsList:
             Locations.nbrs[i].append(j)
             Locations.nbrs[j].append(i)
+
+        for i in range(Locations.numLocations):
+            for j in range(Locations.numLocations):
+                key = Locations.world.defineState(WORLD, 'adj_'+str(i) + str(j), bool)
+                Locations.world.setFeature(key, ((i,j) in pairsList) or ((j,i) in pairsList))
                 
     def makePlayerLocation(human, initLoc):
         Locations.world.defineState(human,'loc',int,lo=0,hi=Locations.numLocations-1, description='Location')
@@ -44,8 +50,8 @@ class Locations:
     def __makeIsNeighborDict(destNbrs, key):
         if destNbrs == []:
             return False
-        new = {'if': equalRow(key, destNbrs[0]), 
-               True:True, 
+        new = {'if': equalRow(key, destNbrs[0]),
+               True:True,
                False:Locations.__makeIsNeighborDict(destNbrs[1:], key)}
         return new
     
@@ -61,7 +67,7 @@ class Locations:
         """
         Locations.moveActions[human.name] = []
         
-        for dest in range(Locations.numLocations):         
+        for dest in range(Locations.numLocations):
             legalityTree = Locations.makeIsNeighborTree(dest, human)
             action = human.addAction({'verb': 'move', 'object':str(dest)}, legalityTree)
             Locations.moveActions[human.name].append(action)
@@ -75,7 +81,13 @@ class Locations:
             key = stateKey(human.name,'seenloc_'+str(dest))
             tree = makeTree(setToConstantMatrix(key, True))
             Locations.world.setDynamics(key,action,tree)
-            
+
+            # Unset the vic_targeted flag
+            vtKey = stateKey(human.name,'vic_targeted')
+            tree = makeTree(setFalseMatrix(vtKey))
+            Locations.world.setDynamics(vtKey,action,tree)
+
+
             if not Victims.FULL_OBS:
                 # Set observed variables to victim's features
                 # 1. Observe status of victim in destination
@@ -101,7 +113,7 @@ class Locations:
                                 True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),
                                     True: setToConstantMatrix(rewardKey(human.name), Locations.EXPLORE_BONUS) ,
                                     False: setToConstantMatrix(rewardKey(human.name),0)},
-                                False: setToConstantMatrix(rewardKey(human.name),0)})        
+                                False: setToConstantMatrix(rewardKey(human.name),0)})
             human.setReward(bonus, 1)
 
     def move(human, dest):
