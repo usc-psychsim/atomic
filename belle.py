@@ -4,7 +4,7 @@ Created on Wed Feb 19 14:35:40 2020
 
 @author: mostafh
 """
-from psychsim.world import World
+from psychsim.world import World, WORLD
 from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
@@ -56,9 +56,9 @@ Locations.makePlayerLocation(triageAgent, 0)
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
 
-## Set players horizons 
+## Set players horizons
 triageAgent.setAttribute('horizon',4)
-    
+
 ## Set uncertain beliefs
 if not Victims.FULL_OBS:
     triageAgent.omega = {actionKey(triageAgent.name)}
@@ -77,6 +77,9 @@ cmd = 'blank'
 
 while cmd != '':
     legalActions = triageAgent.getActions()
+    agent_state = triageAgent.getState('loc')
+    print("Player state: ", agent_state)
+    print("reward: ",triageAgent.reward())
     print('Legal Actions:')
     for a,n in zip(legalActions,range(len(legalActions))):
         print(n,': ',a)
