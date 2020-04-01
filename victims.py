@@ -7,7 +7,7 @@ Created on Thu Feb 20 11:23:22 2020
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
-    Distribution, setFalseMatrix, noChangeMatrix
+    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix
 import new_locations
 
 class Victims:
@@ -30,13 +30,13 @@ class Victims:
 
             Victims.world.defineState(victim.name,'status',list,['unsaved','saved','dead'])
             victim.setState('status','unsaved')
-            
+
             Victims.world.defineState(victim.name,'danger',float,description='How far victim is from health')
             victim.setState('danger', Victims.TYPE_REQD_TIMES[vTypes[vi]])
-            
+
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
             victim.setState('reward', Victims.TYPE_REWARDS[vTypes[vi]])
-            
+
             Victims.world.defineState(victim.name,'loc',int,description='Room number where victim is')
             victim.setState('loc', vLocations[vi])
 
@@ -62,9 +62,9 @@ class Victims:
             d = Distribution({'unsaved':1,'saved':1,'dead':1})
             d.normalize()
             human.setBelief(stateKey(vic.name, 'status'), d)
-           
+
             d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations})
-            d.normalize()            
+            d.normalize()
             human.setBelief(stateKey(vic.name, 'loc'), d)
 
             human.setBelief(stateKey(vic.name, 'savior'), Distribution({'none':1}))
@@ -164,10 +164,10 @@ class Victims:
         rew = rewardKey(human.name)
         for victimID, victim in enumerate(Victims.victimAgents):
             goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
-                            True: {'if': equalRow(stateKey(human.name, 'vic_targeted'),True),
-                                True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
-                                    True: {'if': equalRow(actionKey(human.name), Victims.triageActions[human.name][victimID]),                                    
-                                        True: setToFeatureMatrix(rew,stateKey(victim.name,'reward')),
+                            True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
+                                True: {'if': equalRow(actionKey(human.name), Victims.triageActions[human.name][victimID]),
+                                    True: {'if': equalRow(stateKey(human.name, 'vic_targeted'),True),
+                                        True: addFeatureMatrix(rew,stateKey(victim.name,'reward')),
                                         False: noChangeMatrix(rew)},
                                     False: noChangeMatrix(rew)},
                                 False: noChangeMatrix(rew)},

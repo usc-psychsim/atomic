@@ -5,7 +5,7 @@ Created on Thu Feb 20 11:27:36 2020
 @author: mostafh
 """
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture,\
-                        setToFeatureMatrix, setFalseMatrix
+                        setToFeatureMatrix, setFalseMatrix, noChangeMatrix, addFeatureMatrix
 from psychsim.world import WORLD
 from victims import Victims
 
@@ -129,9 +129,9 @@ class Locations:
         for dest in range(Locations.numLocations):
             bonus = makeTree({'if': equalRow(stateKey(human.name, 'loc'), dest),
                                 True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),
-                                    True: setToConstantMatrix(rewardKey(human.name), Locations.EXPLORE) ,
-                                    False: setToConstantMatrix(rewardKey(human.name),0)},
-                                False: setToConstantMatrix(rewardKey(human.name),0)})
+                                    True: addFeatureMatrix(rewardKey(human.name), Locations.EXPLORE_BONUS) ,
+                                    False: noChangeMatrix(rewardKey(human.name))},
+                                False: noChangeMatrix(rewardKey(human.name))})
             human.setReward(bonus, 1)
 
     def move(human, direction):
