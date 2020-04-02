@@ -42,7 +42,7 @@ if not Victims.FULL_OBS:
     triageAgent.omega = triageAgent.omega.union(\
                         {stateKey(triageAgent.name, obs) for obs in \
                         ['obs_victim_status', 'obs_victim_reward', 'obs_victim_danger']})
-    Victims.beliefAboutVictims(triageAgent)
+    Victims.beliefAboutVictims(triageAgent, initTLoc)
 
 print('======= Init at', initTLoc)
 world.printBeliefs(triageAgent.name)
@@ -50,13 +50,12 @@ world.printBeliefs(triageAgent.name)
 """
 Victim is in loc 2.
 Triager originally in loc 0 where it has uniform belief over victim being in 0,1,2
-When Triager moves to 1, its belief should assign 0 to victim being in 1. But that only happens
-when triager moves to 2.
-When Triager moves to 2, its belief should assign 1 to victim being in 2. But that only happens
-when triager moves to back to 1.
+When Triager moves to 1, its belief should assign 0 to victim being in 1. 
+When Triager moves to 2, its belief should assign 1 to victim being in 2 and all observed variable
+should be set to values from the victim in 2.
 """
 
-for nxt in [1,2,1]:
+for nxt in [Directions.E, Directions.E, Directions.W]:
     Locations.move(triageAgent, nxt)
-    print('======= After moving to ', nxt)    
+    print('======= After moving to ', triageAgent.getState('loc'))    
     world.printBeliefs(triageAgent.name)

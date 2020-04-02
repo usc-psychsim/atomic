@@ -28,11 +28,6 @@ world.setFeature(k, 1)
 triageAgent = world.addAgent('TriageAg1')
 agent = world.addAgent('ATOMIC')
 
-# create a 'victim targeted' state that must be true for triage to be successful
-vic_trgt = world.defineState(triageAgent.name,'vic_targeted',bool)
-vic_targeted = False
-triageAgent.setState('vic_targeted',vic_targeted)
-
 ################# Victims and triage actions
 ## One entry per victim
 VICTIMS_LOCS = [2,4]
@@ -73,29 +68,29 @@ if not Victims.FULL_OBS:
 print('Initial State')
 world.printBeliefs(triageAgent.name)
 
-cmd = 'blank'
-
-while cmd != '':
-    legalActions = triageAgent.getActions()
-    agent_state = triageAgent.getState('loc')
-    print("Player state: ", agent_state)
-    print("reward: ",triageAgent.reward())
-    print('Legal Actions:')
-    for a,n in zip(legalActions,range(len(legalActions))):
-        print(n,': ',a)
-
-    print()
-    cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
-    try:
-        cmd_int = int(cmd)
-        Victims.world.step(list(legalActions)[cmd_int])
-    except:
-        #do nothing
-        pass
-
-    if cmd == 's':
-        world.printBeliefs(triageAgent.name)
-        print('Triage Agent Reward: ', triageAgent.reward())
-    elif cmd == '':
-        print('Finishing Simulation')
-
+#cmd = 'blank'
+#
+#while cmd != '':
+#    legalActions = triageAgent.getActions()
+#    agent_state = triageAgent.getState('loc')
+#    print("Player state: ", agent_state)
+#    print("reward: ",triageAgent.reward())
+#    print('Legal Actions:')
+#    for a,n in zip(legalActions,range(len(legalActions))):
+#        print(n,': ',a)
+#
+#    print()
+#    cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
+#    try:
+#        cmd_int = int(cmd)
+#        Victims.world.step(list(legalActions)[cmd_int])
+#    except:
+#        #do nothing
+#        pass
+#
+#    if cmd == 's':
+#        world.printBeliefs(triageAgent.name)
+#        print('Triage Agent Reward: ', triageAgent.reward())
+#    elif cmd == '':
+#        print('Finishing Simulation')
+#

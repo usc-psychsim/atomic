@@ -8,7 +8,7 @@ from psychsim.world import World
 from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
-from helpers import testMMBelUpdate, tryHorizon, setBeliefs
+from helpers import testMMBelUpdate, tryHorizon, setBeliefs, printASISTBel
 
 Victims.FULL_OBS = True
 
@@ -44,5 +44,5 @@ If player then moves to 2, no way he's strategic.
 But in the following, agent doesn't correctly update belief over MM
 and has 50-50 belief over myopic/strategic after player moves to 2.
 """          
-testMMBelUpdate(world, agent, triageAgent, [1,2])
+#testMMBelUpdate(world, agent, triageAgent, [Directions.E, Directions.E])
 #setBeliefs(world, agent, triageAgent)

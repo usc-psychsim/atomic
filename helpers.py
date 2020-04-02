@@ -25,7 +25,7 @@ def setBeliefs(world, agent, triageAgent):
     trueTriageModel = next(iter(triageAgent.models.keys())) 
     
     # Agent does not model itself
-    agent.resetBelief(ignore={modelKey(agent.name)})
+#    agent.resetBelief(ignore={modelKey(agent.name)})
     
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
@@ -33,9 +33,13 @@ def setBeliefs(world, agent, triageAgent):
     world.setMentalModel(agent.name,triageAgent.name,Distribution({'myopicMod': 0.5,'strategicMod': 0.5}))
     
     # Agent observes everything except triageAgent's reward received and true models 
-    agent.omega = {key for key in world.state.keys() if key not in \
-                   {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name), 
+    agent.omega = {key for key in world.state.keys() if key not in [modelKey(triageAgent.name)]} #rewardKey(triageAgent.name), 
     
+def printASISTBel(world, triageAgent, agent):
+    belief = next(iter(agent.getBelief().values()))
+    print('Agent now models player as:')
+    key = modelKey(triageAgent.name)
+    print(world.float2value(key,belief[key]))
             
 def testMMBelUpdate(world, agent, triageAgent, directions):
     setBeliefs(world, agent, triageAgent)
@@ -43,12 +47,8 @@ def testMMBelUpdate(world, agent, triageAgent, directions):
     for action in sequence:
         print('Agent action: %s' % (action))
         world.step(action)  #result = 
-        beliefs = agent.getBelief()
-        assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
-        belief = next(iter(agent.getBelief().values()))
-        print('Agent now models player as:')
-        key = modelKey(triageAgent.name)
-        print(world.float2value(key,belief[key]))
+        assert len(agent.getBelief()) == 1 # Because we are dealing with a known-identity agent
+        printASISTBel(world, triageAgent, agent)
         
 def tryHorizon(world, hz, triageAgent, initLoc):
     pos = stateKey(triageAgent.name, 'loc')

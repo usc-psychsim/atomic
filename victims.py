@@ -56,20 +56,29 @@ class Victims:
         Victims.world.defineState(human, 'obs_victim_reward', float)
         human.setState('obs_victim_reward', 0)
 
-    def beliefAboutVictims(human):
-        """ Create uncertain beliefs about each victim's properties"""
+    def beliefAboutVictims(human, initHumanLoc):
+        """ 
+        Create uncertain beliefs about each victim's properties. For each victim:
+        A) If human's initial location = victim initial's location, human knows victim is right there
+        B) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
+        """
+        
         for vic in Victims.victimAgents:
             d = Distribution({'unsaved':1,'saved':1,'dead':1})
             d.normalize()
             human.setBelief(stateKey(vic.name, 'status'), d)
-
-            d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations})
-            d.normalize()
-            human.setBelief(stateKey(vic.name, 'loc'), d)
+            
+            initVicLoc = next(iter(Victims.victimAgents[0].getState('loc').keys()))
+            
+            if initVicLoc == initHumanLoc:
+                d = Distribution({initVicLoc:1})
+                human.setBelief(stateKey(vic.name, 'loc'), d)
+            else:
+                d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations if not loc==initHumanLoc})
+                d.normalize()
+                human.setBelief(stateKey(vic.name, 'loc'), d)
 
             human.setBelief(stateKey(vic.name, 'savior'), Distribution({'none':1}))
-#            human.setBelief(stateKey(vic.name, 'savior'), Distribution({0:1}))
-
 
 #    def ignoreVictims(human):
 #        """ Remove any victim ground truth from observation
@@ -116,7 +125,13 @@ class Victims:
         Legal action if: 1) human and victim are in same location; 2)victim is unsaved
         Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
         b) Always decrement victim's danger
+        ALSO: add a pre-triage condition to the human
         """
+        # create a 'victim targeted' state that must be true for triage to be successful
+        Victims.world.defineState(human.name,'vic_targeted',bool)
+        human.setState('vic_targeted',False)
+
+
         Victims.triageActions[human.name] = []
         for victim in Victims.victimAgents:
             # triage action
