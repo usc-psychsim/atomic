@@ -80,6 +80,7 @@ while cmd != '':
     agent_state = triageAgent.getState('loc')
     print("Player state: ", agent_state)
     print("reward: ",triageAgent.reward())
+    #  print(triageAgent.getAttribute('R',model='TriageAg10'))
     print('Legal Actions:')
     for a,n in zip(legalActions,range(len(legalActions))):
         print(n,': ',a)

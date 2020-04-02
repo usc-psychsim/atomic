@@ -158,20 +158,21 @@ class Victims:
     def makeVictimReward(human):
         """
         Human gets reward if: a) victim is saved; b) human is the savior;
-         c) victim is targeted (i.e. cross-hair on victim), d) last human action was to save this victim (so reward only obtained once),
+        c) last human action was to save this victim (so reward only obtained once),
 
         """
-        rew = rewardKey(human.name)
+        rkey = rewardKey(human.name)
         for victimID, victim in enumerate(Victims.victimAgents):
+            rval = stateKey(victim.name, 'reward')
+            #  goal = makeTree(addFeatureMatrix(rkey,rval))
             goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
                             True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
                                 True: {'if': equalRow(actionKey(human.name), Victims.triageActions[human.name][victimID]),
-                                    True: {'if': equalRow(stateKey(human.name, 'vic_targeted'),True),
-                                        True: addFeatureMatrix(rew,stateKey(victim.name,'reward')),
-                                        False: noChangeMatrix(rew)},
-                                    False: noChangeMatrix(rew)},
-                                False: noChangeMatrix(rew)},
-                            False: noChangeMatrix(rew)})
+                                    #  True: setToFeatureMatrix(rkey,stateKey(victim.name, 'reward')),
+                                    True: addFeatureMatrix(rkey,rval),
+                                    False: noChangeMatrix(rkey)},
+                                False: noChangeMatrix(rkey)},
+                            False: setToConstantMatrix(rkey,0)})
             human.setReward(goal,1)
 
 
