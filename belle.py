@@ -34,8 +34,8 @@ VICTIMS_LOCS = [2,4]
 VICTIM_TYPES = [0,0]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
-Victims.makePreTriageAction(triageAgent)
 Victims.makeTriageAction(triageAgent)
+Victims.makePreTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
 if not Victims.FULL_OBS:
@@ -45,8 +45,11 @@ if not Victims.FULL_OBS:
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
 #Locations.makeMap([(0,1), (1,2), (1,3)])
-Locations.makeMap([(0,Directions.E, 1), (0,Directions.N,3), (1,Directions.E,2), (2,Directions.E,3), (3,Directions.N,4)])
-Locations.makePlayerLocation(triageAgent, 0)
+#  Locations.makeMap([])
+Locations.makeMapDict(Locations.SandR_Locs)
+input("press key to proceed")
+Locations.makePlayerLocation(triageAgent, "XHC")
+input("completed")
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])

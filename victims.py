@@ -57,19 +57,19 @@ class Victims:
         human.setState('obs_victim_reward', 0)
 
     def beliefAboutVictims(human, initHumanLoc):
-        """ 
+        """
         Create uncertain beliefs about each victim's properties. For each victim:
         A) If human's initial location = victim initial's location, human knows victim is right there
         B) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
         """
-        
+
         for vic in Victims.victimAgents:
             d = Distribution({'unsaved':1,'saved':1,'dead':1})
             d.normalize()
             human.setBelief(stateKey(vic.name, 'status'), d)
-            
+
             initVicLoc = next(iter(Victims.victimAgents[0].getState('loc').keys()))
-            
+
             if initVicLoc == initHumanLoc:
                 d = Distribution({initVicLoc:1})
                 human.setBelief(stateKey(vic.name, 'loc'), d)
@@ -176,6 +176,7 @@ class Victims:
         c) last human action was to save this victim (so reward only obtained once),
 
         """
+        #  the reward is being added twice when triaging the second victim... need ot look into this more
         rkey = rewardKey(human.name)
         for victimID, victim in enumerate(Victims.victimAgents):
             rval = stateKey(victim.name, 'reward')
