@@ -9,7 +9,7 @@ from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
 from helpers import testMMBelUpdate
-from SandRMap import getSandRMap, getSandRVictims
+from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims
 
 def print_methods(obj):
     # useful for finding methods of an object
@@ -22,7 +22,11 @@ def print_methods(obj):
 # MDP or POMDP
 Victims.FULL_OBS = True
 
-SandRLocs = getSandRMap()
+##################
+##### Get Map Data
+SandRLocs = getSmallSandRMap()
+SandRVics = getSmallSandRVictims()
+##################
 
 world = World()
 k = world.defineState(WORLD, 'seconds', int)
@@ -31,13 +35,12 @@ world.setFeature(k, 0)
 triageAgent = world.addAgent('TriageAg1')
 agent = world.addAgent('ATOMIC')
 
-SandRVics = getSandRVictims()
 
 VICTIMS_LOCS = list(SandRVics.keys())
 VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
-Victims.makePreTriageAction(triageAgent)
+#  ictims.makePreTriageAction(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
@@ -49,9 +52,9 @@ Locations.EXPLORE_BONUS = 0
 Locations.world = world
 #Locations.makeMap([(0,1), (1,2), (1,3)])
 #  Locations.makeMap([])
-Locations.makeMapDict(Locations.SandR_Locs)
+Locations.makeMapDict(SandRLocs)
 input("press key to proceed")
-Locations.makePlayerLocation(triageAgent, "XHC")
+Locations.makePlayerLocation(triageAgent, "LH2")
 input("completed")
 
 ## These must come before setting triager's beliefs
