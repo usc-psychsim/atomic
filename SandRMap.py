@@ -1,5 +1,16 @@
 from new_locations import Directions
 
+def getSmallSandRMap():
+    # small verison of map for debugging
+    DN = Directions.N
+    DS = Directions.S
+    DE = Directions.E
+    DW = Directions.W
+
+    SandRLocs = {"LH1":{DN:"LH2",DE:"XHL2"},"LH2":{DN:"LH3",DS:"LH1",DE:"203"},"LH3":{DE:"205"},\
+            "216S":{DN:"216N",DE:"RH1",DW:"209"}}
+    return SandRLocs
+
 def getSandRMap():
     DN = Directions.N
     DS = Directions.S
@@ -35,4 +46,9 @@ def getSandRVictims():
     SandRVics = {"LH3":2, "MR":1, "WR":0, "E1":0, "E2":1, "201":1, "203":0, "205":1, "207":1,\
                 "210":0, "208N":0, "RJ":0, "209":1, "211":1, "213":1, "215":0, "220":1, "218":2,\
                 "216N":0, "216S":1}
+    return SandRVics
+
+def getSmallSandRVictims():
+    # small version of victims for debugging
+    SandRVics = {"LH1":0, "LH3":2, "216S":1}
     return SandRVics
