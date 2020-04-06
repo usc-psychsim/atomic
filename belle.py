@@ -9,6 +9,7 @@ from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
 from helpers import testMMBelUpdate
+from SandRMap import getSandRMap, getSandRVictims
 
 def print_methods(obj):
     # useful for finding methods of an object
@@ -21,6 +22,8 @@ def print_methods(obj):
 # MDP or POMDP
 Victims.FULL_OBS = True
 
+SandRLocs = getSandRMap()
+
 world = World()
 k = world.defineState(WORLD, 'seconds', int)
 world.setFeature(k, 0)
@@ -28,14 +31,14 @@ world.setFeature(k, 0)
 triageAgent = world.addAgent('TriageAg1')
 agent = world.addAgent('ATOMIC')
 
-################# Victims and triage actions
-## One entry per victim
-VICTIMS_LOCS = [2,4]
-VICTIM_TYPES = [0,0]
+SandRVics = getSandRVictims()
+
+VICTIMS_LOCS = list(SandRVics.keys())
+VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
 Victims.world = world
-Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
-Victims.makeTriageAction(triageAgent)
+Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
 Victims.makePreTriageAction(triageAgent)
+Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
 if not Victims.FULL_OBS:
