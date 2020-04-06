@@ -21,6 +21,10 @@ class Locations:
     EXPLORE_BONUS = 0
     moveActions = {}
     world = None
+    """
+    Nbrs: map from each direction d to a map of each location loc that has a neighbor in direction
+    d to that neighbor 
+    """
     Nbrs = []
     AllLocations = set()
     DN = Directions.N
@@ -68,20 +72,20 @@ class Locations:
                 Locations.Nbrs[d][room] = n
                 Locations.AllLocations.add(n)
 
-    def makePlayerLocation(human, initLoc):
-        loc_list = list(Locations.SandR_Locs.keys())
-        Locations.world.defineState(human, 'loc', list, loc_list, description='Location')
-        Locations.world.setState(human.name, 'loc', initLoc)
+    def makePlayerLocation(human, initLoc=None):
+        Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
+        if initLoc:
+            Locations.world.setState(human.name, 'loc', initLoc)
 
         ## Add a seen flag per location
         for i in Locations.AllLocations:
             Locations.world.defineState(human,'seenloc_' + str(i),bool, description='Location seen or not')
             Locations.world.setState(human.name, 'seenloc_' + str(i), False)
-
-        Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
+        if initLoc:
+            Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)
+        Locations.__makeMoveActions(human)        
         Locations.__makeExplorationBonus(human)
 
     def __makeHasNeighborDict(locKey, direction, locsWithNbrs):
@@ -120,8 +124,6 @@ class Locations:
         for direction in range(4):
             legalityTree = Locations.__makeHasNeighborTree(locKey, direction)
             action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]}, legalityTree)
-            THIS IS SILENTLY BREAKING....NEED TO TROUBLESHOOT THIS...
-            print("HERE#######################")
             Locations.moveActions[human.name].append(action)
 
             # Dynamics of this move action: change the agent's location to 'this' location
@@ -172,3 +174,16 @@ class Locations:
 
     def move(human, direction):
         Locations.world.step(Locations.moveActions[human.name][direction])
+        
+    def getDirection(src, dest):
+        for d in range(4):
+            if (src in Locations.Nbrs[d].keys()) and (Locations.Nbrs[d][src] == dest):
+                return d
+        print('Source cannot reach dest', src, dest)
+        return -1
+    
+    def moveToLocation(human, src, dest):
+       Locations.world.step(Locations.getMoveAction(human, src, dest))
+        
+    def getMoveAction(human, src, dest):        
+        Locations.moveActions[human.name][Locations.getDirection(src, dest)]
