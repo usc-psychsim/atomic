@@ -21,6 +21,10 @@ class Locations:
     EXPLORE_BONUS = 0
     moveActions = {}
     world = None
+    """
+    Nbrs: map from each direction d to a map of each location loc that has a neighbor in direction
+    d to that neighbor 
+    """
     Nbrs = []
     AllLocations = set()
 
@@ -36,18 +40,20 @@ class Locations:
             Locations.AllLocations.add(z1)
             Locations.AllLocations.add(z2)
 
-    def makePlayerLocation(human, initLoc):
-        Locations.world.defineState(human,'loc',int, description='Location')
-        Locations.world.setState(human.name, 'loc', initLoc)
+    def makePlayerLocation(human, initLoc=None):
+        Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
+        if initLoc:
+            Locations.world.setState(human.name, 'loc', initLoc)
 
         ## Add a seen flag per location
         for i in Locations.AllLocations:
             Locations.world.defineState(human,'seenloc_' + str(i),bool, description='Location seen or not')
             Locations.world.setState(human.name, 'seenloc_' + str(i), False)
-        Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
+        if initLoc:
+            Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)
+        Locations.__makeMoveActions(human)        
         Locations.__makeExplorationBonus(human)
 
     def __makeHasNeighborDict(locKey, direction, locsWithNbrs):
@@ -136,3 +142,16 @@ class Locations:
 
     def move(human, direction):
         Locations.world.step(Locations.moveActions[human.name][direction])
+        
+    def getDirection(src, dest):
+        for d in range(4):
+            if (src in Locations.Nbrs[d].keys()) and (Locations.Nbrs[d][src] == dest):
+                return d
+        print('Source cannot reach dest', src, dest)
+        return -1
+    
+    def moveToLocation(human, src, dest):
+       Locations.world.step(Locations.getMoveAction(human, src, dest))
+        
+    def getMoveAction(human, src, dest):        
+        Locations.moveActions[human.name][Locations.getDirection(src, dest)]

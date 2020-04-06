@@ -34,7 +34,7 @@ class Victims:
     preTriageActions = {}
     world = None
 
-    def makeVictims(vLocations, vTypes, humanNames):
+    def makeVictims(vLocations, vTypes, humanNames, locationNames):
         assert(len(vLocations) == len(vTypes))
         Victims.numVictims = len(vTypes)
         for vi in range(Victims.numVictims):
@@ -49,7 +49,7 @@ class Victims:
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
             victim.setState('reward', Victims.TYPE_REWARDS[vTypes[vi]])
 
-            Victims.world.defineState(victim.name,'loc',int,description='Room number where victim is')
+            Victims.world.defineState(victim.name,'loc',list, locationNames)
             victim.setState('loc', vLocations[vi])
 
             Victims.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
@@ -242,8 +242,14 @@ class Victims:
                                                 humanLocKey, humanObsKey,
                                                 victimKey, defaultValue))
 
+    def getTriageAction(human, room, vicColor):
+        return Victims.triageActions[human.name][room][vicColor]
+
     def triage(human, room, vicColor):
-        Victims.world.step(Victims.triageActions[human.name][room][vicColor])
+        Victims.world.step(Victims.makeTriageAction(human, room, vicColor))
+
+    def getPretriageAction(human, room, vicColor):
+        return Victims.preTriageActions[human.name][room][vicColor]
 
     def pre_triage(human, room, vicColor):
-        Victims.world.step(Victims.preTriageActions[human.name][room][vicColor])
+        Victims.world.step(Victims.getPretriageAction(human, room, vicColor))
