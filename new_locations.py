@@ -65,7 +65,9 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
+        print("going in")
         Locations.__makeMoveActions(human)
+        print("coming out")
         Locations.__makeExplorationBonus(human)
 
     def __makeHasNeighborDict(locKey, direction, locsWithNbrs):
@@ -77,19 +79,24 @@ class Locations:
         return new
 
     def __makeHasNeighborTree(locKey, direction):
-        return makeTree(Locations.__makeHasNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
+        res = makeTree(Locations.__makeHasNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
+        return res
 
     def __makeGetNeighborDict(locKey, direction, locsWithNbrs):
         if locsWithNbrs == []:
-            return setToConstantMatrix(locKey, -1)
+            res = setToConstantMatrix(locKey, -1)
+            print(res)
+            return res
         new = {'if': equalRow(locKey, locsWithNbrs[0]),
                True:setToConstantMatrix(locKey, Locations.Nbrs[direction][locsWithNbrs[0]]),
                False:Locations.__makeGetNeighborDict(locKey, direction, locsWithNbrs[1:])}
         return new
 
     def __makeGetNeighborTree(locKey, direction):
-        return makeTree(Locations.__makeGetNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
-
+        res = makeTree(Locations.__makeGetNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
+        print(res)
+        input()
+        return res
 
     def __makeMoveActions(human):
         """
@@ -102,8 +109,11 @@ class Locations:
         locKey = stateKey(human.name, 'loc')
 
         for direction in range(4):
+            print("Direction: ",direction)
             legalityTree = Locations.__makeHasNeighborTree(locKey, direction)
-            action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]}, legalityTree)
+            print(legalityTree)
+            action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]},legalityTree)
+            print("HERE")
             Locations.moveActions[human.name].append(action)
 
             # Dynamics of this move action: change the agent's location to 'this' location
