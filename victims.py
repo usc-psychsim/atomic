@@ -20,10 +20,10 @@ class Victim:
 class Victims:
     FULL_OBS = None
     ## Reward per victim type
-    TYPE_REWARDS = [10, 200]
+    TYPE_REWARDS = [10, 200, 40, 400]
     # number of triage actions needed to restore victim to health
-    TYPE_REQD_TIMES = [1, 1]
-    TYPE_EXPIRY = [15*60, 7*60]
+    TYPE_REQD_TIMES = [1, 5, 2, 10]
+    TYPE_EXPIRY = [15*60, 7*60, 15*60, 7*60]
     VictimTypes = []
 
     # A dict mapping a room to a dict mapping a color to the corresponding victim object
@@ -59,7 +59,7 @@ class Victims:
                 Victims.victimAgents[vLocations[vi]] = {}
             Victims.victimAgents[vLocations[vi]][vTypes[vi]] = Victim(vLocations[vi], vTypes[vi],\
                                  Victims.TYPE_EXPIRY[vTypes[vi]], victim)
-            
+
         # When done initalizing all victims, initialize action data structures
         for humanN in humanNames:
             Victims.preTriageActions[humanN] = {}
@@ -88,16 +88,16 @@ class Victims:
         A) If human's initial location = victim initial's location, human knows victim is right there
         B) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
         """
-        
+
         for room in Victims.victimAgents.keys():
             for vicObj in Victims.victimAgents[room].items():
                 vic = vicObj.vicAgent
                 d = Distribution({'unsaved':1,'saved':1,'dead':1})
                 d.normalize()
                 human.setBelief(stateKey(vic.name, 'status'), d)
-                
+
                 initVicLoc = vicObj.room
-                
+
                 if initVicLoc == initHumanLoc:
                     d = Distribution({initVicLoc:1})
                     human.setBelief(stateKey(vic.name, 'loc'), d)
@@ -105,7 +105,7 @@ class Victims:
                     d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations if not loc==initHumanLoc})
                     d.normalize()
                     human.setBelief(stateKey(vic.name, 'loc'), d)
-    
+
                 human.setBelief(stateKey(vic.name, 'savior'), Distribution({'none':1}))
 
 #    def ignoreVictims(human):
@@ -124,11 +124,11 @@ class Victims:
         Legal action if: Human and victim are in same location;
         Action effects: Always decrement victim's danger
         """
-        
+
         # create a 'victim targeted' state that must be true for triage to be successful
         Victims.world.defineState(human.name,'vic_targeted',bool)
         human.setState('vic_targeted',False)
-        
+
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
@@ -136,23 +136,23 @@ class Victims:
                 # if victim and player are in the same location
                 v_loc = stateKey(victim.name, 'loc')
                 h_loc = stateKey(human.name, 'loc')
-    
+
                 vtKey = stateKey(human.name, 'vic_targeted')
-    
+
                 vt_legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
                                             True: {'if': equalRow(vtKey,False),
                                                 True: True,
                                                 False: False},
                                             False: False})
-    
+
                 vt_action = human.addAction({'verb': 'target victim', 'object':victim.name}, vt_legalityTree)
-    
+
                 ## Change 'victim tareted' to True when making the 'target viction' action
                 vtTree = makeTree(setToConstantMatrix(vtKey,True))
                 Victims.world.setDynamics(vtKey,vt_action,vtTree)
-    
+
                 Victims.preTriageActions[human.name][room][vicColor] = vt_action
-    
+
     def makeTriageAction(human):
         """
         Create a triage action per victim
@@ -171,7 +171,7 @@ class Victims:
                 # triage action
                 v_loc = stateKey(victim.name, 'loc')
                 h_loc = stateKey(human.name, 'loc')
-    
+
                 legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
                                         True: {'if': equalRow(stateKey(human.name, 'vic_targeted'), True),
                                             True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
@@ -180,29 +180,29 @@ class Victims:
                                             False: False},
                                         False: False})
                 action = human.addAction({'verb': 'triage', 'object':victim.name}, legalityTree)
-    
+
                 statusKey = stateKey(victim.name,'status')
                 dangerKey = stateKey(victim.name,'danger')
-    
+
                 ## Status: if danger is down to 0, victim is saved
                 tree = makeTree({'if': equalRow(dangerKey, 1),
                                  True: setToConstantMatrix(statusKey, 'saved'),
                                  False: setToConstantMatrix(statusKey, 'unsaved')})
                 Victims.world.setDynamics(statusKey,action,tree)
-    
+
                 ## Savior name: if danger is down to 0, set to human's name. Else none
                 saviorKey = stateKey(victim.name,'savior')
                 tree = makeTree({'if': equalRow(dangerKey, 1),
                                  True: setToConstantMatrix(saviorKey, human.name),
                                  False:setToConstantMatrix(saviorKey, 'none')})
                 Victims.world.setDynamics(saviorKey,action,tree)
-    
+
                 ## Danger: dencrement danger by 1
                 tree = makeTree(incrementMatrix(dangerKey,-1))
                 Victims.world.setDynamics(dangerKey,action,tree)
-                
+
                 Victims.triageActions[human.name][room][vicColor] = action
-    
+
         Victims.makeVictimReward(human)
 
     def makeVictimReward(human):
