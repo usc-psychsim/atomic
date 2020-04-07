@@ -9,7 +9,7 @@ from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
 from helpers import testMMBelUpdate
-from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims
+from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
 
 def print_methods(obj):
     # useful for finding methods of an object
@@ -53,9 +53,7 @@ Locations.world = world
 #Locations.makeMap([(0,1), (1,2), (1,3)])
 #  Locations.makeMap([])
 Locations.makeMapDict(SandRLocs)
-input("press key to proceed")
-Locations.makePlayerLocation(triageAgent, "LH2")
-input("completed")
+Locations.makePlayerLocation(triageAgent, "BH2")
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
@@ -79,27 +77,27 @@ world.printBeliefs(triageAgent.name)
 
 cmd = 'blank'
 #
-#while cmd != '':
-#    legalActions = triageAgent.getActions()
-#    agent_state = triageAgent.getState('loc')
-#    print("Player state: ", agent_state)
-#    print("reward: ",triageAgent.reward())
-#    #  print(triageAgent.getAttribute('R',model='TriageAg10'))
-#    print('Legal Actions:')
-#    for a,n in zip(legalActions,range(len(legalActions))):
-#        print(n,': ',a)
-#
-#    print()
-#    cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
-#    try:
-#        cmd_int = int(cmd)
-#        Victims.world.step(list(legalActions)[cmd_int])
-#    except:
-#        #do nothing
-#        pass
-#
-#    if cmd == 's':
-#        world.printBeliefs(triageAgent.name)
-#        print('Triage Agent Reward: ', triageAgent.reward())
-#    elif cmd == '':
-#        print('Finishing Simulation')
+while cmd != '':
+  legalActions = triageAgent.getActions()
+  agent_state = triageAgent.getState('loc')
+  print("Player state: ", agent_state)
+  print("reward: ",triageAgent.reward())
+  #  print(triageAgent.getAttribute('R',model='TriageAg10'))
+  print('Legal Actions:')
+  for a,n in zip(legalActions,range(len(legalActions))):
+      print(n,': ',a)
+
+  print()
+  cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
+  try:
+      cmd_int = int(cmd)
+      Victims.world.step(list(legalActions)[cmd_int])
+  except:
+      #do nothing
+      pass
+
+  if cmd == 's':
+      world.printBeliefs(triageAgent.name)
+      print('Triage Agent Reward: ', triageAgent.reward())
+  elif cmd == '':
+      print('Finishing Simulation')
