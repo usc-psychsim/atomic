@@ -161,10 +161,7 @@ class Victims:
         b) Always decrement victim's danger
         ALSO: add a pre-triage condition to the human
         """
-        # create a 'victim targeted' state that must be true for triage to be successful
-        Victims.world.defineState(human.name,'vic_targeted',bool)
-        human.setState('vic_targeted',False)
-
+        
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent

@@ -82,19 +82,15 @@ class Locations:
 
     def __makeGetNeighborDict(locKey, direction, locsWithNbrs):
         if locsWithNbrs == []:
-            res = setToConstantMatrix(locKey, -1)
-            print(res)
-            return res
+            return setToConstantMatrix(locKey, -1)
         new = {'if': equalRow(locKey, locsWithNbrs[0]),
                True:setToConstantMatrix(locKey, Locations.Nbrs[direction][locsWithNbrs[0]]),
                False:Locations.__makeGetNeighborDict(locKey, direction, locsWithNbrs[1:])}
         return new
 
     def __makeGetNeighborTree(locKey, direction):
-        res = makeTree(Locations.__makeGetNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
-        print(res)
-        input()
-        return res
+        return makeTree(Locations.__makeGetNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
+
 
     def __makeMoveActions(human):
         """
@@ -169,7 +165,11 @@ class Locations:
         return -1
 
     def moveToLocation(human, src, dest):
-       Locations.world.step(Locations.getMoveAction(human, src, dest))
-
-    def getMoveAction(human, src, dest):
-        Locations.moveActions[human.name][Locations.getDirection(src, dest)]
+        Locations.world.step(Locations.getMoveAction(human, src, dest))
+        
+    def getMoveAction(human, src, dest):        
+        if type(human) == str:
+            name = human
+        else:
+            name = human.name
+        return Locations.moveActions[name][Locations.getDirection(src, dest)]
