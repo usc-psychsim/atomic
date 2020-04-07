@@ -42,7 +42,8 @@ class Locations:
 
     def makeMapDict(pairsDict):
         """
-        Each tuple in the list is of the form (z1, dir, z2) meaning z1 is to the <dir> of z2
+        Each key in parisDict is a room, and the values are another dictionary with keys
+        being Directions.directions, and the values are rooms in that direction.
         """
         for i in range(4):
             Locations.Nbrs.append({})

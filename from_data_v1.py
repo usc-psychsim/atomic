@@ -29,7 +29,7 @@ VICTIMS_LOCS = ['Janitor_Closet_(J)', '201', '201', '205']
 VICTIM_TYPES = [0, 0, 1, 0]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], parser.locations)
-Victims.makePreTriageAction(triageAgent)
+#  Victims.makePreTriageAction(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
