@@ -25,8 +25,8 @@ agent = world.addAgent('ATOMIC')
 
 ################# Victims and triage actions
 ## One entry per victim
-VICTIMS_LOCS = ['Janitor_Closet_(J)', '201', '201', '205']
-VICTIM_TYPES = [0, 0, 1, 0]
+VICTIMS_LOCS = ['Janitor_Closet_J', 'R201', 'R201', 'R205']
+VICTIM_TYPES = ['Green', 'Green', 'Orange', 'Green']
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], parser.locations)
 #  Victims.makePreTriageAction(triageAgent)
@@ -39,12 +39,18 @@ if not Victims.FULL_OBS:
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
-Locations.makeMap([('Left_Hallway_Branch',Directions.E, 'Janitor_Closet_(J)'), \
-                   ('Left_Hallway_Branch',Directions.W,'201'), \
-                   ('Left_Hallway_Branch',Directions.N,'205')])
+Locations.makeMap([('Left_Hallway_Branch',Directions.E, 'Janitor_Closet_J'), \
+                   ('Left_Hallway_Branch',Directions.W,'R201'), \
+                   ('Left_Hallway_Branch',Directions.N,'R205')])
 Locations.makePlayerLocation(triageAgent)
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
+
+## Parse the data file into a sequence of actions and events
+aes, pData = parser.getActionsAndEvents(triageAgent.name)
+
+## Run the actions and events through
+DataParser.runTimeless(world, triageAgent.name, aes)
 
 

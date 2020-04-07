@@ -22,8 +22,8 @@ class Locations:
     moveActions = {}
     world = None
     """
-    Nbrs: map from each direction d to a map of each location loc that has a neighbor in direction
-    d to that neighbor
+    Nbrs: a list. The element corresponding to each direction is a map of each location that has a 
+    neighbor in this direction to that neighbor 
     """
     Nbrs = []
     AllLocations = set()
@@ -66,7 +66,7 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)
+        Locations.__makeMoveActions(human)        
         Locations.__makeExplorationBonus(human)
 
     def __makeHasNeighborDict(locKey, direction, locsWithNbrs):
@@ -94,6 +94,7 @@ class Locations:
         res = makeTree(Locations.__makeGetNeighborDict(locKey, direction, list(Locations.Nbrs[direction].keys())))
         return res
 
+
     def __makeMoveActions(human):
         """
         N/E/S/W actions
@@ -109,23 +110,24 @@ class Locations:
             action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]},legalityTree)
             Locations.moveActions[human.name].append(action)
 
+            # Unset the vic_targeted flag
+            vtKey = stateKey(human.name,'vic_targeted')
+            tree = makeTree(setFalseMatrix(vtKey))
+            Locations.world.setDynamics(vtKey,action,tree)
+
             # Dynamics of this move action: change the agent's location to 'this' location
             tree = Locations.__makeGetNeighborTree(locKey, direction)
             Locations.world.setDynamics(locKey,action,tree)
 
             # A move in direction D can set the seen flag of any location to the D of another
             # I.e., any location with a neighbor in direction d+2
-            for dest in Locations.Nbrs[(direction + 2) % 4].keys():
-                key = stateKey(human.name,'seenloc_'+str(dest))
+            for dest in Locations.AllLocations: # Locations.Nbrs[(direction + 2) % 4].keys():
+                destKey = stateKey(human.name,'seenloc_'+str(dest))
                 tree = makeTree({'if': equalRow(makeFuture(locKey), dest),
-                                 True: setToConstantMatrix(stateKey(human.name,'seenloc_'+str(dest)), True),
-                                 False: setToFeatureMatrix(stateKey(human.name,'seenloc_'+str(dest)), stateKey(human.name,'seenloc_'+str(dest)))})
-                Locations.world.setDynamics(key,action,tree)
+                                 True: setToConstantMatrix(destKey, True),
+                                 False: noChangeMatrix(destKey)})
+                Locations.world.setDynamics(destKey,action,tree)
 
-                # Unset the vic_targeted flag
-                vtKey = stateKey(human.name,'vic_targeted')
-                tree = makeTree(setFalseMatrix(vtKey))
-                Locations.world.setDynamics(vtKey,action,tree)
 
             if not Victims.FULL_OBS:
                 # Set observed variables to victim's features
@@ -166,7 +168,11 @@ class Locations:
         return -1
 
     def moveToLocation(human, src, dest):
-       Locations.world.step(Locations.getMoveAction(human, src, dest))
-
-    def getMoveAction(human, src, dest):
-        Locations.moveActions[human.name][Locations.getDirection(src, dest)]
+        Locations.world.step(Locations.getMoveAction(human, src, dest))
+        
+    def getMoveAction(human, src, dest):        
+        if type(human) == str:
+            name = human
+        else:
+            name = human.name
+        return Locations.moveActions[name][Locations.getDirection(src, dest)]

@@ -20,11 +20,11 @@ class Victim:
 class Victims:
     FULL_OBS = None
     ## Reward per victim type
-    TYPE_REWARDS = [10, 200, 40, 400]
-    # number of triage actions needed to restore victim to health
-    TYPE_REQD_TIMES = [1, 5, 2, 10]
-    TYPE_EXPIRY = [15*60, 7*60, 15*60, 7*60]
-    VictimTypes = []
+    TYPE_REWARDS = {'Green':10, 'Orange':200}
+    # Number of triage seconds to save a victim
+    TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
+    # Number of seconds after which a victim dies
+    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
 
     # A dict mapping a room to a dict mapping a color to the corresponding victim object
     victimAgents = {}
@@ -161,10 +161,7 @@ class Victims:
         b) Always decrement victim's danger
         ALSO: add a pre-triage condition to the human
         """
-        # create a 'victim targeted' state that must be true for triage to be successful
-        Victims.world.defineState(human.name,'vic_targeted',bool)
-        human.setState('vic_targeted',False)
-
+        
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
@@ -247,13 +244,21 @@ class Victims:
                                                 victimKey, defaultValue))
 
     def getTriageAction(human, room, vicColor):
-        return Victims.triageActions[human.name][room][vicColor]
+        if type(human) == str:
+            name = human
+        else:
+            name = human.name        
+        return Victims.triageActions[name][room][vicColor]
 
     def triage(human, room, vicColor):
         Victims.world.step(Victims.makeTriageAction(human, room, vicColor))
 
     def getPretriageAction(human, room, vicColor):
-        return Victims.preTriageActions[human.name][room][vicColor]
+        if type(human) == str:
+            name = human
+        else:
+            name = human.name        
+        return Victims.preTriageActions[name][room][vicColor]
 
     def pre_triage(human, room, vicColor):
         Victims.world.step(Victims.getPretriageAction(human, room, vicColor))
