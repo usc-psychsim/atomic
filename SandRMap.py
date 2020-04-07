@@ -84,14 +84,16 @@ def getSandRVictims():
 # are more than 1 the one with the highest number (as encoded below) will be used in this model
 # 0. mild/moderate: corresponds to Blue/Green/Yellow in the S&R .svg map
 # 1. serious: corresponds to Orange/Red in the .svg
-# 2. mild/moderate: 2-person victim
-# 3. serious: 2-person victim
-    SandRVics = {"LH3":2, "MR":1, "WR":0, "E1":0, "E2":1, "R201":1, "R203":0, "R205":1, "R207":1,\
-                "R210":0, "R208N":0, "RJ":0, "R209":1, "R211":1, "R213":1, "R215":0, "R220":1, "R218":2,\
-                "R216N":0, "R216S":1}
+    G = "Green"
+    O = "Orange"
+    SandRVics = {"LH3":G, "MR":O, "WR":G, "E1":G, "E2":O, "R201":O, "R203":G, "R205":O, "R207":O,\
+                "R210":G, "R208N":G, "RJ":G, "R209":O, "R211":O, "R213":O, "R215":G, "R220":O,
+                "R218":G, "R216N":G, "R216S":O}
     return SandRVics
 
 def getSmallSandRVictims():
     # small version of victims for debugging
-    SandRVics = {"MR":1, "WR":0, "E1":0, "E2":1}
+    G = "Green"
+    O = "Orange"
+    SandRVics = {"MR":O, "WR":G, "E1":G, "E2":O}
     return SandRVics

@@ -24,8 +24,8 @@ Victims.FULL_OBS = True
 
 ##################
 ##### Get Map Data
-SandRLocs = getSmallSandRMap()
-SandRVics = getSmallSandRVictims()
+SandRLocs = getSandRMap()
+SandRVics = getSandRVictims()
 ##################
 
 world = World()
@@ -40,7 +40,7 @@ VICTIMS_LOCS = list(SandRVics.keys())
 VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
-#  ictims.makePreTriageAction(triageAgent)
+Victims.makePreTriageAction(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
