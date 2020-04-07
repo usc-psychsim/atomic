@@ -7,8 +7,8 @@ def getSmallSandRMap():
     DE = Directions.E
     DW = Directions.W
 
-    SandRLocs = {"LH1":{DN:"LH2",DE:"XHL2"},"LH2":{DN:"LH3",DS:"LH1",DE:"203"},"LH3":{DE:"205"},\
-            "216S":{DN:"216N",DE:"RH1",DW:"209"}}
+    SandRLocs = {"BH1":{DE:"E1",DW:"MR"},"BH2":{DN:"BH1",DE:"E2",DW:"WR"},"MR":{DE:"BH1"},\
+            "WR":{DE:"BH2"},"E1":{DW:"BH1"},"E2":{DW:"BH2"}}
     return SandRLocs
 
 def getSandRMap():
@@ -50,5 +50,5 @@ def getSandRVictims():
 
 def getSmallSandRVictims():
     # small version of victims for debugging
-    SandRVics = {"LH1":0, "LH3":2, "216S":1}
+    SandRVics = {"MR":1, "WR":0, "E1":0, "E2":1}
     return SandRVics
