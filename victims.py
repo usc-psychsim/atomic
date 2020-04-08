@@ -108,50 +108,66 @@ class Victims:
 
                 human.setBelief(stateKey(vic.name, 'savior'), Distribution({'none':1}))
 
-#    def ignoreVictims(human):
-#        """ Remove any victim ground truth from observation
-#        """
-#        if human.omega == True:
-#            omega = {var for var in Victims.world.variables.keys()}
-#        else:
-#            omega = human.omega
-#        for vi in Victims.victimAgents:
-#            omega = {var for var in omega if not (isStateKey(var) and (state2agent(var) == vi.name))}
-#        human.omega = omega
-    def makePreTriageAction(human):
+    def makePreTriageLegality(victim,human,sKeyName,preTriageActionName,initialValue):
+        # if victim and player are in the same location
+        vLoc = stateKey(victim.name, sKeyName)
+        hLoc = stateKey(human.name, sKeyName)
+
+        key = stateKey(human.name, preTriageActionName)
+
+        legalityTree = makeTree({'if': equalFeatureRow(vLoc,hLoc),
+                                    True: {'if': equalRow(key,initialValue),
+                                        True: True,
+                                        False: False},
+                                    False: False})
+        return legalityTree, key
+
+    def makePreTriageActions(human):
         """
-        Create a pre-triage action per victim
-        Legal action if: Human and victim are in same location;
-        Action effects: Always decrement victim's danger
+        Create pre-triage actions per victim
+        Legal actions if: Human and victim are in same location;
+        Action effects: move within correct distance, or put victim in crosshair
         """
 
+        # create a within range flag
+        inRange = 'victim within range'
+        Victims.world.defineState(human.name,inRange,bool)
+        human.setState(inRange,False)
+
         # create a 'victim targeted' state that must be true for triage to be successful
-        Victims.world.defineState(human.name,'vic_targeted',bool)
-        human.setState('vic_targeted',False)
+        crossHair = 'victim in crosshair'
+        Victims.world.defineState(human.name,crossHair,bool)
+        human.setState(crossHair,False)
 
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
+
+                ##########
                 # vic_target action
-                # if victim and player are in the same location
-                v_loc = stateKey(victim.name, 'loc')
-                h_loc = stateKey(human.name, 'loc')
+                vtLegalityTree, vtKey = Victims.makePreTriageLegality(victim,human,'loc',crossHair,False)
 
-                vtKey = stateKey(human.name, 'vic_targeted')
+                vtAction = human.addAction({'verb': 'target victim', 'object':victim.name}, vtLegalityTree)
 
-                vt_legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
-                                            True: {'if': equalRow(vtKey,False),
-                                                True: True,
-                                                False: False},
-                                            False: False})
-
-                vt_action = human.addAction({'verb': 'target victim', 'object':victim.name}, vt_legalityTree)
-
-                ## Change 'victim tareted' to True when making the 'target viction' action
+                # dynamics
+                # Change 'victim tareted' to True when making the 'target victim' action
                 vtTree = makeTree(setToConstantMatrix(vtKey,True))
-                Victims.world.setDynamics(vtKey,vt_action,vtTree)
+                Victims.world.setDynamics(vtKey,vtAction,vtTree)
 
-                Victims.preTriageActions[human.name][room][vicColor] = vt_action
+                Victims.preTriageActions[human.name][room][vicColor] = vtAction
+
+                ##########
+                # victim within range
+                crLegalityTree, crKey = Victims.makePreTriageLegality(victim,human,'loc',inRange,False)
+
+                crAction = human.addAction({'verb': 'move within range', 'object':victim.name}, crLegalityTree)
+
+                # dynamics
+                # Change 'victim tareted' to True when making the 'target victim' action
+                crTree = makeTree(setToConstantMatrix(crKey,True))
+                Victims.world.setDynamics(crKey,crAction,crTree)
+
+                Victims.preTriageActions[human.name][room][vicColor] = crAction
 
     def makeTriageAction(human):
         """
@@ -161,7 +177,7 @@ class Victims:
         b) Always decrement victim's danger
         ALSO: add a pre-triage condition to the human
         """
-        
+
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
@@ -170,9 +186,11 @@ class Victims:
                 h_loc = stateKey(human.name, 'loc')
 
                 legalityTree = makeTree({'if': equalFeatureRow(v_loc,h_loc),
-                                        True: {'if': equalRow(stateKey(human.name, 'vic_targeted'), True),
-                                            True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
-                                                True: True,
+                                        True: {'if': equalRow(stateKey(human.name, 'victim in crosshair'), True),
+                                            True: {'if': equalRow(stateKey(human.name, 'victim within range'), True),
+                                                True: {'if': equalRow(stateKey(victim.name, 'status'), 'unsaved'),
+                                                    True: True,
+                                                    False: False},
                                                 False: False},
                                             False: False},
                                         False: False})
@@ -204,24 +222,30 @@ class Victims:
 
     def makeVictimReward(human):
         """
-        Human gets reward if: a) victim is saved; b) human is the savior;
-        c) last human action was to save this victim (so reward only obtained once),
+        Human gets reward if: a) victim is saved; b) victim and human collcated; c) human is the savior;
+        d) last human action was to save this victim (so reward only obtained once),
 
         """
-        #  the reward is being added twice when triaging the second victim... need ot look into this more
-        rkey = rewardKey(human.name)
+        rKey = rewardKey(human.name)
+
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
-                rval = stateKey(victim.name, 'reward')
+
+                vLoc = stateKey(victim.name, 'loc')
+                hLoc = stateKey(human.name, 'loc')
+                rVal = stateKey(victim.name, 'reward')
+
                 goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
-                                True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
-                                    True: {'if': equalRow(actionKey(human.name), \
-                                                          Victims.triageActions[human.name][room][vicColor]),
-                                        True: addFeatureMatrix(rkey,rval),
-                                        False: noChangeMatrix(rkey)},
-                                    False: noChangeMatrix(rkey)},
-                                False: setToConstantMatrix(rkey,0)})
+                                True: {'if': equalFeatureRow(vLoc,hLoc),
+                                    True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
+                                        True: {'if': equalRow(actionKey(human.name), \
+                                                Victims.triageActions[human.name][room][vicColor]),
+                                            True: addFeatureMatrix(rKey,rVal),
+                                            False: noChangeMatrix(rKey)},
+                                        False: noChangeMatrix(rKey)},
+                                    False: noChangeMatrix(rKey)},
+                                False: setToConstantMatrix(rKey,0)})
                 human.setReward(goal,1)
 
 
@@ -247,7 +271,7 @@ class Victims:
         if type(human) == str:
             name = human
         else:
-            name = human.name        
+            name = human.name
         return Victims.triageActions[name][room][vicColor]
 
     def triage(human, room, vicColor):
@@ -257,7 +281,7 @@ class Victims:
         if type(human) == str:
             name = human
         else:
-            name = human.name        
+            name = human.name
         return Victims.preTriageActions[name][room][vicColor]
 
     def pre_triage(human, room, vicColor):

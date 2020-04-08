@@ -22,8 +22,8 @@ class Locations:
     moveActions = {}
     world = None
     """
-    Nbrs: a list. The element corresponding to each direction is a map of each location that has a 
-    neighbor in this direction to that neighbor 
+    Nbrs: a list. The element corresponding to each direction is a map of each location that has a
+    neighbor in this direction to that neighbor
     """
     Nbrs = []
     AllLocations = set()
@@ -66,7 +66,7 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)        
+        Locations.__makeMoveActions(human)
         Locations.__makeExplorationBonus(human)
 
     def __makeHasNeighborDict(locKey, direction, locsWithNbrs):
@@ -110,10 +110,15 @@ class Locations:
             action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]},legalityTree)
             Locations.moveActions[human.name].append(action)
 
-            # Unset the vic_targeted flag
-            vtKey = stateKey(human.name,'vic_targeted')
+            # Unset the crosshair flag
+            vtKey = stateKey(human.name,'victim in crosshair')
             tree = makeTree(setFalseMatrix(vtKey))
             Locations.world.setDynamics(vtKey,action,tree)
+
+            # Unset the within range flag
+            wrKey = stateKey(human.name,'victim within range')
+            tree = makeTree(setFalseMatrix(wrKey))
+            Locations.world.setDynamics(wrKey,action,tree)
 
             # Dynamics of this move action: change the agent's location to 'this' location
             tree = Locations.__makeGetNeighborTree(locKey, direction)
@@ -169,8 +174,8 @@ class Locations:
 
     def moveToLocation(human, src, dest):
         Locations.world.step(Locations.getMoveAction(human, src, dest))
-        
-    def getMoveAction(human, src, dest):        
+
+    def getMoveAction(human, src, dest):
         if type(human) == str:
             name = human
         else:

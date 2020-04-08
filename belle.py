@@ -24,8 +24,8 @@ Victims.FULL_OBS = True
 
 ##################
 ##### Get Map Data
-SandRLocs = getSandRMap()
-SandRVics = getSandRVictims()
+SandRLocs = getSmallSandRMap()
+SandRVics = getSmallSandRVictims()
 ##################
 
 world = World()
@@ -40,7 +40,7 @@ VICTIMS_LOCS = list(SandRVics.keys())
 VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
 Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
-Victims.makePreTriageAction(triageAgent)
+Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
@@ -82,7 +82,7 @@ while cmd != '':
   agent_state = triageAgent.getState('loc')
   print("Player state: ", agent_state)
   print("reward: ",triageAgent.reward())
-  #  print(triageAgent.getAttribute('R',model='TriageAg10'))
+  print(triageAgent.getAttribute('R',model='TriageAg10'))
   print('Legal Actions:')
   for a,n in zip(legalActions,range(len(legalActions))):
       print(n,': ',a)
