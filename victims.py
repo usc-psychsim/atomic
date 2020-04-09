@@ -8,6 +8,7 @@ Created on Thu Feb 20 11:23:22 2020
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix
+from psychsim.reward import achieveFeatureValue
 import new_locations
 
 class Victim:
@@ -231,23 +232,10 @@ class Victims:
         for room in Victims.victimAgents.keys():
             for vicColor, vicObj in Victims.victimAgents[room].items():
                 victim = vicObj.vicAgent
+                rwd = Victims.TYPE_REWARDS[vicColor]
 
-                vLoc = stateKey(victim.name, 'loc')
-                hLoc = stateKey(human.name, 'loc')
-                rVal = stateKey(victim.name, 'reward')
-
-                goal = makeTree({'if': equalRow(stateKey(victim.name,'status'),'saved'),
-                                True: {'if': equalFeatureRow(vLoc,hLoc),
-                                    True: {'if': equalRow(stateKey(victim.name, 'savior'), human.name),
-                                        True: {'if': equalRow(actionKey(human.name), \
-                                                Victims.triageActions[human.name][room][vicColor]),
-                                            True: addFeatureMatrix(rKey,rVal),
-                                            False: noChangeMatrix(rKey)},
-                                        False: noChangeMatrix(rKey)},
-                                    False: noChangeMatrix(rKey)},
-                                False: setToConstantMatrix(rKey,0)})
-                human.setReward(goal,1)
-
+                goal = achieveFeatureValue(stateKey(victim.name,'status'), 'saved', human.name)
+                human.setReward(goal,rwd)
 
     def makeNearVDict(victims, humanLocKey, humanObsKey, victimKey, defaultValue):
         """
