@@ -33,19 +33,23 @@ k = world.defineState(WORLD, 'seconds', int)
 world.setFeature(k, 0)
 
 triageAgent = world.addAgent('TriageAg1')
+triageAgent2 = world.addAgent('TriageAg2')
 agent = world.addAgent('ATOMIC')
 
 
 VICTIMS_LOCS = list(SandRVics.keys())
 VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
 Victims.world = world
-Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
+Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name, triageAgent2.name], list(SandRLocs.keys()))
 Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
+Victims.makePreTriageActions(triageAgent2)
+Victims.makeTriageAction(triageAgent2)
 
 ## Create triage agent's observation variables related to victims
 if not Victims.FULL_OBS:
     Victims.makeVictimObservationVars(triageAgent)
+    Victims.makeVictimObservationVars(triageAgent2)
 
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
@@ -54,12 +58,14 @@ Locations.world = world
 #  Locations.makeMap([])
 Locations.makeMapDict(SandRLocs)
 Locations.makePlayerLocation(triageAgent, "BH2")
+Locations.makePlayerLocation(triageAgent2, "BH1")
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
 
 ## Set players horizons
 triageAgent.setAttribute('horizon',4)
+triageAgent2.setAttribute('horizon',4)
 
 ## Set uncertain beliefs
 if not Victims.FULL_OBS:
@@ -70,7 +76,7 @@ if not Victims.FULL_OBS:
 
 
 ######################
-## Beign Simulation
+## Begin Simulation
 ######################
 print('Initial State')
 world.printBeliefs(triageAgent.name)
@@ -82,7 +88,7 @@ while cmd != '':
   agent_state = triageAgent.getState('loc')
   print("Player state: ", agent_state)
   print("reward: ",triageAgent.reward())
-  print(triageAgent.getAttribute('R',model='TriageAg10'))
+  #  print(triageAgent.getAttribute('R',model='TriageAg10'))
   print('Legal Actions:')
   for a,n in zip(legalActions,range(len(legalActions))):
       print(n,': ',a)
