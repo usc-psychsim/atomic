@@ -234,7 +234,7 @@ class Victims:
                 victim = vicObj.vicAgent
                 rwd = Victims.TYPE_REWARDS[vicColor]
 
-                goal = achieveFeatureValue(stateKey(victim.name,'status'), 'saved', human.name)
+                goal = achieveFeatureValue(stateKey(victim.name,'savior'), human.name, human.name)
                 human.setReward(goal,rwd)
 
     def makeNearVDict(victims, humanLocKey, humanObsKey, victimKey, defaultValue):
