@@ -6,8 +6,13 @@ Created on Mon Mar  9 18:11:14 2020
 """
 
 from psychsim.pwl import state2agent, isStateKey, modelKey, rewardKey, Distribution, actionKey, stateKey
-from victims import Victims
-from new_locations import Locations
+
+def anding(rows, ifTrue, ifFalse):
+    if rows == []:
+        return ifTrue
+    return {'if': rows[0],
+            True: anding(rows[1:], ifTrue, ifFalse),
+            False: ifFalse}
 
 def printAgent(world, name):
     for key in world.state.keys():
@@ -41,14 +46,14 @@ def printASISTBel(world, triageAgent, agent):
     key = modelKey(triageAgent.name)
     print(world.float2value(key,belief[key]))
             
-def testMMBelUpdate(world, agent, triageAgent, directions):
-    setBeliefs(world, agent, triageAgent)
-    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in directions]
-    for action in sequence:
-        print('Agent action: %s' % (action))
-        world.step(action)  #result = 
-        assert len(agent.getBelief()) == 1 # Because we are dealing with a known-identity agent
-        printASISTBel(world, triageAgent, agent)
+#def testMMBelUpdate(world, agent, triageAgent, directions):
+#    setBeliefs(world, agent, triageAgent)
+#    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in directions]
+#    for action in sequence:
+#        print('Agent action: %s' % (action))
+#        world.step(action)  #result = 
+#        assert len(agent.getBelief()) == 1 # Because we are dealing with a known-identity agent
+#        printASISTBel(world, triageAgent, agent)
         
 def tryHorizon(world, hz, triageAgent, initLoc):
     pos = stateKey(triageAgent.name, 'loc')
