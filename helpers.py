@@ -27,6 +27,10 @@ def setBeliefs(world, agent, triageAgent):
     # Agent does not model itself
     agent.resetBelief(ignore={modelKey(agent.name)})
     
+    triageAgent.resetBelief(ignore={modelKey(agent.name)})
+    triageAgent.omega = {key for key in world.state.keys() if key not in \
+                   {modelKey(triageAgent.name),rewardKey(triageAgent.name), modelKey(agent.name)}} #
+
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
     triageAgent.addModel('strategicMod',horizon=4,parent=trueTriageModel ,rationality=.8,selection='distribution')
@@ -48,4 +52,6 @@ def testMMBelUpdate(world, agent, triageAgent, destinations):
         belief = next(iter(agent.getBelief().values()))
         print('Agent now models player as:')
         key = modelKey(triageAgent.name)
-        print(world.float2value(key,belief[key]))
+        print(world.getFeature(key,belief))
+        world.printState(belief)
+    world.printState()
