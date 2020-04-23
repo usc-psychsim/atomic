@@ -8,7 +8,6 @@ from psychsim.world import World, WORLD
 from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations import Locations, Directions
 from victims import Victims
-from helpers import testMMBelUpdate
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
 
 def print_methods(obj):
