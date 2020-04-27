@@ -4,7 +4,7 @@ Created on Wed Feb 19 14:35:40 2020
 
 @author: mostafh
 """
-from psychsim.world import World, WORLD
+from psychsim.world import World, WORLD,loadWorld
 from psychsim.pwl import stateKey, Distribution, actionKey
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
@@ -66,3 +66,6 @@ if not Victims.FULL_OBS:
     Victims.beliefAboutVictims(triageAgent)
 
 
+world.save('atomic')
+
+other = loadWorld('atomic')
