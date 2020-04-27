@@ -55,7 +55,7 @@ class Locations:
 
     def makePlayerLocation(human, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
-        if initLoc:
+        if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
 
         ## Add a seen flag per location
@@ -83,6 +83,7 @@ class Locations:
         for direction in range(4):            
             # Legal if current location has a neighbor in the given direction
             locsWithNbrs = set(Locations.Nbrs[direction].keys())
+#            print('Dir', direction, 'legal in', locsWithNbrs)
             legalityTree = makeTree({'if':equalRow(locKey, locsWithNbrs),
                                     True: True,
                                     False: False})
@@ -90,7 +91,7 @@ class Locations:
             Locations.moveActions[human.name].append(action)
 
             # Unset the crosshair and FOV and approach variables
-            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
+            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]: #, Victims.STR_FOV_VAR
                 vtKey = stateKey(human.name, varname)
                 tree = makeTree(setToConstantMatrix(vtKey, 'none'))
                 Locations.world.setDynamics(vtKey,action,tree)
@@ -141,12 +142,23 @@ class Locations:
     def move(human, direction):
         Locations.world.step(Locations.moveActions[human.name][direction])
 
-    def getDirection(src, dest):
+    def getDirection(src, dest, isSecond=False):
         for d in range(4):
             if (src in Locations.Nbrs[d].keys()) and (Locations.Nbrs[d][src] == dest):
-                return d
-        print('Source cannot reach dest', src, dest)
-        return -1
+                return [d]           
+        if isSecond:
+            return [-1]
+        
+        # If src and dest are 1 step removed, find a common nbr, if any and return 
+        # 2 move actions. Do NOT recurse indefinitely. 
+        for mid in Locations.AllLocations:
+            d1 = Locations.getDirection(src, mid, True)
+            if d1[0] >= 0:
+                d2 = Locations.getDirection(mid, dest, True)
+                if d2[0] >= 0:
+                    return [d1[0], d2[0]]
+
+        return [-1]
 
     def moveToLocation(human, src, dest):
         Locations.world.step(Locations.getMoveAction(human, src, dest))
@@ -156,4 +168,7 @@ class Locations:
             name = human
         else:
             name = human.name
-        return Locations.moveActions[name][Locations.getDirection(src, dest)]
+        ds = Locations.getDirection(src, dest)
+        if ds[0] == -1:
+            return []
+        return [Locations.moveActions[name][d] for d in ds]

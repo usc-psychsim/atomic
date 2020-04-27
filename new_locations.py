@@ -55,7 +55,7 @@ class Locations:
 
     def makePlayerLocation(human, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
-        if initLoc:
+        if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
 
         ## Add a seen flag per location

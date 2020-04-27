@@ -5,10 +5,9 @@ Created on Wed Feb 19 14:35:40 2020
 @author: mostafh
 """
 from psychsim.world import World
-from psychsim.pwl import stateKey, Distribution, actionKey
-from new_locations import Locations, Directions
-from victims import Victims
-from helpers import testMMBelUpdate, tryHorizon, setBeliefs, printASISTBel
+from new_locations_fewacts import Locations, Directions
+from victims_fewacts import Victims
+from helpers import testMMBelUpdate
 
 Victims.FULL_OBS = True
 
@@ -18,17 +17,18 @@ agent = world.addAgent('ATOMIC')
 
 ################# Victims and triage actions
 ## One entry per victim
-VICTIMS_LOCS = [3]
-VICTIM_TYPES = [0]
+VICTIMS_LOCS = ['3']
+VICTIM_TYPES = ['Green']
 Victims.world = world
-Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
+Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], ['0', '1', '2', '3'])
+Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
-Locations.makeMap([(0,Directions.E, 1), (1,Directions.E,2), (1,Directions.S,3)])
-Locations.makePlayerLocation(triageAgent, 0)
+Locations.makeMap([('0',Directions.E, '1'), ('1',Directions.E,'2'), ('1',Directions.S,'3')])
+Locations.makePlayerLocation(triageAgent, '1')
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
@@ -44,5 +44,4 @@ If player then moves to 2, no way he's strategic.
 But in the following, agent doesn't correctly update belief over MM
 and has 50-50 belief over myopic/strategic after player moves to 2.
 """          
-#testMMBelUpdate(world, agent, triageAgent, [Directions.E, Directions.E])
-#setBeliefs(world, agent, triageAgent)
+#testMMBelUpdate(world, agent, triageAgent, [Directions.E, Directions.E], Locations)

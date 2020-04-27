@@ -7,12 +7,10 @@ Created on Sun Apr  5 17:00:50 2020
 """
 
 from psychsim.world import World, WORLD
-from new_locations_fewacts import Locations, Directions
+from new_locations_fewacts import Locations
 from victims_fewacts import Victims
 from parser import DataParser
-
-parser = DataParser('test.xlsx')
-parser = DataParser('augmented_data_w_successful_triage_attempts.csv')
+from SandRMap import getSandRMap
 
 # MDP or POMDP
 Victims.FULL_OBS = True
@@ -24,12 +22,18 @@ world.setFeature(k, 0)
 triageAgent = world.addAgent('Player279')
 agent = world.addAgent('ATOMIC')
 
+##### Get Map Data
+SandRLocs = getSandRMap()
+
+## Parse data file. NOTE: colors in file are ignored. 
+## An orange victim in every room that has 1+ victims.
+## A green victim in every room that has 2 victims.        
+parser = DataParser('augmented_data_w_successful_triage_attempts_short.csv')
+
+
 ################# Victims and triage actions
-## One entry per victim
-VICTIMS_LOCS = ['Janitor_Closet_J', 'R201', 'R201', 'R205']
-VICTIM_TYPES = ['Green', 'Green', 'Orange', 'Green']
 Victims.world = world
-Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], parser.locations)
+Victims.makeOrangeGreenVictims(parser.rooms1Victim, parser.rooms23Victim, [triageAgent.name])
 Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
 
@@ -40,16 +44,19 @@ if not Victims.FULL_OBS:
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
-Locations.makeMap([('Left_Hallway_Branch',Directions.E, 'Janitor_Closet_J'), \
-                   ('Left_Hallway_Branch',Directions.W,'R201'), \
-                   ('Left_Hallway_Branch',Directions.N,'R205')])
-Locations.makePlayerLocation(triageAgent)
+Locations.makeMapDict(SandRLocs)
+Locations.makePlayerLocation(triageAgent, "BH2")
 
 ## These must come before setting triager's beliefs
 world.setOrder([{triageAgent.name}])
-
+#
 ## Parse the data file into a sequence of actions and events
-aes, pData = parser.getActionsAndEvents(triageAgent.name)
+aes = parser.getActionsAndEvents(triageAgent.name)
 
-## Run the actions and events through
-#DataParser.runTimeless(world, triageAgent.name, aes)
+def printAEs(aes):
+    for ae in aes:
+        print(ae[1])
+
+## Get actions and events related to a given triage attempt
+atm = DataParser.getTimelessAttempt(world, triageAgent.name, aes, 'SA6')
+printAEs(atm)

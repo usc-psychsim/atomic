@@ -5,31 +5,24 @@ Created on Wed Feb 19 14:35:40 2020
 @author: mostafh
 """
 from psychsim.world import World, WORLD
-from psychsim.pwl import stateKey, Distribution, actionKey
+from psychsim.pwl import stateKey, actionKey
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
-
-def print_methods(obj):
-    # useful for finding methods of an object
-    obj = triageAgent
-    object_methods = [method_name for method_name in dir(obj)
-                      if callable(getattr(obj, method_name))]
-    print(object_methods)
-
+from helpers import testMMBelUpdate
 
 # MDP or POMDP
 Victims.FULL_OBS = True
 
 ##################
 ##### Get Map Data
-SandRLocs = getSandRMap()
-SandRVics = getSandRVictims()
+SandRLocs = getSmallSandRMap() # getSandRMap()
+SandRVics = getSmallSandRVictims() # getSandRVictims()
 ##################
 
 world = World()
-k = world.defineState(WORLD, 'seconds', int)
-world.setFeature(k, 0)
+#k = world.defineState(WORLD, 'seconds', int)
+#world.setFeature(k, 0)
 
 triageAgent = world.addAgent('TriageAg1')
 agent = world.addAgent('ATOMIC')
@@ -41,10 +34,6 @@ Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
 Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
-
-## Create triage agent's observation variables related to victims
-if not Victims.FULL_OBS:
-    Victims.makeVictimObservationVars(triageAgent)
     
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
@@ -58,11 +47,10 @@ world.setOrder([{triageAgent.name}])
 ## Set players horizons
 triageAgent.setAttribute('horizon',4)
 
-## Set uncertain beliefs
-if not Victims.FULL_OBS:
-    triageAgent.omega = {actionKey(triageAgent.name)}
-    triageAgent.omega = triageAgent.omega.union({stateKey(triageAgent.name, obs) for obs in \
-                                                 ['obs_victim_status', 'obs_victim_reward', 'obs_victim_danger']})
-    Victims.beliefAboutVictims(triageAgent)
-
-
+actions = [Locations.moveActions[triageAgent.name][Directions.E],
+           [Victims.STR_FOV_VAR, 'victim3']
+#           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs),
+#           Victims.getPretriageAction(triageAgent.name, Victims.approachActs)
+        ]
+#Locations.move(triageAgent, Directions.E)
+testMMBelUpdate(world, agent, triageAgent, actions, Locations)

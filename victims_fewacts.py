@@ -8,7 +8,6 @@ Created on Thu Feb 20 11:23:22 2020
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix
-import new_locations_fewacts
 from helpers import anding
 
 class Victim:
@@ -35,36 +34,71 @@ class Victims:
     STR_FOV_VAR = 'vicInFOV'
     
     # A dict mapping a room to a dict mapping a color to the corresponding victim object
+    victimsByLocAndColor = {}
+    # A list of victim objects
     victimAgents = []
+    # A map from a player to her triage/crosshair/approach action
     triageActions = {}
     crosshairActs = {}
     approachActs = {}
     world = None
 
-    def makeVictims(vLocations, vTypes, humanNames, locationNames):
-        assert(len(vLocations) == len(vTypes))
-        Victims.numVictims = len(vTypes)
+    def makeOrangeGreenVictims(roomsWith1, roomsWith2, humanNames):
+        """
+        This method puts an orange victim in every room that has 1+ victims
+        and a green victim in every room that has 2 victims.
+        """
+        vi = 0
+        roomsWithVics = list(roomsWith1) + list(roomsWith2)
+        for r in roomsWithVics:
+            Victims._makeVictim(vi, r, 'Orange', humanNames, roomsWithVics)
+            vi += 1
+        for r in roomsWith2:
+            Victims._makeVictim(vi, r, 'Green', humanNames, roomsWithVics)
+            vi += 1
+            
+        Victims.numVictims = vi
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
-        for vi in range(Victims.numVictims):
+        
+    def makeVictims(locationTypePairs, humanNames, locationNames):
+        Victims.numVictims = len(locationTypePairs)
+        Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
+        for vi in range(Victims.numVictims):            
+            loc = locationTypePairs[vi][0]
+            vtype = locationTypePairs[vi][1]
+            Victims._makeVictim(vi, loc, vtype, humanNames, locationNames)
+        
+    def _makeVictim(vi, loc, vtype, humanNames, locationNames):
             victim = Victims.world.addAgent('victim' + str(vi))
 
             Victims.world.defineState(victim.name,'status',list,['unsaved','saved','dead'])
             victim.setState('status','unsaved')
 
             Victims.world.defineState(victim.name,'danger',float,description='How far victim is from health')
-            victim.setState('danger', Victims.TYPE_REQD_TIMES[vTypes[vi]])
+            victim.setState('danger', Victims.TYPE_REQD_TIMES[vtype])
 
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
-            victim.setState('reward', Victims.TYPE_REWARDS[vTypes[vi]])
+            rew = Victims.TYPE_REWARDS[vtype]
+            victim.setState('reward', rew)
 
             Victims.world.defineState(victim.name,'loc',list, locationNames)
-            victim.setState('loc', vLocations[vi])
+            victim.setState('loc', loc)
 
             Victims.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
             victim.setState('savior', 'none')
 
-            Victims.victimAgents.append(Victim(vLocations[vi], vTypes[vi],\
-                                               Victims.TYPE_EXPIRY[vTypes[vi]], victim, Victims.TYPE_REWARDS[vTypes[vi]]))
+            vicObj = Victim(loc, vtype, Victims.TYPE_EXPIRY[vtype], victim, rew)
+            Victims.victimAgents.append(vicObj)
+            
+            if loc not in Victims.victimsByLocAndColor.keys():
+                Victims.victimsByLocAndColor[loc] = {}
+            Victims.victimsByLocAndColor[loc][vtype] = vicObj
+
+    def getVicName(loc, color):        
+        if color not in Victims.victimsByLocAndColor[loc].keys():
+            print('ERROR. No', color, 'victim in', loc)
+            return ''
+        return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
     def makeVictimObservationVars(human):
         """

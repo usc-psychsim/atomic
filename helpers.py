@@ -6,6 +6,7 @@ Created on Mon Mar  9 18:11:14 2020
 """
 
 from psychsim.pwl import state2agent, isStateKey, modelKey, rewardKey, Distribution, actionKey, stateKey
+import psychsim.action
 
 def anding(rows, ifTrue, ifFalse):
     if rows == []:
@@ -30,15 +31,20 @@ def setBeliefs(world, agent, triageAgent):
     trueTriageModel = next(iter(triageAgent.models.keys())) 
     
     # Agent does not model itself
-#    agent.resetBelief(ignore={modelKey(agent.name)})
+    agent.resetBelief(ignore={modelKey(agent.name)})
     
+    triageAgent.resetBelief(ignore={modelKey(agent.name)})
+    triageAgent.omega = {key for key in world.state.keys() if key not in \
+                   {modelKey(triageAgent.name),rewardKey(triageAgent.name), modelKey(agent.name)}} #
+
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
     triageAgent.addModel('strategicMod',horizon=4,parent=trueTriageModel ,rationality=.8,selection='distribution')
     world.setMentalModel(agent.name,triageAgent.name,Distribution({'myopicMod': 0.5,'strategicMod': 0.5}))
     
     # Agent observes everything except triageAgent's reward received and true models 
-    agent.omega = {key for key in world.state.keys() if key not in [modelKey(triageAgent.name)]} #rewardKey(triageAgent.name), 
+    agent.omega = {key for key in world.state.keys() if key not in \
+                   {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name),
     
 def printASISTBel(world, triageAgent, agent):
     belief = next(iter(agent.getBelief().values()))
@@ -46,14 +52,25 @@ def printASISTBel(world, triageAgent, agent):
     key = modelKey(triageAgent.name)
     print(world.float2value(key,belief[key]))
             
-#def testMMBelUpdate(world, agent, triageAgent, directions):
-#    setBeliefs(world, agent, triageAgent)
-#    sequence = [Locations.moveActions[triageAgent.name][dest] for dest in directions]
-#    for action in sequence:
-#        print('Agent action: %s' % (action))
-#        world.step(action)  #result = 
-#        assert len(agent.getBelief()) == 1 # Because we are dealing with a known-identity agent
-#        printASISTBel(world, triageAgent, agent)
+def testMMBelUpdate(world, agent, triageAgent, actions, Locations):
+    setBeliefs(world, agent, triageAgent)    
+    for action in actions:
+        if type(action) == psychsim.action.ActionSet:
+            print('Agent action: %s' % (action))
+            world.step(action)  #result = 
+            beliefs = agent.getBelief()
+            print('len(beliefs)', len(beliefs))
+            assert len(beliefs) == 1 # Because we are dealing with a known-identity agent
+            belief = next(iter(agent.getBelief().values()))
+            print('Agent now models player as:')
+            key = modelKey(triageAgent.name)
+            print(world.getFeature(key,belief))
+        else:
+            [var, val] = action
+            world.setState(triageAgent.name, var, val)
+#        world.printState(belief)
+#    world.printState()
+    
         
 def tryHorizon(world, hz, triageAgent, initLoc):
     pos = stateKey(triageAgent.name, 'loc')
