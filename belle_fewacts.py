@@ -9,20 +9,18 @@ from psychsim.pwl import stateKey, actionKey
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
-from helpers import testMMBelUpdate
+from helpers import testMMBelUpdate, setBeliefs
 
 # MDP or POMDP
 Victims.FULL_OBS = True
 
 ##################
 ##### Get Map Data
-SandRLocs = getSmallSandRMap() # getSandRMap()
-SandRVics = getSmallSandRVictims() # getSandRVictims()
+SandRLocs = getSmallSandRMap()
+SandRVics = getSmallSandRVictims()
 ##################
 
 world = World()
-#k = world.defineState(WORLD, 'seconds', int)
-#world.setFeature(k, 0)
 
 triageAgent = world.addAgent('TriageAg1')
 agent = world.addAgent('ATOMIC')
@@ -47,10 +45,18 @@ world.setOrder([{triageAgent.name}])
 ## Set players horizons
 triageAgent.setAttribute('horizon',4)
 
-actions = [Locations.moveActions[triageAgent.name][Directions.E],
-           [Victims.STR_FOV_VAR, 'victim3']
-#           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs),
-#           Victims.getPretriageAction(triageAgent.name, Victims.approachActs)
-        ]
+
+###############  ACTIVATE *ONE* OF THE FOLLOWING BLOCKS TO SEE THE ASSOCIATED ISSUE ############### 
+
+############### The following shows incorrect beleifs of the triager about his own last 
+############### action and thus new location.
+#setBeliefs(world, agent, triageAgent)
 #Locations.move(triageAgent, Directions.E)
-testMMBelUpdate(world, agent, triageAgent, actions, Locations)
+#world.printBeliefs(triageAgent.name)
+
+############### The following breaks the assertion len(agent.getBelief()) ==1 
+############### action and thus new location.
+#actions = [Locations.moveActions[triageAgent.name][Directions.E],
+#           [Victims.STR_FOV_VAR, 'victim3'],
+#           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs)]
+#testMMBelUpdate(world, agent, triageAgent, actions, Locations)

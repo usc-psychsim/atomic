@@ -61,13 +61,14 @@ class Victims:
 
         Victims.numVictims = vi
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
-
-    def makeVictims(locationTypePairs, humanNames, locationNames):
-        Victims.numVictims = len(locationTypePairs)
+        
+    def makeVictims(vLocations, vTypes, humanNames, locationNames):
+        assert(len(vLocations) == len(vTypes))
+        Victims.numVictims = len(vTypes)
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
         for vi in range(Victims.numVictims):
-            loc = locationTypePairs[vi][0]
-            vtype = locationTypePairs[vi][1]
+            loc = vLocations[vi]
+            vtype = vTypes[vi]
             Victims._makeVictim(vi, loc, vtype, humanNames, locationNames)
 
     def _makeVictim(vi, loc, vtype, humanNames, locationNames):
