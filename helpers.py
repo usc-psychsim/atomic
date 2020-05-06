@@ -35,7 +35,7 @@ def setBeliefs(world, agent, triageAgent):
     
     triageAgent.resetBelief(ignore={modelKey(agent.name)})
     triageAgent.omega = {key for key in world.state.keys() if key not in \
-                   {modelKey(triageAgent.name),rewardKey(triageAgent.name), modelKey(agent.name)}} #
+                   {modelKey(agent.name)}} #
 
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
