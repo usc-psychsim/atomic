@@ -26,13 +26,15 @@ class Victims:
     TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
     # Number of seconds after which a victim dies
     TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
-    
+
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'
+    STR_TRIAGE_ACT = 'actTriage'
     STR_CROSSHAIR_VAR = 'vicInCH'
     STR_APPROACH_VAR = 'vicApproached'
     STR_FOV_VAR = 'vicInFOV'
-    
+    STR_TRIAGE_VAR = 'vicTriaged'
+
     # A dict mapping a room to a dict mapping a color to the corresponding victim object
     victimsByLocAndColor = {}
     # A list of victim objects
@@ -56,7 +58,7 @@ class Victims:
         for r in roomsWith2:
             Victims._makeVictim(vi, r, 'Green', humanNames, roomsWithVics)
             vi += 1
-            
+
         Victims.numVictims = vi
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
         
@@ -68,7 +70,7 @@ class Victims:
             loc = vLocations[vi]
             vtype = vTypes[vi]
             Victims._makeVictim(vi, loc, vtype, humanNames, locationNames)
-        
+
     def _makeVictim(vi, loc, vtype, humanNames, locationNames):
             victim = Victims.world.addAgent('victim' + str(vi))
 
@@ -90,12 +92,12 @@ class Victims:
 
             vicObj = Victim(loc, vtype, Victims.TYPE_EXPIRY[vtype], victim, rew)
             Victims.victimAgents.append(vicObj)
-            
+
             if loc not in Victims.victimsByLocAndColor.keys():
                 Victims.victimsByLocAndColor[loc] = {}
             Victims.victimsByLocAndColor[loc][vtype] = vicObj
 
-    def getVicName(loc, color):        
+    def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
             print('ERROR. No', color, 'victim in', loc)
             return ''
@@ -143,7 +145,7 @@ class Victims:
         Legal if: there is a victim in FoV
         Action effects: set the crosshair/approached var to the victim in FoV
         """
-        # create and initialize crosshair/approached vars 
+        # create and initialize crosshair/approached vars
         for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
             Victims.world.defineState(human.name,varname,list, ['none'] + Victims.vicNames)
             human.setState(varname,'none')
@@ -158,7 +160,7 @@ class Victims:
         # Dynamics: Each of the 2 pre-triage actions sets the corresponding variable
         # to the value of the victim in FOV
         fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
-        for act, varname in zip([crossHairAction, getCloseAction], 
+        for act, varname in zip([crossHairAction, getCloseAction],
                                 [Victims.STR_CROSSHAIR_VAR, Victims.STR_APPROACH_VAR, ]):
             key = stateKey(human.name, varname)
             tree = makeTree(setToFeatureMatrix(key, fovKey))
@@ -169,7 +171,7 @@ class Victims:
 
     def makeTriageAction(human):
         """
-        Create ONE triage action 
+        Create ONE triage action
         Legal action if: 1) non-null victim in crosshairs and same as victim within distance
                          2) victim is unsaved
         Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
@@ -177,7 +179,7 @@ class Victims:
 
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
         approachKey = stateKey(human.name, Victims.STR_APPROACH_VAR)
-        
+
         testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
                        0: False}
         for i, vn in enumerate(Victims.vicNames):
@@ -186,14 +188,14 @@ class Victims:
         legalityTree = makeTree({'if': equalFeatureRow(crossKey, approachKey),
                         True: testAllVics,
                         False: False})
-        action = human.addAction({'verb': 'triage', }, legalityTree)        
+        action = human.addAction({'verb': 'triage', }, legalityTree)
 
         for vicObj in Victims.victimAgents:
             victim = vicObj.vicAgent
             statusKey = stateKey(victim.name,'status')
             dangerKey = stateKey(victim.name,'danger')
             saviorKey = stateKey(victim.name,'savior')
-            
+
             ## Status: if danger is down to 0, victim is saved
             tree = makeTree({'if': equalRow(crossKey, victim.name),
                              True: {'if': equalRow(dangerKey, 1),
@@ -234,7 +236,7 @@ class Victims:
                                        equalRow(stateKey(vn, 'savior'), human.name),
                                        equalRow(actionKey(human.name), Victims.triageActions[human.name])],
                                 incrementMatrix(rKey, vobj.reward),
-                                noChangeMatrix(rKey))                
+                                noChangeMatrix(rKey))
         human.setReward(makeTree(testAllVics),1)
 
     def getTriageAction(human):
