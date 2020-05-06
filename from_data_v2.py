@@ -68,6 +68,6 @@ while testing:
         continue
     print(f'## looking at event {event_id}')
     atm = DataParser.getTimelessAttempt(world, triageAgent.name, aes, event_id)
-    #  for x in atm:
-        #  print(x)
-    printAEs(atm)
+    for x in atm:
+        print(x)
+    #  printAEs(atm)
