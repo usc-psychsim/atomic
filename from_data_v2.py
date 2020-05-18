@@ -25,9 +25,9 @@ agent = world.addAgent('ATOMIC')
 ##### Get Map Data
 SandRLocs = getSandRMap()
 
-## Parse data file. NOTE: colors in file are ignored. 
+## Parse data file. NOTE: colors in file are ignored.
 ## An orange victim in every room that has 1+ victims.
-## A green victim in every room that has 2 victims.        
+## A green victim in every room that has 2 victims.
 parser = DataParser('augmented_data_w_successful_triage_attempts_short.csv')
 
 
@@ -58,5 +58,16 @@ def printAEs(aes):
         print(ae[1])
 
 ## Get actions and events related to a given triage attempt
-atm = DataParser.getTimelessAttempt(world, triageAgent.name, aes, 'SA6')
-printAEs(atm)
+testing = True
+while testing:
+    print("")
+    print("#####")
+    event_id = input("input event id: ")
+    if event_id == "":
+        testing = False
+        continue
+    print(f'## looking at event {event_id}')
+    atm = DataParser.getTimelessAttempt(world, triageAgent.name, aes, event_id)
+    for x in atm:
+        print(x)
+    #  printAEs(atm)
