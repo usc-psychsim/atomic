@@ -25,7 +25,10 @@ class Victims:
     # Number of triage seconds to save a victim
     TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
     # Number of seconds after which a victim dies
-    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
+    TYPE_EXPIRY ={'Green':15*60, 'Orange':7.5*60}
+    
+    P_EMPTY_FOV = 0.5
+    P_VIC_FOV = 0
     
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'

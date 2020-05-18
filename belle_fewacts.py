@@ -32,7 +32,9 @@ Victims.world = world
 Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], list(SandRLocs.keys()))
 Victims.makePreTriageActions(triageAgent)
 Victims.makeTriageAction(triageAgent)
-    
+
+Victims.P_VIC_FOV = (1.0 - Victims.P_EMPTY_FOV) / len(Victims.victimAgents)
+
 ################# Locations and Move actions
 Locations.EXPLORE_BONUS = 0
 Locations.world = world
@@ -50,9 +52,9 @@ triageAgent.setAttribute('horizon',4)
 
 ############### The following shows incorrect beleifs of the triager about his own last 
 ############### action and thus new location.
-#setBeliefs(world, agent, triageAgent)
-#Locations.move(triageAgent, Directions.E)
-#world.printBeliefs(triageAgent.name)
+setBeliefs(world, agent, triageAgent)
+Locations.move(triageAgent, Directions.E)
+world.printBeliefs(triageAgent.name)
 
 ############### The following breaks the assertion len(agent.getBelief()) ==1 
 ############### action and thus new location.

@@ -90,8 +90,8 @@ class Locations:
             action = human.addAction({'verb': 'move', 'object':Directions.Names[direction]},legalityTree)
             Locations.moveActions[human.name].append(action)
 
-            # Unset the crosshair and FOV and approach variables
-            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]: #, Victims.STR_FOV_VAR
+            # Unset the crosshair and approach variables
+            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]: 
                 vtKey = stateKey(human.name, varname)
                 tree = makeTree(setToConstantMatrix(vtKey, 'none'))
                 Locations.world.setDynamics(vtKey,action,tree)
@@ -110,6 +110,14 @@ class Locations:
                                  True: setToConstantMatrix(destKey, True),
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
+                
+            # A move has some probability of setting FOV to any victim
+            fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
+            distList = [(setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV)]
+            for vicObj in Victims.victimAgents:
+                distList.append((setToConstantMatrix(fovKey, vicObj.vicAgent.name), Victims.P_VIC_FOV))            
+            fovTree = makeTree({'distribution': distList})
+            Locations.world.setDynamics(fovKey,action,fovTree)
 
             if not Victims.FULL_OBS:
                 # Set observed variables to victim's features
