@@ -14,7 +14,7 @@ branch=$(git symbolic-ref --short HEAD)
 
 # cd into docs, make them
 cd doc
-make clean html
+make clean
 make html
 cd ..
 
