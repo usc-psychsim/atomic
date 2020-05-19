@@ -1,0 +1,36 @@
+version: 2.1
+# based on https://github.com/tgsmith61591/gh_automation/blob/master/.circleci/config.yml
+orbs:
+  python: circleci/python@0.2.1
+
+jobs:
+
+  # For documentation deployment. You'll need the following environment vars
+  # in your Circle CI settings, otherwise this will not work.
+  #
+  # GH_NAME (your git username)
+  # GH_EMAIL (your git email)
+  # GH_TOKEN (the personal Git token with pushes enabled)
+  #
+  # tests: 
+  deploy_doc:
+    docker:
+      - image: python:3.6
+    steps:
+      - checkout
+      - run: make env-requirements
+      - run: make doc-requirements
+      - run: cicd_utils/build_push_docs.sh
+
+workflows:
+  version: 2
+
+  deploy_master:
+    jobs:
+      # add other jobs (i.e. tests)
+      # - tests: 
+      - deploy_doc:
+          filters:
+            branches:
+              only: master
+
