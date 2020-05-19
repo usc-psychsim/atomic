@@ -2,6 +2,8 @@ Intro
 =====
 These are the docs for the atomic_domain_definitions repository. There are scripts for USC-ICT ASIST ATOMIC team.
 
+hopefully the site builds now...
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
