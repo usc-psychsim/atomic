@@ -159,8 +159,154 @@
 <p>hoping the  refreshes now</p>
 <div class="section" id="module-victims_fewacts">
 <span id="victims-fewacts"></span><h2>VICTIMS_FEWACTS<a class="headerlink" href="#module-victims_fewacts" title="Permalink to this headline">¶</a></h2>
-<p>Created on Thu Feb 20 11:23:22 2020</p>
-<p>&#64;author: mostafh</p>
+<p>The module contains classes and methods for dealing with victims in the ASIST S&amp;R problem. The <code class="docutils literal notranslate"><span class="pre">fewacts</span></code> portion refers to the fact that this implementation has “few actions”.</p>
+<dl class="py class">
+<dt id="victims_fewacts.Victim">
+<em class="property">class </em><code class="sig-prename descclassname">victims_fewacts.</code><code class="sig-name descname">Victim</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">rm</span></em>, <em class="sig-param"><span class="n">clr</span></em>, <em class="sig-param"><span class="n">expr</span></em>, <em class="sig-param"><span class="n">va</span></em>, <em class="sig-param"><span class="n">rew</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Victim class</p>
+<dl class="field-list simple">
+<dt class="field-odd">Self.rm</dt>
+<dd class="field-odd"><p>location; room the victim is in</p>
+</dd>
+<dt class="field-even">Self.clr</dt>
+<dd class="field-even"><p>victim “color”; i.e. severity of injuries</p>
+</dd>
+<dt class="field-odd">Self.expr</dt>
+<dd class="field-odd"><p>expiration; whether victim is expired or not</p>
+</dd>
+<dt class="field-even">Self.rew</dt>
+<dd class="field-even"><p>reward; how much reward is given for rescuing the victim</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="victims_fewacts.Victims">
+<em class="property">class </em><code class="sig-prename descclassname">victims_fewacts.</code><code class="sig-name descname">Victims</code><a class="headerlink" href="#victims_fewacts.Victims" title="Permalink to this definition">¶</a></dt>
+<dd><p>Methods for modeling victims within a psychsim world.</p>
+<dl class="py method">
+<dt id="victims_fewacts.Victims.beliefAboutVictims">
+<code class="sig-name descname">beliefAboutVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">initHumanLoc</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.beliefAboutVictims" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create uncertain beliefs about each victim’s properties. For each victim:
+A) If human’s initial location = victim initial’s location, human knows victim is right there
+B) If human’s initial location != victim initial’s location, human assigns 0 belief to victim being in human’s init loc</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeOrangeGreenVictims">
+<code class="sig-name descname">makeOrangeGreenVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">roomsWith2</span></em>, <em class="sig-param"><span class="n">humanNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeOrangeGreenVictims" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method puts an orange victim in every room that has 1+ victims
+and a green victim in every room that has 2 victims.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>roomsWith1</strong> – list of rooms with a single victim</p></li>
+<li><p><strong>roomsWith2</strong> – list of rooms with two victims</p></li>
+<li><p><strong>humanNames</strong> – ??? – add this description</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Creates victims in the psychsim world, updates the total number of victims <cite>vi</cite> and adds victims to <cite>vicNames</cite></p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
+This will  need to be addressed in the future.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makePreTriageActions">
+<code class="sig-name descname">makePreTriageActions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makePreTriageActions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create ONE action to approach victim and ONE action to place them in crosshair
+Legal if: there is a victim in FoV
+Action effects: set the crosshair/approached var to the victim in FoV</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeTriageAction">
+<code class="sig-name descname">makeTriageAction</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeTriageAction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create ONE triage action
+Legal action if: 1) non-null victim in crosshairs and same as victim within distance
+2) victim is unsaved
+Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior’s name
+b) Always decrement victim’s danger</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeVictimObservationVars">
+<code class="sig-name descname">makeVictimObservationVars</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimObservationVars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create observed varibles</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeVictimReward">
+<code class="sig-name descname">makeVictimReward</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimReward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Human gets reward if: a) victim is saved; c) human is the savior;
+c) last human action was triage (so reward only obtained once)</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeVictims">
+<code class="sig-name descname">makeVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">vTypes</span></em>, <em class="sig-param"><span class="n">humanNames</span></em>, <em class="sig-param"><span class="n">locationNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictims" title="Permalink to this definition">¶</a></dt>
+<dd><p>Method for creating victims in the world</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vLocations</strong> – list of locations of victims</p></li>
+<li><p><strong>vTypes</strong> – list containing the type of each victim</p></li>
+<li><p><strong>humanNames</strong> – ??? — add this description</p></li>
+<li><p><strong>locationNames</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_APPROACH_ACT">
+<code class="sig-name descname">STR_APPROACH_ACT</code><em class="property"> = 'actApproach'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for action of approaching victim</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_APPROACH_VAR">
+<code class="sig-name descname">STR_APPROACH_VAR</code><em class="property"> = 'vicApproached'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for the data field that indicates whether the player is near enough the victim to perform a triage action</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_CROSSHAIR_ACT">
+<code class="sig-name descname">STR_CROSSHAIR_ACT</code><em class="property"> = 'actCH'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for action of placing victim in crosshair</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_CROSSHAIR_VAR">
+<code class="sig-name descname">STR_CROSSHAIR_VAR</code><em class="property"> = 'vicInCH'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for the data field that indicates whether a victim is in the crosshair or not</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_FOV_VAR">
+<code class="sig-name descname">STR_FOV_VAR</code><em class="property"> = 'vicInFOV'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_FOV_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for the data field that indicates whether a victim is within the player’s field of view</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_TRIAGE_ACT">
+<code class="sig-name descname">STR_TRIAGE_ACT</code><em class="property"> = 'actTriage'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_TRIAGE_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>string label for triage action</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.TYPE_REWARDS">
+<code class="sig-name descname">TYPE_REWARDS</code><em class="property"> = {'Green': 10, 'Orange': 200}</em><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REWARDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>How much reward for different color victims</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 </div>
 
