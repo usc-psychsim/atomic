@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Feb 20 11:23:22 2020
-
-@author: mostafh
+The module contains classes and methods for dealing with victims in the ASIST S&R problem. The ``fewacts`` portion refers to the fact that this implementation has "few actions".
 """
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
@@ -11,6 +9,15 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
 from helpers import anding
 
 class Victim:
+    """
+    Victim class
+
+    :self.rm: location; room the victim is in
+    :self.clr: victim "color"; i.e. severity of injuries
+    :self.expr: expiration; whether victim is expired or not
+    :self.rew: reward; how much reward is given for rescuing the victim
+
+    """
     def __init__(self, rm, clr, expr, va, rew):
         self.room = rm
         self.color = clr
@@ -19,24 +26,26 @@ class Victim:
         self.reward = rew
 
 class Victims:
-    FULL_OBS = None
-    ## Reward per victim type
-    TYPE_REWARDS = {'Green':10, 'Orange':200}
-    # Number of triage seconds to save a victim
-    TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
-    # Number of seconds after which a victim dies
-    TYPE_EXPIRY ={'Green':15*60, 'Orange':7.5*60}
-    
-    P_EMPTY_FOV = 0.5
-    P_VIC_FOV = 0
-    
-    STR_CROSSHAIR_ACT = 'actCH'
-    STR_APPROACH_ACT = 'actApproach'
-    STR_TRIAGE_ACT = 'actTriage'
-    STR_CROSSHAIR_VAR = 'vicInCH'
-    STR_APPROACH_VAR = 'vicApproached'
-    STR_FOV_VAR = 'vicInFOV'
-    STR_TRIAGE_VAR = 'vicTriaged'
+    """
+    Methods for modeling victims within a psychsim world.
+    """
+
+    FULL_OBS = None # observatbility of the domain
+
+
+    TYPE_REWARDS = {'Green':10, 'Orange':200} #: How much reward for different color victims
+
+    TYPE_REQD_TIMES = {'Green':1, 'Orange':1} # Number of seconds of triage required to save a victim
+
+    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60} # Number of seconds until victim dies
+
+    STR_CROSSHAIR_ACT = 'actCH' #: string label for action of placing victim in crosshair
+    STR_APPROACH_ACT = 'actApproach' #: string label for action of approaching victim
+    STR_TRIAGE_ACT = 'actTriage' #: string label for triage action
+    STR_CROSSHAIR_VAR = 'vicInCH' #: string label for the data field that indicates whether a victim is in the crosshair or not
+    STR_APPROACH_VAR = 'vicApproached' #: string label for the data field that indicates whether the player is near enough the victim to perform a triage action
+    STR_FOV_VAR = 'vicInFOV' #: string label for the data field that indicates whether a victim is within the player's field of view
+    STR_TRIAGE_VAR = 'vicTriaged' # string lable for the data field that indicates whether a triage was completed
 
     # A dict mapping a room to a dict mapping a color to the corresponding victim object
     victimsByLocAndColor = {}
@@ -52,6 +61,20 @@ class Victims:
         """
         This method puts an orange victim in every room that has 1+ victims
         and a green victim in every room that has 2 victims.
+
+        Parameters:
+            roomsWith1: list of rooms with a single victim
+            roomsWith2: list of rooms with two victims
+            humanNames: ??? -- add this description
+
+        Returns:
+            Creates victims in the psychsim world, updates the total number of victims `vi` and adds victims to `vicNames`
+
+
+        Note:
+            The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
+            This will  need to be addressed in the future.
+
         """
         vi = 0
         roomsWithVics = list(roomsWith1) + list(roomsWith2)
@@ -64,8 +87,17 @@ class Victims:
 
         Victims.numVictims = vi
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
-        
+
     def makeVictims(vLocations, vTypes, humanNames, locationNames):
+        """
+        Method for creating victims in the world
+
+        Parameters:
+            vLocations: list of locations of victims
+            vTypes: list containing the type of each victim
+            humanNames: ??? --- add this description
+            locationNames:
+        """
         assert(len(vLocations) == len(vTypes))
         Victims.numVictims = len(vTypes)
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
@@ -176,9 +208,11 @@ class Victims:
         """
         Create ONE triage action
         Legal action if: 1) non-null victim in crosshairs and same as victim within distance
-                         2) victim is unsaved
+        2) victim is unsaved
         Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
-        b) Always decrement victim's danger        """
+        b) Always decrement victim's danger
+
+        """
 
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
         approachKey = stateKey(human.name, Victims.STR_APPROACH_VAR)
@@ -228,6 +262,7 @@ class Victims:
         """
         Human gets reward if: a) victim is saved; c) human is the savior;
         c) last human action was triage (so reward only obtained once)
+
         """
         rKey = rewardKey(human.name)
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
