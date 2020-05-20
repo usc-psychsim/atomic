@@ -10,6 +10,10 @@ from psychsim.world import WORLD
 from victims_fewacts import Victims
 
 class Directions:
+    """
+    Dicretions class
+
+    """
     N = 0
     E = 1
     S = 2
@@ -80,7 +84,7 @@ class Locations:
         Locations.moveActions[human.name] = []
         locKey = stateKey(human.name, 'loc')
 
-        for direction in range(4):            
+        for direction in range(4):
             # Legal if current location has a neighbor in the given direction
             locsWithNbrs = set(Locations.Nbrs[direction].keys())
 #            print('Dir', direction, 'legal in', locsWithNbrs)
@@ -91,7 +95,7 @@ class Locations:
             Locations.moveActions[human.name].append(action)
 
             # Unset the crosshair and approach variables
-            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]: 
+            for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:
                 vtKey = stateKey(human.name, varname)
                 tree = makeTree(setToConstantMatrix(vtKey, 'none'))
                 Locations.world.setDynamics(vtKey,action,tree)
@@ -104,18 +108,18 @@ class Locations:
             Locations.world.setDynamics(locKey,action,makeTree(tree))
 
             # A move sets the seen flag of the location we moved to
-            for dest in Locations.AllLocations: 
+            for dest in Locations.AllLocations:
                 destKey = stateKey(human.name,'seenloc_'+str(dest))
                 tree = makeTree({'if': equalRow(makeFuture(locKey), dest),
                                  True: setToConstantMatrix(destKey, True),
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
-                
+
             # A move has some probability of setting FOV to any victim
             fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
             distList = [(setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV)]
             for vicObj in Victims.victimAgents:
-                distList.append((setToConstantMatrix(fovKey, vicObj.vicAgent.name), Victims.P_VIC_FOV))            
+                distList.append((setToConstantMatrix(fovKey, vicObj.vicAgent.name), Victims.P_VIC_FOV))
             fovTree = makeTree({'distribution': distList})
             Locations.world.setDynamics(fovKey,action,fovTree)
 
@@ -153,12 +157,12 @@ class Locations:
     def getDirection(src, dest, isSecond=False):
         for d in range(4):
             if (src in Locations.Nbrs[d].keys()) and (Locations.Nbrs[d][src] == dest):
-                return [d]           
+                return [d]
         if isSecond:
             return [-1]
-        
-        # If src and dest are 1 step removed, find a common nbr, if any and return 
-        # 2 move actions. Do NOT recurse indefinitely. 
+
+        # If src and dest are 1 step removed, find a common nbr, if any and return
+        # 2 move actions. Do NOT recurse indefinitely.
         for mid in Locations.AllLocations:
             d1 = Locations.getDirection(src, mid, True)
             if d1[0] >= 0:

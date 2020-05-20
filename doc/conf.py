@@ -34,12 +34,16 @@ extensions = [
         'sphinx_rtd_theme',
         'sphinx.ext.autodoc',
         'sphinx.ext.napoleon',
+        'sphinx.ext.todo',
 ]
 
 autodoc_default_options = {
         'members': True,
         'member-order': 'groupwise',
 }
+
+todo_include_todos = True
+
 autosummary_generate = True
 
 html_theme_options = {
