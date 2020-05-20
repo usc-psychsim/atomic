@@ -88,6 +88,7 @@
 <li class="toctree-l1"><a class="reference internal" href="index.html">Intro</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#module-victims_fewacts">VICTIMS_FEWACTS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-new_locations_fewacts">NEW_LOCATIONS_FEWACTS</a></li>
 </ul>
 </li>
 </ul>
@@ -159,31 +160,143 @@
 <p>hoping the  refreshes now</p>
 <div class="section" id="module-victims_fewacts">
 <span id="victims-fewacts"></span><h2>VICTIMS_FEWACTS<a class="headerlink" href="#module-victims_fewacts" title="Permalink to this headline">¶</a></h2>
-<p>The module contains classes and methods for dealing with victims in the ASIST S&amp;R problem. The <code class="docutils literal notranslate"><span class="pre">fewacts</span></code> portion refers to the fact that this implementation has “few actions”.</p>
+<p>The module contains classes and methods for dealing with victims in the ASIST S&amp;R problem. <code class="docutils literal notranslate"><span class="pre">fewacts</span></code> refers to the fact that this implementation has “few actions”.</p>
 <dl class="py class">
 <dt id="victims_fewacts.Victim">
 <em class="property">class </em><code class="sig-prename descclassname">victims_fewacts.</code><code class="sig-name descname">Victim</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">rm</span></em>, <em class="sig-param"><span class="n">clr</span></em>, <em class="sig-param"><span class="n">expr</span></em>, <em class="sig-param"><span class="n">va</span></em>, <em class="sig-param"><span class="n">rew</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victim" title="Permalink to this definition">¶</a></dt>
 <dd><p>Victim class</p>
-<dl class="field-list simple">
-<dt class="field-odd">Self.rm</dt>
-<dd class="field-odd"><p>location; room the victim is in</p>
-</dd>
-<dt class="field-even">Self.clr</dt>
-<dd class="field-even"><p>victim “color”; i.e. severity of injuries</p>
-</dd>
-<dt class="field-odd">Self.expr</dt>
-<dd class="field-odd"><p>expiration; whether victim is expired or not</p>
-</dd>
-<dt class="field-even">Self.rew</dt>
-<dd class="field-even"><p>reward; how much reward is given for rescuing the victim</p>
-</dd>
-</dl>
+<dl class="py attribute">
+<dt id="victims_fewacts.Victim.self.rm">
+<code class="sig-prename descclassname">self.</code><code class="sig-name descname">rm</code><a class="headerlink" href="#victims_fewacts.Victim.self.rm" title="Permalink to this definition">¶</a></dt>
+<dd><p>location; room the victim is in</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victim.self.clr">
+<code class="sig-prename descclassname">self.</code><code class="sig-name descname">clr</code><a class="headerlink" href="#victims_fewacts.Victim.self.clr" title="Permalink to this definition">¶</a></dt>
+<dd><p>victim “color”; i.e. severity of injuries</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victim.self.expr">
+<code class="sig-prename descclassname">self.</code><code class="sig-name descname">expr</code><a class="headerlink" href="#victims_fewacts.Victim.self.expr" title="Permalink to this definition">¶</a></dt>
+<dd><p>expiration; whether victim is expired or not</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victim.self.rew">
+<code class="sig-prename descclassname">self.</code><code class="sig-name descname">rew</code><a class="headerlink" href="#victims_fewacts.Victim.self.rew" title="Permalink to this definition">¶</a></dt>
+<dd><p>reward; how much reward is given for rescuing the victim</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
 <dt id="victims_fewacts.Victims">
 <em class="property">class </em><code class="sig-prename descclassname">victims_fewacts.</code><code class="sig-name descname">Victims</code><a class="headerlink" href="#victims_fewacts.Victims" title="Permalink to this definition">¶</a></dt>
 <dd><p>Methods for modeling victims within a psychsim world.</p>
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.TYPE_REWARDS">
+<code class="sig-name descname">TYPE_REWARDS</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REWARDS" title="Permalink to this definition">¶</a></dt>
+<dd><p>How much reward for different color victims</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.TYPE_REQD_TIMES">
+<code class="sig-name descname">TYPE_REQD_TIMES</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REQD_TIMES" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of seconds of triage required to save a victim</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.TYPE_EXPIRY">
+<code class="sig-name descname">TYPE_EXPIRY</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_EXPIRY" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of seconds until victim dies</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_CROSSHAIR_ACT">
+<code class="sig-name descname">STR_CROSSHAIR_ACT</code><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for action of placing victim in crosshair</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_APPROACH_ACT">
+<code class="sig-name descname">STR_APPROACH_ACT</code><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for action of approaching victim</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_TRIAGE_ACT">
+<code class="sig-name descname">STR_TRIAGE_ACT</code><a class="headerlink" href="#victims_fewacts.Victims.STR_TRIAGE_ACT" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for triage action</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_CROSSHAIR_VAR">
+<code class="sig-name descname">STR_CROSSHAIR_VAR</code><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for the data field that indicates whether a victim is in the crosshair or not</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_APPROACH_VAR">
+<code class="sig-name descname">STR_APPROACH_VAR</code><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for the data field that indicates whether the player is near enough the victim to perform a triage action</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_FOV_VAR">
+<code class="sig-name descname">STR_FOV_VAR</code><a class="headerlink" href="#victims_fewacts.Victims.STR_FOV_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>String label for the data field that indicates whether a victim is within the player’s field of view</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.STR_TRIAGE_VAR">
+<code class="sig-name descname">STR_TRIAGE_VAR</code><a class="headerlink" href="#victims_fewacts.Victims.STR_TRIAGE_VAR" title="Permalink to this definition">¶</a></dt>
+<dd><p>String lable for the data field that indicates whether a triage was completed</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.FULL_OBS">
+<code class="sig-name descname">FULL_OBS</code><a class="headerlink" href="#victims_fewacts.Victims.FULL_OBS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Observability of domain</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.victimsByLocAndColor">
+<code class="sig-name descname">victimsByLocAndColor</code><a class="headerlink" href="#victims_fewacts.Victims.victimsByLocAndColor" title="Permalink to this definition">¶</a></dt>
+<dd><p>A dict mapping a room to a dict mapping a color to the corresponding victim object</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.victimAgents">
+<code class="sig-name descname">victimAgents</code><a class="headerlink" href="#victims_fewacts.Victims.victimAgents" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of victim objects containing all victims in the world</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.triageActions">
+<code class="sig-name descname">triageActions</code><a class="headerlink" href="#victims_fewacts.Victims.triageActions" title="Permalink to this definition">¶</a></dt>
+<dd><p>A map from a player to her triage actions</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.crosshairActs">
+<code class="sig-name descname">crosshairActs</code><a class="headerlink" href="#victims_fewacts.Victims.crosshairActs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A map from a player to her crosshair actions</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.approachActs">
+<code class="sig-name descname">approachActs</code><a class="headerlink" href="#victims_fewacts.Victims.approachActs" title="Permalink to this definition">¶</a></dt>
+<dd><p>A map from a player to her approach actions</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt id="victims_fewacts.Victims.world">
+<code class="sig-name descname">world</code><a class="headerlink" href="#victims_fewacts.Victims.world" title="Permalink to this definition">¶</a></dt>
+<dd><p>link to domain psychsim world</p>
+</dd></dl>
+
 <dl class="py method">
 <dt id="victims_fewacts.Victims.beliefAboutVictims">
 <code class="sig-name descname">beliefAboutVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">initHumanLoc</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.beliefAboutVictims" title="Permalink to this definition">¶</a></dt>
@@ -243,8 +356,13 @@ b) Always decrement victim’s danger</p>
 <dl class="py method">
 <dt id="victims_fewacts.Victims.makeVictimReward">
 <code class="sig-name descname">makeVictimReward</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimReward" title="Permalink to this definition">¶</a></dt>
-<dd><p>Human gets reward if: a) victim is saved; c) human is the savior;
-c) last human action was triage (so reward only obtained once)</p>
+<dd><p>ADD DESCRIPTION HERE</p>
+<p>Human gets reward if:</p>
+<ol class="loweralpha simple">
+<li><p>victim is saved;</p></li>
+<li><p>human is the savior;</p></li>
+<li><p>last human action was triage (so reward only obtained once)</p></li>
+</ol>
 </dd></dl>
 
 <dl class="py method">
@@ -264,45 +382,57 @@ c) last human action was triage (so reward only obtained once)</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_APPROACH_ACT">
-<code class="sig-name descname">STR_APPROACH_ACT</code><em class="property"> = 'actApproach'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_ACT" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for action of approaching victim</p>
+<dt id="victims_fewacts.Victims.P_EMPTY_FOV">
+<code class="sig-name descname">P_EMPTY_FOV</code><em class="property"> = 0.5</em><a class="headerlink" href="#victims_fewacts.Victims.P_EMPTY_FOV" title="Permalink to this definition">¶</a></dt>
+<dd><p>probability that a player’s FOV is empty when stepping into a room</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_APPROACH_VAR">
-<code class="sig-name descname">STR_APPROACH_VAR</code><em class="property"> = 'vicApproached'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_APPROACH_VAR" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for the data field that indicates whether the player is near enough the victim to perform a triage action</p>
+<dt id="victims_fewacts.Victims.P_VIC_FOV">
+<code class="sig-name descname">P_VIC_FOV</code><em class="property"> = 0</em><a class="headerlink" href="#victims_fewacts.Victims.P_VIC_FOV" title="Permalink to this definition">¶</a></dt>
+<dd><p>to be overwritten based on number of victims in env</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-new_locations_fewacts">
+<span id="new-locations-fewacts"></span><h2>NEW_LOCATIONS_FEWACTS<a class="headerlink" href="#module-new_locations_fewacts" title="Permalink to this headline">¶</a></h2>
+<p>Created on Thu Feb 20 11:27:36 2020</p>
+<p>&#64;author: mostafh</p>
+<dl class="py class">
+<dt id="new_locations_fewacts.Directions">
+<em class="property">class </em><code class="sig-prename descclassname">new_locations_fewacts.</code><code class="sig-name descname">Directions</code><a class="headerlink" href="#new_locations_fewacts.Directions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dicretions class</p>
+</dd></dl>
+
+<dl class="py class">
+<dt id="new_locations_fewacts.Locations">
+<em class="property">class </em><code class="sig-prename descclassname">new_locations_fewacts.</code><code class="sig-name descname">Locations</code><a class="headerlink" href="#new_locations_fewacts.Locations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exploration bonus</p>
+<dl class="py method">
+<dt id="new_locations_fewacts.Locations.makeMap">
+<code class="sig-name descname">makeMap</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#new_locations_fewacts.Locations.makeMap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Each tuple in the list is of the form (z1, dir, z2) meaning z1 is to the &lt;dir&gt; of z2</p>
+</dd></dl>
+
+<dl class="py method">
+<dt id="new_locations_fewacts.Locations.makeMapDict">
+<code class="sig-name descname">makeMapDict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#new_locations_fewacts.Locations.makeMapDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Each key in parisDict is a room, and the values are another dictionary with keys
+being Directions.directions, and the values are rooms in that direction.</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_CROSSHAIR_ACT">
-<code class="sig-name descname">STR_CROSSHAIR_ACT</code><em class="property"> = 'actCH'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_ACT" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for action of placing victim in crosshair</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_CROSSHAIR_VAR">
-<code class="sig-name descname">STR_CROSSHAIR_VAR</code><em class="property"> = 'vicInCH'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_CROSSHAIR_VAR" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for the data field that indicates whether a victim is in the crosshair or not</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_FOV_VAR">
-<code class="sig-name descname">STR_FOV_VAR</code><em class="property"> = 'vicInFOV'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_FOV_VAR" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for the data field that indicates whether a victim is within the player’s field of view</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_TRIAGE_ACT">
-<code class="sig-name descname">STR_TRIAGE_ACT</code><em class="property"> = 'actTriage'</em><a class="headerlink" href="#victims_fewacts.Victims.STR_TRIAGE_ACT" title="Permalink to this definition">¶</a></dt>
-<dd><p>string label for triage action</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="victims_fewacts.Victims.TYPE_REWARDS">
-<code class="sig-name descname">TYPE_REWARDS</code><em class="property"> = {'Green': 10, 'Orange': 200}</em><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REWARDS" title="Permalink to this definition">¶</a></dt>
-<dd><p>How much reward for different color victims</p>
+<dt id="new_locations_fewacts.Locations.world">
+<code class="sig-name descname">world</code><em class="property"> = None</em><a class="headerlink" href="#new_locations_fewacts.Locations.world" title="Permalink to this definition">¶</a></dt>
+<dd><p>a list. The element corresponding to each direction is a map of each location that has a
+neighbor in this direction to that neighbor</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>Nbrs</p>
+</dd>
+</dl>
 </dd></dl>
 
 </dd></dl>
