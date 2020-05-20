@@ -32,6 +32,8 @@ class Victims:
         TYPE_REWARDS: How much reward for different color victims
         TYPE_REQD_TIMES: Number of seconds of triage required to save a victim
         TYPE_EXPIRY: Number of seconds until victim dies
+        P_EMPTY_FOV: Probability that a player's FOV is empty when stepping into a room
+        P_VIC_FOV: To be overwritten based on number of victims in env
         STR_CROSSHAIR_ACT: String label for action of placing victim in crosshair
         STR_APPROACH_ACT: String label for action of approaching victim
         STR_TRIAGE_ACT: String label for triage action
