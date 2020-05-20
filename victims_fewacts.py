@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The module contains classes and methods for dealing with victims in the ASIST S&R problem. The ``fewacts`` portion refers to the fact that this implementation has "few actions".
+The module contains classes and methods for dealing with victims in the ASIST S&R problem. ``fewacts`` refers to the fact that this implementation has "few actions".
 """
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
@@ -9,13 +9,13 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
 from helpers import anding
 
 class Victim:
-    """
-    Victim class
+    """ Victim class
 
-    :self.rm: location; room the victim is in
-    :self.clr: victim "color"; i.e. severity of injuries
-    :self.expr: expiration; whether victim is expired or not
-    :self.rew: reward; how much reward is given for rescuing the victim
+    Attributes:
+        self.rm: location; room the victim is in
+        self.clr: victim "color"; i.e. severity of injuries
+        self.expr: expiration; whether victim is expired or not
+        self.rew: reward; how much reward is given for rescuing the victim
 
     """
     def __init__(self, rm, clr, expr, va, rew):
@@ -26,36 +26,50 @@ class Victim:
         self.reward = rew
 
 class Victims:
+    """ Methods for modeling victims within a psychsim world.
+
+    Attributes:
+        TYPE_REWARDS: How much reward for different color victims
+        TYPE_REQD_TIMES: Number of seconds of triage required to save a victim
+        TYPE_EXPIRY: Number of seconds until victim dies
+        STR_CROSSHAIR_ACT: String label for action of placing victim in crosshair
+        STR_APPROACH_ACT: String label for action of approaching victim
+        STR_TRIAGE_ACT: String label for triage action
+        STR_CROSSHAIR_VAR: String label for the data field that indicates whether a victim is in the crosshair or not
+        STR_APPROACH_VAR: String label for the data field that indicates whether the player is near enough the victim to perform a triage action
+        STR_FOV_VAR: String label for the data field that indicates whether a victim is within the player's field of view
+        STR_TRIAGE_VAR: String lable for the data field that indicates whether a triage was completed
+        FULL_OBS: Observability of domain
+
+        victimsByLocAndColor: A dict mapping a room to a dict mapping a color to the corresponding victim object
+        victimAgents: A list of victim objects containing all victims in the world
+        triageActions: A map from a player to her triage actions
+        crosshairActs: A map from a player to her crosshair actions
+        approachActs: A map from a player to her approach actions
+        world: link to domain psychsim world
+
+
     """
-    Methods for modeling victims within a psychsim world.
-    """
 
-    FULL_OBS = None # observatbility of the domain
+    FULL_OBS = None
 
-
-    TYPE_REWARDS = {'Green':10, 'Orange':200} #: How much reward for different color victims
-
-    TYPE_REQD_TIMES = {'Green':1, 'Orange':1} # Number of seconds of triage required to save a victim
-
-    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60} # Number of seconds until victim dies
-
+    TYPE_REWARDS = {'Green':10, 'Orange':200}
+    TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
+    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
 
     P_EMPTY_FOV = 0.5   #: probability that a player's FOV is empty when stepping into a room
     P_VIC_FOV = 0       #: to be overwritten based on number of victims in env
 
-    STR_CROSSHAIR_ACT = 'actCH' #: string label for action of placing victim in crosshair
-    STR_APPROACH_ACT = 'actApproach' #: string label for action of approaching victim
-    STR_TRIAGE_ACT = 'actTriage' #: string label for triage action
-    STR_CROSSHAIR_VAR = 'vicInCH' #: string label for the data field that indicates whether a victim is in the crosshair or not
-    STR_APPROACH_VAR = 'vicApproached' #: string label for the data field that indicates whether the player is near enough the victim to perform a triage action
-    STR_FOV_VAR = 'vicInFOV' #: string label for the data field that indicates whether a victim is within the player's field of view
-    STR_TRIAGE_VAR = 'vicTriaged' # string lable for the data field that indicates whether a triage was completed
+    STR_CROSSHAIR_ACT = 'actCH'
+    STR_APPROACH_ACT = 'actApproach'
+    STR_TRIAGE_ACT = 'actTriage'
+    STR_CROSSHAIR_VAR = 'vicInCH'
+    STR_APPROACH_VAR = 'vicApproached'
+    STR_FOV_VAR = 'vicInFOV'
+    STR_TRIAGE_VAR = 'vicTriaged'
 
-    # A dict mapping a room to a dict mapping a color to the corresponding victim object
     victimsByLocAndColor = {}
-    # A list of victim objects
     victimAgents = []
-    # A map from a player to her triage/crosshair/approach action
     triageActions = {}
     crosshairActs = {}
     approachActs = {}
@@ -73,7 +87,6 @@ class Victims:
 
         Returns:
             Creates victims in the psychsim world, updates the total number of victims `vi` and adds victims to `vicNames`
-
 
         Note:
             The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
@@ -263,8 +276,12 @@ class Victims:
         Victims.makeVictimReward(human)
 
     def makeVictimReward(human):
-        """
-        Human gets reward if: a) victim is saved; c) human is the savior;
+        """ ADD DESCRIPTION HERE
+
+        Human gets reward if:
+
+        a) victim is saved;
+        b) human is the savior;
         c) last human action was triage (so reward only obtained once)
 
         """
