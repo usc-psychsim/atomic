@@ -39,6 +39,10 @@ class Victims:
 
     TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60} # Number of seconds until victim dies
 
+
+    P_EMPTY_FOV = 0.5   #: probability that a player's FOV is empty when stepping into a room
+    P_VIC_FOV = 0       #: to be overwritten based on number of victims in env
+
     STR_CROSSHAIR_ACT = 'actCH' #: string label for action of placing victim in crosshair
     STR_APPROACH_ACT = 'actApproach' #: string label for action of approaching victim
     STR_TRIAGE_ACT = 'actTriage' #: string label for triage action
