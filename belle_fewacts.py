@@ -62,3 +62,10 @@ world.printBeliefs(triageAgent.name)
 #           [Victims.STR_FOV_VAR, 'victim3'],
 #           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs)]
 #testMMBelUpdate(world, agent, triageAgent, actions, Locations)
+
+from psychsim.pwl.vector import KeyedVector,VectorDistribution
+world.setJoint(VectorDistribution({
+	KeyedVector({stateKey(triageAgent.name,'vicInCH'): 'victim0', stateKey('victim0','status'): 'saved', stateKey('victim1','status'): 'unsaved'}): 0.5,
+	KeyedVector({stateKey(triageAgent.name,'vicInCH'): 'victim1', stateKey('victim0','status'): 'unsaved', stateKey('victim1','status'): 'saved'}): 0.5
+	}))
+world.printState()
