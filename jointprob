@@ -32,9 +32,10 @@ agent.resetBelief(ignore={modelKey(agent.name)})
 # Agent observes everything. Probably unnecessary.
 agent.omega = {key for key in world.state.keys()}
 
-world.setFeature(X, 0)
+beliefs = next(iter(agent.getBelief().values()))
+world.setFeature(X, 0, beliefs)
 
-print('Agents belief\n')
-world.printBeliefs(agent.name)
-print('World state\n')
-world.printState()
+print('Agents belief')
+print(world.getFeature(Y,beliefs))
+print('World state')
+print(world.getFeature(Y))
