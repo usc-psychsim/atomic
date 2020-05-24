@@ -17,7 +17,8 @@ agent = world.addAgent('ATOMIC')
 X = world.defineState(WORLD,'x')
 Y = world.defineState(WORLD,'y')
 
-    
+agent.addAction({'verb': 'observe'})
+world.setOrder([{agent.name}])
 world.setJoint(VectorDistribution({
 	KeyedVector({X: 0, Y: 0}): 0.40,
 	KeyedVector({X: 0, Y: 1}): 0.1,
@@ -38,3 +39,8 @@ print('Agents belief\n')
 world.printBeliefs(agent.name)
 print('World state\n')
 world.printState()
+
+world.step()
+
+print('Agents belief\n')
+world.printBeliefs(agent.name)
