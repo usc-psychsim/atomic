@@ -9,7 +9,7 @@ from psychsim.pwl import stateKey, actionKey
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
-from helpers import testMMBelUpdate, setBeliefs
+from helpers import testMMBelUpdate, setBeliefs, setBeliefsNoVics
 
 # MDP or POMDP
 Victims.FULL_OBS = True
@@ -52,9 +52,12 @@ triageAgent.setAttribute('horizon',4)
 
 ############### The following shows incorrect beleifs of the triager about his own last 
 ############### action and thus new location.
-setBeliefs(world, agent, triageAgent)
+setBeliefsNoVics(world, agent, triageAgent)
 Locations.move(triageAgent, Directions.E)
 world.printBeliefs(triageAgent.name)
+
+
+
 
 ############### The following breaks the assertion len(agent.getBelief()) ==1 
 ############### action and thus new location.
