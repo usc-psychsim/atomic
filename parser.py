@@ -8,6 +8,7 @@ Created on Thu Apr  2 20:35:23 2020
 import pandas as pd
 from victims_fewacts import Victims
 from new_locations_fewacts import Locations
+from psychsim.action import ActionSet
 
 class ActionTypes:
     MOVE = 0
@@ -65,7 +66,8 @@ class DataParser:
 
         ## Create flag for whether each victim is within triage range
         for vi in range(self.maxVicsInLoc):
-            pData['v'+str(vi)+'_dist'] = (pData['victim_'+str(vi)+'_dist'] > 0) & (pData['victim_'+str(vi)+'_dist'] <= self.maxDist)
+            pData['v'+str(vi)+'_dist'] = (pData['victim_'+str(vi)+'_dist'] > 0) & \
+                                        (pData['victim_'+str(vi)+'_dist'] <= self.maxDist)
 
         ## Sort by time
         pData = pData.loc[:, ['@timestamp'] + self.cols].sort_values('@timestamp', axis = 0)
@@ -169,7 +171,6 @@ class DataParser:
 
                 # Was a triage just completed?
                 if prev['successful_triage'] == True:
-                    events.append([Victims.STR_TRIAGE_VAR, 'none'])
                     print('triaged')
                 elif row['successful_triage'] == True:
                     acts.append(Victims.getTriageAction(human))
@@ -196,11 +197,21 @@ class DataParser:
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
 
-        ## TODO don't assume we're starting at the beginning
-        # First is the initial location of the human
         print('\n\n====Running actions and events for', human)
-        world.setState(human, 'loc', actsAndEvents[0][1])
-        world.setState(human, 'seenloc_'+actsAndEvents[0][1], True)
+        
+        [actOrEvFlag, actEv, stamp, attempt] = actsAndEvents[0]
+        if actOrEvFlag == DataParser.SET_FLG:
+            varName = actEv[0]
+            varValue = actEv[1]
+            world.setState(human, varName, varValue)
+        else:
+            # This first action can be an actual action or an initial location
+            if type(actEv) == ActionSet:
+                world.step(actEv)
+            else:
+                world.setState(human, 'loc', actEv)
+                world.setState(human, 'seenloc_'+actEv, True)
+                
 
         for actEvent in actsAndEvents[1:]:
             print('Running',  actEvent[1])
@@ -210,4 +221,5 @@ class DataParser:
                 [var, val] = actEvent[1]
                 world.setState(human, var, val)
             world.printState()
+            input('go on-->')
 
