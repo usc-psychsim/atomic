@@ -262,12 +262,6 @@
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.STR_TRIAGE_VAR">
-<code class="sig-name descname">STR_TRIAGE_VAR</code><a class="headerlink" href="#victims_fewacts.Victims.STR_TRIAGE_VAR" title="Permalink to this definition">¶</a></dt>
-<dd><p>String lable for the data field that indicates whether a triage was completed</p>
-</dd></dl>
-
-<dl class="py attribute">
 <dt id="victims_fewacts.Victims.FULL_OBS">
 <code class="sig-name descname">FULL_OBS</code><a class="headerlink" href="#victims_fewacts.Victims.FULL_OBS" title="Permalink to this definition">¶</a></dt>
 <dd><p>Observability of domain</p>
@@ -312,9 +306,11 @@
 <dl class="py method">
 <dt id="victims_fewacts.Victims.beliefAboutVictims">
 <code class="sig-name descname">beliefAboutVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">initHumanLoc</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.beliefAboutVictims" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create uncertain beliefs about each victim’s properties. For each victim:
-A) If human’s initial location = victim initial’s location, human knows victim is right there
-B) If human’s initial location != victim initial’s location, human assigns 0 belief to victim being in human’s init loc</p>
+<dd><p>Create uncertain beliefs about each victim’s properties. For each victim:</p>
+<ol class="loweralpha simple">
+<li><p>If human’s initial location = victim initial’s location, human knows victim is right there</p></li>
+<li><p>If human’s initial location != victim initial’s location, human assigns 0 belief to victim being in human’s init loc</p></li>
+</ol>
 </dd></dl>
 
 <dl class="py method">
@@ -327,7 +323,7 @@ and a green victim in every room that has 2 victims.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>roomsWith1</strong> – list of rooms with a single victim</p></li>
 <li><p><strong>roomsWith2</strong> – list of rooms with two victims</p></li>
-<li><p><strong>humanNames</strong> – ??? – add this description</p></li>
+<li><p><strong>humanNames</strong> – list of agent names that constitute legal values for the <cite>savior</cite> state of each victim</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -353,10 +349,16 @@ Action effects: set the crosshair/approached var to the victim in FoV</p>
 <dt id="victims_fewacts.Victims.makeTriageAction">
 <code class="sig-name descname">makeTriageAction</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeTriageAction" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create ONE triage action
-Legal action if: 1) non-null victim in crosshairs and same as victim within distance
-2) victim is unsaved
-Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior’s name
-b) Always decrement victim’s danger</p>
+Legal action if:</p>
+<ol class="arabic simple">
+<li><p>non-null victim in crosshairs and same as victim within distance</p></li>
+<li><p>victim is unsaved</p></li>
+</ol>
+<p>Action effects:</p>
+<ol class="loweralpha simple">
+<li><p>if danger is down to 0: 1) victim is saved, 2) victim remembers savior’s name</p></li>
+<li><p>Always decrement victim’s danger</p></li>
+</ol>
 </dd></dl>
 
 <dl class="py method">
@@ -386,23 +388,14 @@ b) Always decrement victim’s danger</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>vLocations</strong> – list of locations of victims</p></li>
 <li><p><strong>vTypes</strong> – list containing the type of each victim</p></li>
-<li><p><strong>humanNames</strong> – ??? — add this description</p></li>
-<li><p><strong>locationNames</strong> – </p></li>
+<li><p><strong>humanNames</strong> – list of agent names that constitute legal values for the <cite>savior</cite> state of each victim</p></li>
+<li><p><strong>locationNames</strong> – list of location names that constitute legal values for the <cite>loc</cite> state of each victim</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Creates victim agents, and adds them to the world. Adds each victim to the <cite>Victims.victimAgents</cite> list, and also to the <cite>Victims.victimsByLocAndColor</cite> dictionary.</p>
+</dd>
 </dl>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="id0">
-<code class="sig-name descname">P_EMPTY_FOV</code><em class="property"> = 0.5</em><a class="headerlink" href="#id0" title="Permalink to this definition">¶</a></dt>
-<dd><p>probability that a player’s FOV is empty when stepping into a room</p>
-</dd></dl>
-
-<dl class="py attribute">
-<dt id="id1">
-<code class="sig-name descname">P_VIC_FOV</code><em class="property"> = 0</em><a class="headerlink" href="#id1" title="Permalink to this definition">¶</a></dt>
-<dd><p>to be overwritten based on number of victims in env</p>
 </dd></dl>
 
 </dd></dl>
