@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May 22 16:14:44 2020
+
+@author: mostafh
+"""
+
+from psychsim.pwl.vector import KeyedVector,VectorDistribution
+
+from psychsim.world import World, WORLD
+from psychsim.pwl import modelKey
+
+
+world = World()
+agent = world.addAgent('ATOMIC')
+X = world.defineState(WORLD,'x')
+Y = world.defineState(WORLD,'y')
+
+agent.addAction({'verb': 'observe'})
+world.setOrder([{agent.name}])
+world.setJoint(VectorDistribution({
+	KeyedVector({X: 0, Y: 0}): 0.40,
+	KeyedVector({X: 0, Y: 1}): 0.1,
+	KeyedVector({X: 1, Y: 0}): 0.05,
+	KeyedVector({X: 1, Y: 1}): 0.45
+	}))
+
+
+
+# Agent does not model itself
+agent.resetBelief(ignore={modelKey(agent.name)})
+# Agent observes everything. Probably unnecessary.
+agent.omega = {key for key in world.state.keys()}
+
+world.setFeature(X, 0)
+
+print('Agents belief\n')
+world.printBeliefs(agent.name)
+print('World state\n')
+world.printState()
+
+world.step()
+
+print('Agents belief\n')
+world.printBeliefs(agent.name)

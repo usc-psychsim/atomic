@@ -40,7 +40,6 @@ class Victims:
         STR_CROSSHAIR_VAR: String label for the data field that indicates whether a victim is in the crosshair or not
         STR_APPROACH_VAR: String label for the data field that indicates whether the player is near enough the victim to perform a triage action
         STR_FOV_VAR: String label for the data field that indicates whether a victim is within the player's field of view
-        STR_TRIAGE_VAR: String lable for the data field that indicates whether a triage was completed
         FULL_OBS: Observability of domain
 
         victimsByLocAndColor: A dict mapping a room to a dict mapping a color to the corresponding victim object
@@ -67,7 +66,6 @@ class Victims:
     STR_CROSSHAIR_VAR = 'vicInCH'
     STR_APPROACH_VAR = 'vicApproached'
     STR_FOV_VAR = 'vicInFOV'
-    STR_TRIAGE_VAR = 'vicTriaged'
 
     victimsByLocAndColor = {}
     victimAgents = []
@@ -215,7 +213,7 @@ class Victims:
         # to the value of the victim in FOV
         fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
         for act, varname in zip([crossHairAction, getCloseAction],
-                                [Victims.STR_CROSSHAIR_VAR, Victims.STR_APPROACH_VAR, ]):
+                                [Victims.STR_CROSSHAIR_VAR, Victims.STR_APPROACH_VAR]):
             key = stateKey(human.name, varname)
             tree = makeTree(setToFeatureMatrix(key, fovKey))
             Victims.world.setDynamics(key, act, tree)

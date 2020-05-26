@@ -45,7 +45,29 @@ def setBeliefs(world, agent, triageAgent):
     # Agent observes everything except triageAgent's reward received and true models 
     agent.omega = {key for key in world.state.keys() if key not in \
                    {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name),
+
+def setBeliefsNoVics(world, agent, triageAgent):    
+    # Get the canonical name of the "true" player model
+    trueTriageModel = next(iter(triageAgent.models.keys())) 
     
+    # Agent does not model itself
+    agent.resetBelief(ignore={modelKey(agent.name)})
+    
+    triageAgent.resetBelief(ignore={modelKey(agent.name)})
+    triageAgent.omega = {key for key in world.state.keys() \
+                         if (key not in {modelKey(agent.name)}) and \
+                         not key.startswith('victim')}
+
+    # Agent starts with uniform distribution over triageAgent MMs
+    triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
+    triageAgent.addModel('strategicMod',horizon=4,parent=trueTriageModel ,rationality=.8,selection='distribution')
+    world.setMentalModel(agent.name,triageAgent.name,Distribution({'myopicMod': 0.5,'strategicMod': 0.5}))
+    
+    # Agent observes everything except triageAgent's reward received and true models 
+    agent.omega = {key for key in world.state.keys() if key not in \
+                   {modelKey(triageAgent.name),modelKey(agent.name)}} #rewardKey(triageAgent.name),
+    
+
 def printASISTBel(world, triageAgent, agent):
     belief = next(iter(agent.getBelief().values()))
     print('Agent now models player as:')
