@@ -50,7 +50,6 @@ class Victims:
         approachActs: A map from a player to her approach actions
         world: link to domain psychsim world
 
-
     """
 
     FULL_OBS = None
@@ -59,8 +58,8 @@ class Victims:
     TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
     TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
 
-    P_EMPTY_FOV = 0.5   #: probability that a player's FOV is empty when stepping into a room
-    P_VIC_FOV = 0       #: to be overwritten based on number of victims in env
+    P_EMPTY_FOV = 0.5
+    P_VIC_FOV = 0
 
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'
@@ -85,7 +84,7 @@ class Victims:
         Parameters:
             roomsWith1: list of rooms with a single victim
             roomsWith2: list of rooms with two victims
-            humanNames: ??? -- add this description
+            humanNames: list of agent names that constitute legal values for the `savior` state of each victim
 
         Returns:
             Creates victims in the psychsim world, updates the total number of victims `vi` and adds victims to `vicNames`
@@ -108,14 +107,15 @@ class Victims:
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
 
     def makeVictims(vLocations, vTypes, humanNames, locationNames):
-        """
-        Method for creating victims in the world
+        """Method for creating victims in the world
 
         Parameters:
             vLocations: list of locations of victims
             vTypes: list containing the type of each victim
-            humanNames: ??? --- add this description
-            locationNames:
+            humanNames: list of agent names that constitute legal values for the `savior` state of each victim
+            locationNames: list of location names that constitute legal values for the `loc` state of each victim
+        Returns:
+            Creates victim agents, and adds them to the world. Adds each victim to the `Victims.victimAgents` list, and also to the `Victims.victimsByLocAndColor` dictionary.
         """
         assert(len(vLocations) == len(vTypes))
         Victims.numVictims = len(vTypes)
@@ -158,8 +158,7 @@ class Victims:
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
     def makeVictimObservationVars(human):
-        """
-        Create observed varibles
+        """Create observed varibles
         """
         Victims.world.defineState(human, 'obs_victim_status', list,['null', 'unsaved','saved','dead'])
         human.setState('obs_victim_status','null')
@@ -171,8 +170,9 @@ class Victims:
     def beliefAboutVictims(human, initHumanLoc):
         """
         Create uncertain beliefs about each victim's properties. For each victim:
-        A) If human's initial location = victim initial's location, human knows victim is right there
-        B) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
+
+        a) If human's initial location = victim initial's location, human knows victim is right there
+        b) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
         """
 
         for vicObj in Victims.victimAgents:
@@ -226,9 +226,14 @@ class Victims:
     def makeTriageAction(human):
         """
         Create ONE triage action
-        Legal action if: 1) non-null victim in crosshairs and same as victim within distance
+        Legal action if:
+
+        1) non-null victim in crosshairs and same as victim within distance
         2) victim is unsaved
-        Action effects: a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
+
+        Action effects:
+
+        a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
         b) Always decrement victim's danger
 
         """
