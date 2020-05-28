@@ -53,11 +53,11 @@ def setBeliefsNoVics(world, agent, triageAgent):
     # Agent does not model itself
     agent.resetBelief(ignore={modelKey(agent.name)})
     
-    triageAgent.resetBelief(ignore={modelKey(agent.name)})
-    triageAgent.omega = {key for key in world.state.keys() \
-                         if (key not in {modelKey(agent.name)}) and \
-                         not key.startswith('victim')}
-
+    # Triager does not model victims or the ASIST agent
+    dontBelieve = set([modelKey(agent.name)] + \
+                     [key for key in world.state.keys() if key.startswith('victim')])
+    triageAgent.resetBelief(ignore=dontBelieve)
+            
     # Agent starts with uniform distribution over triageAgent MMs
     triageAgent.addModel('myopicMod',horizon=2,parent=trueTriageModel ,rationality=.8,selection='distribution')
     triageAgent.addModel('strategicMod',horizon=4,parent=trueTriageModel ,rationality=.8,selection='distribution')
@@ -75,10 +75,9 @@ def printASISTBel(world, triageAgent, agent):
     print(world.float2value(key,belief[key]))
             
 def testMMBelUpdate(world, agent, triageAgent, actions, Locations):
-    setBeliefs(world, agent, triageAgent)    
     for action in actions:
         if type(action) == psychsim.action.ActionSet:
-            print('Agent action: %s' % (action))
+            print('===Agent action: %s' % (action))
             world.step(action)  #result = 
             beliefs = agent.getBelief()
             print('len(beliefs)', len(beliefs))
@@ -89,8 +88,10 @@ def testMMBelUpdate(world, agent, triageAgent, actions, Locations):
             print(world.getFeature(key,belief))
         else:
             [var, val] = action
+            print('===Setting feature', var, val)
             world.setState(triageAgent.name, var, val)
-#        world.printState(belief)
+        print('--World state')
+        world.printState(beliefs=False)
 #    world.printState()
     
         
