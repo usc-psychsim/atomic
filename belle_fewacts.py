@@ -59,6 +59,14 @@ triageAgent.setAttribute('horizon',4)
 
 ############### The following shows incorrect beleifs of the triager about his own last 
 ############### action and thus new location.
+trueTriageModel = next(iter(triageAgent.models.keys())) 
+triageAgent.addModel('allVictimsSame',parent=trueTriageModel,rationality=.8,selection='distribution')
+Victims.makeVictimReward(triageAgent,knowsReward=False,model='allVictimsSame')
+for model in triageAgent.models:
+    print(model)
+    for R in triageAgent.getAttribute('R',model):
+        print(R)
+    
 #setBeliefsNoVics(world, agent, triageAgent)
 #Locations.move(triageAgent, Directions.W)
 #world.printBeliefs(triageAgent.name)
@@ -76,4 +84,4 @@ actions = [Locations.moveActions[triageAgent.name][Directions.W],
            [Victims.STR_FOV_VAR, 'victim3'],
            Locations.moveActions[triageAgent.name][Directions.E]]
 #           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs)]
-testMMBelUpdate(world, agent, triageAgent, actions, Locations)
+#testMMBelUpdate(world, agent, triageAgent, actions, Locations)

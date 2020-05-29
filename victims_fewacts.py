@@ -280,7 +280,7 @@ class Victims:
         Victims.triageActions[human.name] = action
         Victims.makeVictimReward(human)
 
-    def makeVictimReward(human):
+    def makeVictimReward(human,knowsReward=True,model=None):
         """ ADD DESCRIPTION HERE
 
         Human gets reward if:
@@ -294,14 +294,15 @@ class Victims:
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
         testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
                        0: noChangeMatrix(rKey)}
+        baseValue = min([vobj.reward for vobj in Victims.victimAgents])
         for i, vobj in enumerate(Victims.victimAgents):
             vn = vobj.vicAgent.name
             testAllVics[i+1] = anding([equalRow(stateKey(vn,'status'),'saved'),
                                        equalRow(stateKey(vn, 'savior'), human.name),
                                        equalRow(actionKey(human.name), Victims.triageActions[human.name])],
-                                incrementMatrix(rKey, vobj.reward),
+                                incrementMatrix(rKey, vobj.reward if knowsReward else baseValue),
                                 noChangeMatrix(rKey))
-        human.setReward(makeTree(testAllVics),1)
+        human.setReward(makeTree(testAllVics),1,model)
 
     def getTriageAction(human):
         if type(human) == str:
