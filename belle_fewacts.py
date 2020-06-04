@@ -88,7 +88,6 @@ if __name__ == '__main__':
     #Locations.move(triageAgent, Directions.W)
     #world.printState(beliefs=False)
 
-
     ############### The following breaks the assertion len(agent.getBelief()) ==1 
     ############### action and thus new location.
     actions = [Locations.moveActions[triageAgent.name][Directions.W],
