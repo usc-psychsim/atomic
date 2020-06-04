@@ -74,7 +74,7 @@ def printASISTBel(world, triageAgent, agent):
     key = modelKey(triageAgent.name)
     print(world.float2value(key,belief[key]))
             
-def testMMBelUpdate(world, agent, triageAgent, actions, Locations):
+def runMMBelUpdate(world, agent, triageAgent, actions, Locations):
     for action in actions:
         if type(action) == psychsim.action.ActionSet:
             print('===Agent action: %s' % (action))
