@@ -9,7 +9,7 @@ from psychsim.pwl import stateKey, actionKey
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
-from helpers import testMMBelUpdate, setBeliefs, setBeliefsNoVics
+from helpers import runMMBelUpdate, setBeliefs, setBeliefsNoVics
 from ftime import FatherTime
 
 # MDP or POMDP
@@ -76,4 +76,4 @@ actions = [Locations.moveActions[triageAgent.name][Directions.W],
            [Victims.STR_FOV_VAR, 'victim3'],
            Locations.moveActions[triageAgent.name][Directions.E]]
 #           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs)]
-testMMBelUpdate(world, agent, triageAgent, actions, Locations)
+runMMBelUpdate(world, agent, triageAgent, actions, Locations)
