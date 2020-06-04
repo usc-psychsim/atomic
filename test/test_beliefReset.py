@@ -40,9 +40,6 @@ def test_belief_reset():
 	## Set players horizons
 	triageAgent.setAttribute('horizon',4)
 
-	print('====state before belief reset')
-	world.printState(beliefs=True)  # these are corresct
-
 	################ Belief manipulation
 	# Get the canonical name of the "true" player model
 	trueTriageModel = next(iter(triageAgent.models.keys())) 
@@ -66,11 +63,13 @@ def test_belief_reset():
 	################ 
 	################ 
 
-	print('====state after belief reset')
-	world.printState(beliefs=True)  # these look corresct
+	assert len(agent.getBelief()) == 1
 
 	####### Somehow there seems to be 2 ATOMIC agent models!
 	Locations.move(triageAgent, Directions.W)
-	print('====state after action')
-	world.printState(beliefs=True)
 
+	assert len(agent.getBelief()) == 2 # Correct so long as FOV outcome is stochastic
+
+
+if __name__ == '__main__':
+	test_belief_reset()
