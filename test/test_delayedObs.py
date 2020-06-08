@@ -20,7 +20,7 @@ agent = world.addAgent('ATOMIC')
 VICTIMS_LOCS = [2]
 VICTIM_TYPES = [0]
 Victims.world = world
-Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name])
+Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name],[2])
 Victims.makeTriageAction(triageAgent)
 
 ## Create triage agent's observation variables related to victims
