@@ -7,7 +7,7 @@ Created on Wed Feb 19 14:35:40 2020
 from psychsim.world import World
 from new_locations_fewacts import Locations, Directions
 from victims_fewacts import Victims
-from helpers import testMMBelUpdate
+from helpers import runMMBelUpdate
 
 Victims.FULL_OBS = True
 
