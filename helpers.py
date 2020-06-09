@@ -15,6 +15,13 @@ def anding(rows, ifTrue, ifFalse):
             True: anding(rows[1:], ifTrue, ifFalse),
             False: ifFalse}
 
+def oring(rows, ifTrue, ifFalse):
+    if rows == []:
+        return ifFalse
+    return {'if': rows[0],
+            True: ifTrue,
+            False: oring(rows[1:], ifTrue, ifFalse)}
+
 def printAgent(world, name):
     for key in world.state.keys():
         if isStateKey(key) and (state2agent(key) == name):

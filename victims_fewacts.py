@@ -6,7 +6,7 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix
-from helpers import anding
+from helpers import anding, oring
 
 class Victim:
     """ Victim class
@@ -29,9 +29,9 @@ class Victims:
     """ Methods for modeling victims within a psychsim world.
 
     Attributes:
-        TYPE_REWARDS: How much reward for different color victims
-        TYPE_REQD_TIMES: Number of seconds of triage required to save a victim
-        TYPE_EXPIRY: Number of seconds until victim dies
+        COLOR_REWARDS: How much reward for different color victims
+        COLOR_REQD_TIMES: Number of seconds of triage required to save a victim
+        COLOR_EXPIRY: Number of seconds until victim dies
         P_EMPTY_FOV: Probability that a player's FOV is empty when stepping into a room
         P_VIC_FOV: To be overwritten based on number of victims in env
         STR_CROSSHAIR_ACT: String label for action of placing victim in crosshair
@@ -53,9 +53,10 @@ class Victims:
 
     FULL_OBS = None
 
-    TYPE_REWARDS = {'Green':10, 'Orange':200}
-    TYPE_REQD_TIMES = {'Green':1, 'Orange':1}
-    TYPE_EXPIRY ={'Green':15*60, 'Orange':7*60}
+    COLOR_REWARDS = {'Green':10, 'Yellow':200}
+    COLOR_REQD_TIMES = {'Green':1, 'Yellow':1}
+    COLOR_EXPIRY = {'Green':15*60, 'Yellow':7*60}
+    COLOR_PRIOR = {'G':0, 'Y':0}
 
     P_EMPTY_FOV = 0.5
     P_VIC_FOV = 0
@@ -74,9 +75,9 @@ class Victims:
     approachActs = {}
     world = None
 
-    def makeOrangeGreenVictims(roomsWith1, roomsWith2, humanNames):
+    def makeYellowGreenVictims(roomsWith1, roomsWith2, humanNames):
         """
-        This method puts an orange victim in every room that has 1+ victims
+        This method puts an Yellow victim in every room that has 1+ victims
         and a green victim in every room that has 2 victims.
 
         Parameters:
@@ -95,7 +96,7 @@ class Victims:
         vi = 0
         roomsWithVics = list(roomsWith1) + list(roomsWith2)
         for r in roomsWithVics:
-            Victims._makeVictim(vi, r, 'Orange', humanNames, roomsWithVics)
+            Victims._makeVictim(vi, r, 'Yellow', humanNames, roomsWithVics)
             vi += 1
         for r in roomsWith2:
             Victims._makeVictim(vi, r, 'Green', humanNames, roomsWithVics)
@@ -104,36 +105,36 @@ class Victims:
         Victims.numVictims = vi
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
 
-    def makeVictims(vLocations, vTypes, humanNames, locationNames):
+    def makeVictims(vLocations, colors, humanNames, locationNames):
         """Method for creating victims in the world
 
         Parameters:
             vLocations: list of locations of victims
-            vTypes: list containing the type of each victim
+            colors: list containing the color of each victim
             humanNames: list of agent names that constitute legal values for the `savior` state of each victim
             locationNames: list of location names that constitute legal values for the `loc` state of each victim
         Returns:
             Creates victim agents, and adds them to the world. Adds each victim to the `Victims.victimAgents` list, and also to the `Victims.victimsByLocAndColor` dictionary.
         """
-        assert(len(vLocations) == len(vTypes))
-        Victims.numVictims = len(vTypes)
+        assert(len(vLocations) == len(colors))
+        Victims.numVictims = len(colors)
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
         for vi in range(Victims.numVictims):
             loc = vLocations[vi]
-            vtype = vTypes[vi]
-            Victims._makeVictim(vi, loc, vtype, humanNames, locationNames)
+            color = colors[vi]
+            Victims._makeVictim(vi, loc, color, humanNames, locationNames)
 
-    def _makeVictim(vi, loc, vtype, humanNames, locationNames):
+    def _makeVictim(vi, loc, color, humanNames, locationNames):
             victim = Victims.world.addAgent('victim' + str(vi))
 
-            Victims.world.defineState(victim.name,'status',list,['unsaved','saved','dead'])
-            victim.setState('status','unsaved')
+            Victims.world.defineState(victim.name,'color',list,['Yellow','Green','Red', 'White'])
+            victim.setState('color',color)
 
             Victims.world.defineState(victim.name,'danger',float,description='How far victim is from health')
-            victim.setState('danger', Victims.TYPE_REQD_TIMES[vtype])
+            victim.setState('danger', Victims.COLOR_REQD_TIMES[color])
 
             Victims.world.defineState(victim.name,'reward',int,description='Value earned by saving this victim')
-            rew = Victims.TYPE_REWARDS[vtype]
+            rew = Victims.COLOR_REWARDS[color]
             victim.setState('reward', rew)
 
             Victims.world.defineState(victim.name,'loc',list, locationNames)
@@ -142,12 +143,12 @@ class Victims:
             Victims.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
             victim.setState('savior', 'none')
 
-            vicObj = Victim(loc, vtype, Victims.TYPE_EXPIRY[vtype], victim, rew)
+            vicObj = Victim(loc, color, Victims.COLOR_EXPIRY[color], victim, rew)
             Victims.victimAgents.append(vicObj)
 
             if loc not in Victims.victimsByLocAndColor.keys():
                 Victims.victimsByLocAndColor[loc] = {}
-            Victims.victimsByLocAndColor[loc][vtype] = vicObj
+            Victims.victimsByLocAndColor[loc][color] = vicObj
 
     def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
@@ -155,41 +156,19 @@ class Victims:
             return ''
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
-    def makeVictimObservationVars(human):
-        """Create observed varibles
+    def beliefAboutVictims(human, allLocations):
         """
-        Victims.world.defineState(human, 'obs_victim_status', list,['null', 'unsaved','saved','dead'])
-        human.setState('obs_victim_status','null')
-        Victims.world.defineState(human, 'obs_victim_danger', float)
-        human.setState('obs_victim_danger', 0)
-        Victims.world.defineState(human, 'obs_victim_reward', float)
-        human.setState('obs_victim_reward', 0)
-
-    def beliefAboutVictims(human, initHumanLoc):
-        """
-        Create uncertain beliefs about each victim's properties. For each victim:
-
-        a) If human's initial location = victim initial's location, human knows victim is right there
-        b) If human's initial location != victim initial's location, human assigns 0 belief to victim being in human's init loc
+        Create a boolean per room per victim color.
+        room_color=T means player knows this color victim is in room.
+        room_color=F means player knows this color victim is not in room.
+        Use a prior over P(room_color=T)
         """
 
-        for vicObj in Victims.victimAgents:
-            vic = vicObj.vicAgent
-            d = Distribution({'unsaved':1,'saved':1,'dead':1})
-            d.normalize()
-            human.setBelief(stateKey(vic.name, 'status'), d)
-
-            initVicLoc = vicObj.room
-
-            if initVicLoc == initHumanLoc:
-                d = Distribution({initVicLoc:1})
-                human.setBelief(stateKey(vic.name, 'loc'), d)
-            else:
-                d = Distribution({loc:1 for loc in new_locations.Locations.AllLocations if not loc==initHumanLoc})
-                d.normalize()
-                human.setBelief(stateKey(vic.name, 'loc'), d)
-
-            human.setBelief(stateKey(vic.name, 'savior'), Distribution({'none':1}))
+        for loc in allLocations:
+            for color in ['Y', 'G']:
+                d = Distribution({True:Victims.COLOR_PRIOR[color], False:1-Victims.COLOR_PRIOR[color]})
+                key = Victims.world.defineState(human.name, loc+'_'+color, bool)
+                human.setBelief(key, d)
 
     def makePreTriageActions(human):
         """
@@ -242,8 +221,8 @@ class Victims:
         testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
                        0: False}
         for i, vn in enumerate(Victims.vicNames):
-            testAllVics[i+1] = {'if': equalRow(stateKey(vn, 'status'), 'unsaved'),
-                                 True: True, False: False}
+            testAllVics[i+1] = oring([equalRow(stateKey(vn, 'color'), 'Yellow'),
+                                      equalRow(stateKey(vn, 'color'), 'Green')], True, False)
         legalityTree = makeTree({'if': equalFeatureRow(crossKey, approachKey),
                         True: testAllVics,
                         False: False})
@@ -251,17 +230,17 @@ class Victims:
 
         for vicObj in Victims.victimAgents:
             victim = vicObj.vicAgent
-            statusKey = stateKey(victim.name,'status')
+            colorKey = stateKey(victim.name,'color')
             dangerKey = stateKey(victim.name,'danger')
             saviorKey = stateKey(victim.name,'savior')
 
-            ## Status: if danger is down to 0, victim is saved
+            ## Color: if danger is down to 0, victim turns white
             tree = makeTree({'if': equalRow(crossKey, victim.name),
                              True: {'if': equalRow(dangerKey, 1),
-                                    True: setToConstantMatrix(statusKey, 'saved'),
-                                    False: setToConstantMatrix(statusKey, 'unsaved')},
-                            False: noChangeMatrix(statusKey)})
-            Victims.world.setDynamics(statusKey,action,tree)
+                                    True: setToConstantMatrix(colorKey, 'White'),
+                                    False: noChangeMatrix(colorKey)},
+                            False: noChangeMatrix(colorKey)})
+            Victims.world.setDynamics(colorKey,action,tree)
 
             ## Savior name: if danger is down to 0, set to human's name. Else none
             tree = makeTree({'if': equalRow(crossKey, victim.name),
@@ -296,7 +275,7 @@ class Victims:
                        0: noChangeMatrix(rKey)}
         for i, vobj in enumerate(Victims.victimAgents):
             vn = vobj.vicAgent.name
-            testAllVics[i+1] = anding([equalRow(stateKey(vn,'status'),'saved'),
+            testAllVics[i+1] = anding([equalRow(stateKey(vn,'color'),'White'),
                                        equalRow(stateKey(vn, 'savior'), human.name),
                                        equalRow(actionKey(human.name), Victims.triageActions[human.name])],
                                 incrementMatrix(rKey, vobj.reward),

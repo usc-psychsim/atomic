@@ -20,7 +20,7 @@ def test_belief_reset():
 
 
 	VICTIMS_LOCS = ['E1']
-	VICTIM_TYPES = ['Orange']
+	VICTIM_TYPES = ['Yellow']
 	Victims.world = world
 	Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], ['BH1','E1'])
 	Victims.makePreTriageActions(triageAgent)
