@@ -259,7 +259,7 @@ class Victims:
         Victims.triageActions[human.name] = action
         Victims.makeVictimReward(human)
 
-    def makeVictimReward(human):
+    def makeVictimReward(human,knowsReward=1,model=None):
         """ ADD DESCRIPTION HERE
 
         Human gets reward if:
@@ -268,19 +268,26 @@ class Victims:
         b) human is the savior;
         c) last human action was triage (so reward only obtained once)
 
+        :param human: The agent whose reward function we are setting
+        :type human: Agent
+        :param knowsReward: Accuracy of human's knowledge of actual reward function (1 means accurate knowledge of values of different colors, 0 means the human doesn't see color). Default is 1
+        :type knowsReward: float
+        :param model: The name of the model to which this reward should be attributed
+        :type model: str
         """
         rKey = rewardKey(human.name)
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
         testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
                        0: noChangeMatrix(rKey)}
+        baseValue = min([vobj.reward for vobj in Victims.victimAgents])
         for i, vobj in enumerate(Victims.victimAgents):
             vn = vobj.vicAgent.name
             testAllVics[i+1] = anding([equalRow(stateKey(vn,'color'),'White'),
                                        equalRow(stateKey(vn, 'savior'), human.name),
                                        equalRow(actionKey(human.name), Victims.triageActions[human.name])],
-                                incrementMatrix(rKey, vobj.reward),
+                                incrementMatrix(rKey, baseValue + knowsReward*(vobj.reward-baseValue)),
                                 noChangeMatrix(rKey))
-        human.setReward(makeTree(testAllVics),1)
+        human.setReward(makeTree(testAllVics),1,model)
 
     def getTriageAction(human):
         if type(human) == str:
