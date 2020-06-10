@@ -154,21 +154,7 @@ class Victims:
         if color not in Victims.victimsByLocAndColor[loc].keys():
             print('ERROR. No', color, 'victim in', loc)
             return ''
-        return Victims.victimsByLocAndColor[loc][color].vicAgent.name
-
-    def beliefAboutVictims(human, allLocations):
-        """
-        Create a boolean per room per victim color.
-        room_color=T means player knows this color victim is in room.
-        room_color=F means player knows this color victim is not in room.
-        Use a prior over P(room_color=T)
-        """
-
-        for loc in allLocations:
-            for color in ['Y', 'G']:
-                d = Distribution({True:Victims.COLOR_PRIOR[color], False:1-Victims.COLOR_PRIOR[color]})
-                key = Victims.world.defineState(human.name, loc+'_'+color, bool)
-                human.setBelief(key, d)
+        return Victims.victimsByLocAndColor[loc][color].vicAgent.name      
 
     def makePreTriageActions(human):
         """

@@ -115,31 +115,6 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
 
-            # A move has some probability of setting FOV to any victim
-            fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
-            distList = [(setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV)]
-            for vicObj in Victims.victimAgents:
-                distList.append((setToConstantMatrix(fovKey, vicObj.vicAgent.name), Victims.P_VIC_FOV))
-            fovTree = makeTree({'distribution': distList})
-            Locations.world.setDynamics(fovKey,action,fovTree)
-
-            if not Victims.FULL_OBS:
-                # Set observed variables to victim's features
-                # 1. Observe status of victim in destination
-                key = stateKey(human.name, 'obs_victim_status')
-                tree1 = Victims.makeNearVTree(makeFuture(locKey), key, 'status', 'none')
-                Locations.world.setDynamics(key,action,tree1)
-
-                # 2. Observe danger of victim in destination
-                key = stateKey(human.name, 'obs_victim_danger')
-                tree2 = Victims.makeNearVTree(makeFuture(locKey), key, 'danger', 0)
-                Locations.world.setDynamics(key,action,tree2)
-
-                # 3. Observe reward of victim in destination
-                key = stateKey(human.name, 'obs_victim_reward')
-                tree3 = Victims.makeNearVTree(makeFuture(locKey), key, 'reward', 0)
-                Locations.world.setDynamics(key,action,tree3)
-
     def __makeExplorationBonus(human):
         if Locations.EXPLORE_BONUS <= 0:
             return
