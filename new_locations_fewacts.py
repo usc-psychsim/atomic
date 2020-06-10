@@ -115,6 +115,14 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
 
+            ## If we're not using search actions, move action can set FOV            
+            if not getattr(Victims, 'searchActs', None):
+                 # A move has some probability of setting FOV to any color, regardless of whether 
+                 # a victim of this color exists in the current location
+                fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
+                distList = [(setToConstantMatrix(fovKey, c), p) for c,p in Victims.COLOR_FOV_P.items()]
+                Locations.world.setDynamics(fovKey,action,makeTree({'distribution': distList}))
+
     def __makeExplorationBonus(human):
         if Locations.EXPLORE_BONUS <= 0:
             return

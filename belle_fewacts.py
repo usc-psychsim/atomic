@@ -41,8 +41,6 @@ def createWorld(numVictims=0):
     Victims.makePreTriageActions(triageAgent)
     Victims.makeTriageAction(triageAgent)
 
-    Victims.P_VIC_FOV = (1.0 - Victims.P_EMPTY_FOV) / len(Victims.victimAgents)
-
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
     Locations.world = world

@@ -57,10 +57,10 @@ class Victims:
     COLOR_REQD_TIMES = {'Green':1, 'Yellow':1}
     COLOR_EXPIRY = {'Green':15*60, 'Yellow':7*60}
     COLOR_PRIOR = {'G':0, 'Y':0}
+    # Uniform probability over what color a player sees in FOV when the move into a room
+    COLOR_FOV_P = {'Green':0.2, 'Yellow':0.2, 'Red':0.2, 'White':0.2}
 
-    P_EMPTY_FOV = 0.5
-    P_VIC_FOV = 0
-
+    
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'
     STR_TRIAGE_ACT = 'actTriage'
