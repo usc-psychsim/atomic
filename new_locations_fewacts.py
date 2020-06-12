@@ -7,7 +7,6 @@ Created on Thu Feb 20 11:27:36 2020
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture,\
                         setToFeatureMatrix, setFalseMatrix, noChangeMatrix, addFeatureMatrix
 from psychsim.world import WORLD
-from victims_fewacts import Victims
 
 class Directions:
     """
@@ -57,7 +56,7 @@ class Locations:
                 Locations.Nbrs[d][room] = n
                 Locations.AllLocations.add(n)
 
-    def makePlayerLocation(human, initLoc=None):
+    def makePlayerLocation(human, Victims, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
         if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
@@ -70,10 +69,10 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)
+        Locations.__makeMoveActions(human, Victims)
         Locations.__makeExplorationBonus(human)
 
-    def __makeMoveActions(human):
+    def __makeMoveActions(human, Victims):
         """
         N/E/S/W actions
         Legality: if current location has a neighbor in the given direction
@@ -115,12 +114,13 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
 
-            ## If we're not using search actions, move action can set FOV            
+            ## If we're not using search actions, move action sets FOV            
             if not getattr(Victims, 'searchActs', None):
-                 # A move has some probability of setting FOV to any color, regardless of whether 
-                 # a victim of this color exists in the current location
+                 # A move has some probability of setting FOV to any victim, regardless of whether 
+                 # victim is in the current location
                 fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
-                distList = [(setToConstantMatrix(fovKey, c), p) for c,p in Victims.COLOR_FOV_P.items()]
+                distList = [(setToConstantMatrix(fovKey, vic), Victims.P_VIC_FOV) for vic in Victims.vicNames]
+                distList.append((setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV))
                 Locations.world.setDynamics(fovKey,action,makeTree({'distribution': distList}))
 
     def __makeExplorationBonus(human):

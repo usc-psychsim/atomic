@@ -45,7 +45,7 @@ def createWorld(numVictims=0):
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
     Locations.makeMapDict(SandRLocs)
-    Locations.makePlayerLocation(triageAgent, "E2")
+    Locations.makePlayerLocation(triageAgent, Victims, "E2")
 
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
