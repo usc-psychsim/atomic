@@ -317,9 +317,7 @@ class Victims:
         if player is in that location and CH victim is that color
         a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
         b) Always decrement victim's danger
-
         """
-
         crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
         approachKey = stateKey(human.name, Victims.STR_APPROACH_VAR)
         locKey = stateKey(human.name, 'loc')
@@ -345,6 +343,17 @@ class Victims:
                                         setToConstantMatrix(colorKey, 'White'),
                                         noChangeMatrix(colorKey)))
                 Victims.world.setDynamics(colorKey,action,tree)
+                
+                ## Color in FOV, CH, approached: if victim I'm aiming at turns white
+                ## reflect the color change
+                for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
+                    k = stateKey(human.name, varname)
+                    tree = makeTree(anding([equalRow(crossKey, color),
+                                            equalRow(locKey, loc),
+                                            equalRow(makeFuture(colorKey), 'white')],
+                                            setToConstantMatrix(k, 'White'),
+                                            noChangeMatrix(k)))
+                    Victims.world.setDynamics(k,action,tree)
     
                 ## Savior name: if danger is down to 0, set to human's name. Else none
                 tree = makeTree(anding([equalRow(crossKey, color),
@@ -366,24 +375,25 @@ class Victims:
 
     def makeVictimReward(human):
         """ Human gets reward if:
-
         a) victim is white;
         b) human is the savior;
         c) last human action was triage (so reward only obtained once)
-
         """
         rKey = rewardKey(human.name)
-        crossKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
-        testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
-                       0: noChangeMatrix(rKey)}
-        for i, vobj in enumerate(Victims.victimAgents):
-            vn = vobj.vicAgent.name
-            testAllVics[i+1] = anding([equalRow(stateKey(vn,'color'),'White'),
-                                       equalRow(stateKey(vn, 'savior'), human.name),
-                                       equalRow(actionKey(human.name), Victims.triageActs[human.name])],
-                                incrementMatrix(rKey, vobj.reward),
+        locKey = stateKey(human.name, 'loc')
+        for loc in Victims.victimsByLocAndColor.keys():
+            for color in Victims.victimsByLocAndColor[loc].keys():
+                victim = Victims.victimsByLocAndColor[loc][color].vicAgent
+                colorKey = stateKey(victim.name,'color')
+                saviorKey = stateKey(victim.name,'savior')
+
+                rtree = anding([equalRow(colorKey,'White'),
+                                equalRow(saviorKey, human.name),
+                                equalRow(locKey, loc),
+                                equalRow(actionKey(human.name), Victims.triageActs[human.name])],
+                                incrementMatrix(rKey, Victims.COLOR_REWARDS[color]),
                                 noChangeMatrix(rKey))
-        human.setReward(makeTree(testAllVics),1)
+                human.setReward(makeTree(rtree),1)
 
     def getTriageAction(human):
         if type(human) == str:
