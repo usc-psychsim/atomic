@@ -164,7 +164,7 @@ class Victims:
             return ''
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
-    def beliefAboutVictims(human, allLocations):
+    def createObsVars4Victims(human, allLocations):
         """
         Create a boolean per room per victim color.
         room_color=T means player knows this color victim is in room.
@@ -350,7 +350,7 @@ class Victims:
                     k = stateKey(human.name, varname)
                     tree = makeTree(anding([equalRow(crossKey, color),
                                             equalRow(locKey, loc),
-                                            equalRow(makeFuture(colorKey), 'white')],
+                                            equalRow(makeFuture(colorKey), 'White')],
                                             setToConstantMatrix(k, 'White'),
                                             noChangeMatrix(k)))
                     Victims.world.setDynamics(k,action,tree)

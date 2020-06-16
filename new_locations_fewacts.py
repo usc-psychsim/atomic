@@ -115,7 +115,7 @@ class Locations:
                 Locations.world.setDynamics(destKey,action,tree)
 
             ## If we're not using search actions, move action sets FOV            
-            if not getattr(Victims, 'searchActs', None):
+            if getattr(Victims, 'searchActs', None) == None:
                  # A move has some probability of setting FOV to any victim, regardless of whether 
                  # victim is in the current location
                 fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
