@@ -83,7 +83,11 @@ def getSandRVictims():
     vic_df = pd.read_csv("vic_locs.csv",sep="\t")
     SandRVics = {}
     for key,row in vic_df.iterrows():
-        SandRVics[row["Victim Location"]] = row["Color"]
+        if row['Victim Location'] not in SandRVics.keys():
+            SandRVics[row["Victim Location"]] = []
+
+        SandRVics[row["Victim Location"]].append(row["Color"])
+
 
     return SandRVics
 
