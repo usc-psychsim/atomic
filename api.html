@@ -1,8 +1,7 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -12,12 +11,19 @@
   
 
   
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+
+  
   
   
   
 
   
-  <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
@@ -29,11 +35,6 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="Intro" href="index.html" /> 
@@ -50,7 +51,7 @@
           
 
           
-            <a href="index.html" class="icon icon-home"> Testing auto documentation
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> Testing auto documentation
           
 
           
@@ -76,6 +77,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -96,6 +98,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -134,7 +137,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="index.html">Docs</a> &raquo;</li>
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>API</li>
     
@@ -196,20 +199,20 @@
 <em class="property">class </em><code class="sig-prename descclassname">victims_fewacts.</code><code class="sig-name descname">Victims</code><a class="headerlink" href="#victims_fewacts.Victims" title="Permalink to this definition">¶</a></dt>
 <dd><p>Methods for modeling victims within a psychsim world.</p>
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.TYPE_REWARDS">
-<code class="sig-name descname">TYPE_REWARDS</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REWARDS" title="Permalink to this definition">¶</a></dt>
+<dt id="victims_fewacts.Victims.COLOR_REWARDS">
+<code class="sig-name descname">COLOR_REWARDS</code><a class="headerlink" href="#victims_fewacts.Victims.COLOR_REWARDS" title="Permalink to this definition">¶</a></dt>
 <dd><p>How much reward for different color victims</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.TYPE_REQD_TIMES">
-<code class="sig-name descname">TYPE_REQD_TIMES</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_REQD_TIMES" title="Permalink to this definition">¶</a></dt>
+<dt id="victims_fewacts.Victims.COLOR_REQD_TIMES">
+<code class="sig-name descname">COLOR_REQD_TIMES</code><a class="headerlink" href="#victims_fewacts.Victims.COLOR_REQD_TIMES" title="Permalink to this definition">¶</a></dt>
 <dd><p>Number of seconds of triage required to save a victim</p>
 </dd></dl>
 
 <dl class="py attribute">
-<dt id="victims_fewacts.Victims.TYPE_EXPIRY">
-<code class="sig-name descname">TYPE_EXPIRY</code><a class="headerlink" href="#victims_fewacts.Victims.TYPE_EXPIRY" title="Permalink to this definition">¶</a></dt>
+<dt id="victims_fewacts.Victims.COLOR_EXPIRY">
+<code class="sig-name descname">COLOR_EXPIRY</code><a class="headerlink" href="#victims_fewacts.Victims.COLOR_EXPIRY" title="Permalink to this definition">¶</a></dt>
 <dd><p>Number of seconds until victim dies</p>
 </dd></dl>
 
@@ -304,40 +307,6 @@
 </dd></dl>
 
 <dl class="py method">
-<dt id="victims_fewacts.Victims.beliefAboutVictims">
-<code class="sig-name descname">beliefAboutVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">initHumanLoc</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.beliefAboutVictims" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create uncertain beliefs about each victim’s properties. For each victim:</p>
-<ol class="loweralpha simple">
-<li><p>If human’s initial location = victim initial’s location, human knows victim is right there</p></li>
-<li><p>If human’s initial location != victim initial’s location, human assigns 0 belief to victim being in human’s init loc</p></li>
-</ol>
-</dd></dl>
-
-<dl class="py method">
-<dt id="victims_fewacts.Victims.makeOrangeGreenVictims">
-<code class="sig-name descname">makeOrangeGreenVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">roomsWith2</span></em>, <em class="sig-param"><span class="n">humanNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeOrangeGreenVictims" title="Permalink to this definition">¶</a></dt>
-<dd><p>This method puts an orange victim in every room that has 1+ victims
-and a green victim in every room that has 2 victims.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>roomsWith1</strong> – list of rooms with a single victim</p></li>
-<li><p><strong>roomsWith2</strong> – list of rooms with two victims</p></li>
-<li><p><strong>humanNames</strong> – list of agent names that constitute legal values for the <cite>savior</cite> state of each victim</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Creates victims in the psychsim world, updates the total number of victims <cite>vi</cite> and adds victims to <cite>vicNames</cite></p>
-</dd>
-</dl>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
-This will  need to be addressed in the future.</p>
-</div>
-</dd></dl>
-
-<dl class="py method">
 <dt id="victims_fewacts.Victims.makePreTriageActions">
 <code class="sig-name descname">makePreTriageActions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makePreTriageActions" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create ONE action to approach victim and ONE action to place them in crosshair
@@ -362,32 +331,34 @@ Legal action if:</p>
 </dd></dl>
 
 <dl class="py method">
-<dt id="victims_fewacts.Victims.makeVictimObservationVars">
-<code class="sig-name descname">makeVictimObservationVars</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimObservationVars" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create observed varibles</p>
-</dd></dl>
-
-<dl class="py method">
 <dt id="victims_fewacts.Victims.makeVictimReward">
-<code class="sig-name descname">makeVictimReward</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimReward" title="Permalink to this definition">¶</a></dt>
-<dd><p>ADD DESCRIPTION HERE</p>
-<p>Human gets reward if:</p>
+<code class="sig-name descname">makeVictimReward</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">knowsReward</span><span class="o">=</span><span class="default_value">1</span></em>, <em class="sig-param"><span class="n">model</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictimReward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Human gets reward if:</p>
 <ol class="loweralpha simple">
-<li><p>victim is saved;</p></li>
+<li><p>victim is white;</p></li>
 <li><p>human is the savior;</p></li>
 <li><p>last human action was triage (so reward only obtained once)</p></li>
 </ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>human</strong> (<em>Agent</em>) – The agent whose reward function we are setting</p></li>
+<li><p><strong>knowsReward</strong> (<em>float</em>) – Accuracy of human’s knowledge of actual reward function (1 means accurate knowledge of values of different colors, 0 means the human doesn’t see color). Default is 1</p></li>
+<li><p><strong>model</strong> (<em>str</em>) – The name of the model to which this reward should be attributed</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
 <dt id="victims_fewacts.Victims.makeVictims">
-<code class="sig-name descname">makeVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">vTypes</span></em>, <em class="sig-param"><span class="n">humanNames</span></em>, <em class="sig-param"><span class="n">locationNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictims" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">makeVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">colors</span></em>, <em class="sig-param"><span class="n">humanNames</span></em>, <em class="sig-param"><span class="n">locationNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeVictims" title="Permalink to this definition">¶</a></dt>
 <dd><p>Method for creating victims in the world</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>vLocations</strong> – list of locations of victims</p></li>
-<li><p><strong>vTypes</strong> – list containing the type of each victim</p></li>
+<li><p><strong>colors</strong> – list containing the color of each victim</p></li>
 <li><p><strong>humanNames</strong> – list of agent names that constitute legal values for the <cite>savior</cite> state of each victim</p></li>
 <li><p><strong>locationNames</strong> – list of location names that constitute legal values for the <cite>loc</cite> state of each victim</p></li>
 </ul>
@@ -396,6 +367,30 @@ Legal action if:</p>
 <dd class="field-even"><p>Creates victim agents, and adds them to the world. Adds each victim to the <cite>Victims.victimAgents</cite> list, and also to the <cite>Victims.victimsByLocAndColor</cite> dictionary.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt id="victims_fewacts.Victims.makeYellowGreenVictims">
+<code class="sig-name descname">makeYellowGreenVictims</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">roomsWith2</span></em>, <em class="sig-param"><span class="n">humanNames</span></em><span class="sig-paren">)</span><a class="headerlink" href="#victims_fewacts.Victims.makeYellowGreenVictims" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method puts an Yellow victim in every room that has 1+ victims
+and a green victim in every room that has 2 victims.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>roomsWith1</strong> – list of rooms with a single victim</p></li>
+<li><p><strong>roomsWith2</strong> – list of rooms with two victims</p></li>
+<li><p><strong>humanNames</strong> – list of agent names that constitute legal values for the <cite>savior</cite> state of each victim</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Creates victims in the psychsim world, updates the total number of victims <cite>vi</cite> and adds victims to <cite>vicNames</cite></p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
+This will  need to be addressed in the future.</p>
+</div>
 </dd></dl>
 
 </dd></dl>
@@ -463,11 +458,19 @@ neighbor in this direction to that neighbor</p>
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, brett
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -478,7 +481,6 @@ neighbor in this direction to that neighbor</p>
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
