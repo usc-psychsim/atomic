@@ -103,6 +103,7 @@ class Victims:
             vi += 1
 
         Victims.numVictims = vi
+        Victims.P_VIC_FOV = (1-Victims.P_EMPTY_FOV) / Victims.numVictims
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
 
     def makeVictims(vLocations, colors, humanNames, locationNames):
@@ -119,6 +120,7 @@ class Victims:
         assert(len(vLocations) == len(colors))
         Victims.numVictims = len(colors)
         Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
+        Victims.P_VIC_FOV = (1-Victims.P_EMPTY_FOV) / Victims.numVictims
         for vi in range(Victims.numVictims):
             loc = vLocations[vi]
             color = colors[vi]
@@ -156,19 +158,7 @@ class Victims:
             return ''
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
-    def beliefAboutVictims(human, allLocations):
-        """
-        Create a boolean per room per victim color.
-        room_color=T means player knows this color victim is in room.
-        room_color=F means player knows this color victim is not in room.
-        Use a prior over P(room_color=T)
-        """
-
-        for loc in allLocations:
-            for color in ['Y', 'G']:
-                d = Distribution({True:Victims.COLOR_PRIOR[color], False:1-Victims.COLOR_PRIOR[color]})
-                key = Victims.world.defineState(human.name, loc+'_'+color, bool)
-                human.setBelief(key, d)
+       
 
     def makePreTriageActions(human):
         """
@@ -260,11 +250,10 @@ class Victims:
         Victims.makeVictimReward(human)
 
     def makeVictimReward(human,knowsReward=1,model=None):
-        """ ADD DESCRIPTION HERE
-
+        """ 
         Human gets reward if:
 
-        a) victim is saved;
+        a) victim is white;
         b) human is the savior;
         c) last human action was triage (so reward only obtained once)
 

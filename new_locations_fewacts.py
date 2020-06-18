@@ -7,7 +7,6 @@ Created on Thu Feb 20 11:27:36 2020
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture,\
                         setToFeatureMatrix, setFalseMatrix, noChangeMatrix, addFeatureMatrix
 from psychsim.world import WORLD
-from victims_fewacts import Victims
 
 class Directions:
     """
@@ -57,7 +56,7 @@ class Locations:
                 Locations.Nbrs[d][room] = n
                 Locations.AllLocations.add(n)
 
-    def makePlayerLocation(human, initLoc=None):
+    def makePlayerLocation(human, Victims, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
         if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
@@ -70,10 +69,10 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human)
+        Locations.__makeMoveActions(human, Victims)
         Locations.__makeExplorationBonus(human)
 
-    def __makeMoveActions(human):
+    def __makeMoveActions(human, Victims):
         """
         N/E/S/W actions
         Legality: if current location has a neighbor in the given direction
@@ -115,30 +114,14 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
 
-            # A move has some probability of setting FOV to any victim
-            fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
-            distList = [(setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV)]
-            for vicObj in Victims.victimAgents:
-                distList.append((setToConstantMatrix(fovKey, vicObj.vicAgent.name), Victims.P_VIC_FOV))
-            fovTree = makeTree({'distribution': distList})
-            Locations.world.setDynamics(fovKey,action,fovTree)
-
-            if not Victims.FULL_OBS:
-                # Set observed variables to victim's features
-                # 1. Observe status of victim in destination
-                key = stateKey(human.name, 'obs_victim_status')
-                tree1 = Victims.makeNearVTree(makeFuture(locKey), key, 'status', 'none')
-                Locations.world.setDynamics(key,action,tree1)
-
-                # 2. Observe danger of victim in destination
-                key = stateKey(human.name, 'obs_victim_danger')
-                tree2 = Victims.makeNearVTree(makeFuture(locKey), key, 'danger', 0)
-                Locations.world.setDynamics(key,action,tree2)
-
-                # 3. Observe reward of victim in destination
-                key = stateKey(human.name, 'obs_victim_reward')
-                tree3 = Victims.makeNearVTree(makeFuture(locKey), key, 'reward', 0)
-                Locations.world.setDynamics(key,action,tree3)
+            ## If we're not using search actions, move action sets FOV            
+            if getattr(Victims, 'searchActs', None) == None:
+                 # A move has some probability of setting FOV to any victim, regardless of whether 
+                 # victim is in the current location
+                fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
+                distList = [(setToConstantMatrix(fovKey, vic), Victims.P_VIC_FOV) for vic in Victims.vicNames]
+                distList.append((setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV))
+                Locations.world.setDynamics(fovKey,action,makeTree({'distribution': distList}))
 
     def __makeExplorationBonus(human):
         if Locations.EXPLORE_BONUS <= 0:
