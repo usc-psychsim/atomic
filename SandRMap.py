@@ -92,7 +92,7 @@ def getSandRVictims():
 def getSmallSandRVictims():
     # small version of victims for debugging
     G = "Green"
-    O = "Orange"
+    O = "Gold"
     SandRVics = {"MR":O, "WR":G, "E1":G, "E2":O}
     return SandRVics
 
