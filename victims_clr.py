@@ -182,7 +182,8 @@ class Victims:
             for key in ks:
                 Victims.world.setFeature(key, False)
         else:
-            for key,dist in zip(ks,ds):
+            for i, (key,dist) in enumerate(zip(ks,ds)):
+            	print('Creating obs var', key, i, '/', len(ks))
             	human.setBelief(key, dist)
             	Victims.world.setFeature(key, dist)
             
