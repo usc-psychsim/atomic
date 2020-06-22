@@ -59,12 +59,12 @@ class Victims:
 
     FULL_OBS = None
 
-    COLORS = ['Green', 'Yellow', 'Red', 'White']
-    COLOR_REWARDS = {'Green':10, 'Yellow':200}
-    COLOR_REQD_TIMES = {'Green':1, 'Yellow':1}
-    COLOR_EXPIRY = {'Green':15*60, 'Yellow':7.5*60}
-    COLOR_PRIOR_P = {'Green':0, 'Yellow':0}
-    COLOR_FOV_P = {'Green':0, 'Yellow':0, 'Red':0, 'White':0}
+    COLORS = ['Green', 'Gold', 'Red', 'White']
+    COLOR_REWARDS = {'Green':10, 'Gold':200}
+    COLOR_REQD_TIMES = {'Green':1, 'Gold':1}
+    COLOR_EXPIRY = {'Green':15*60, 'Gold':7.5*60}
+    COLOR_PRIOR_P = {'Green':0, 'Gold':0}
+    COLOR_FOV_P = {'Green':0, 'Gold':0, 'Red':0, 'White':0}
 
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'
@@ -83,9 +83,9 @@ class Victims:
     searchActs = {}
     world = None
 
-    def makeYellowGreenVictims(roomsWith1, roomsWith2, humanNames):
+    def makeGoldGreenVictims(roomsWith1, roomsWith2, humanNames):
         """
-        This method puts an Yellow victim in every room that has 1+ victims
+        This method puts an Gold victim in every room that has 1+ victims
         and a green victim in every room that has 2 victims.
 
         Parameters:
@@ -104,7 +104,7 @@ class Victims:
         vi = 0
         roomsWithVics = list(roomsWith1) + list(roomsWith2)
         for r in roomsWithVics:
-            Victims._makeVictim(vi, r, 'Yellow', humanNames, roomsWithVics)
+            Victims._makeVictim(vi, r, 'Gold', humanNames, roomsWithVics)
             vi += 1
         for r in roomsWith2:
             Victims._makeVictim(vi, r, 'Green', humanNames, roomsWithVics)
@@ -135,7 +135,7 @@ class Victims:
     def _makeVictim(vi, loc, color, humanNames, locationNames):
         victim = Victims.world.addAgent('victim' + str(vi))
 
-        Victims.world.defineState(victim.name,'color',list,['Yellow','Green','Red', 'White'])
+        Victims.world.defineState(victim.name,'color',list,['Gold','Green','Red', 'White'])
         victim.setState('color',color)
 
         Victims.world.defineState(victim.name,'danger',float,description='How far victim is from health')
@@ -174,7 +174,7 @@ class Victims:
         ks = []
         ds = []
         for loc in allLocations:
-            for color in ['Yellow', 'Green']:
+            for color in ['Gold', 'Green']:
                 ks.append(Victims.world.defineState(human.name, loc+'_'+color, bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
         
@@ -182,7 +182,8 @@ class Victims:
             for key in ks:
                 Victims.world.setFeature(key, False)
         else:
-            for key,dist in zip(ks,ds):
+            for i, (key,dist) in enumerate(zip(ks,ds)):
+            	print('Creating obs var', key, i, '/', len(ks))
             	human.setBelief(key, dist)
             	Victims.world.setFeature(key, dist)
             
@@ -257,7 +258,7 @@ class Victims:
         locKey = stateKey(human.name, 'loc')
         newFov = makeFuture(fovKey)
         for loc in allLocations:
-            for color in ['Yellow', 'Green']:
+            for color in ['Gold', 'Green']:
                 obsVicColorKey = stateKey(human.name, loc+'_'+color)
                 tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
                                setToConstantMatrix(obsVicColorKey, True),
@@ -311,7 +312,7 @@ class Victims:
         Create ONE triage action
         Legal action if:
         1) victim in crosshairs same as victim approached and
-        2) victim in crosshairs is Yellow or Green
+        2) victim in crosshairs is Gold or Green
 
         Action effects: For every loc, color, the corresponding victim's state is changed
         if player is in that location and CH victim is that color
@@ -323,7 +324,7 @@ class Victims:
         locKey = stateKey(human.name, 'loc')
 
         legal = {'if': equalFeatureRow(crossKey, approachKey),
-                 True: oring([equalRow(crossKey, 'Yellow'), equalRow(crossKey, 'Green')],
+                 True: oring([equalRow(crossKey, 'Gold'), equalRow(crossKey, 'Green')],
                               True, False),
                  False: False}
         action = human.addAction({'verb': 'triage'}, makeTree(legal))

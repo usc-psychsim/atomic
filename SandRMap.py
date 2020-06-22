@@ -1,5 +1,6 @@
 from new_locations import Directions
 import pandas as pd
+from math import isnan
 
 def checkSRMap(SRMap):
     # small verison of map for debugging
@@ -27,12 +28,10 @@ def checkSRMap(SRMap):
                 #  print("direction ", invd, " neighbor: ",bn)
             except:
                 print("neighbor mismatch with ", n)
-                raise("mismatched neighbors")
 
     # return True if no errors
     print("Check complete")
     return True
-
 
 def getSmallSandRMap():
     # small verison of map for debugging
@@ -41,37 +40,36 @@ def getSmallSandRMap():
     DE = Directions.E
     DW = Directions.W
 
-    SandRLocs = {"BH1":{DS:"BH2",DE:"E1",DW:"MR"}, "BH2":{DN:"BH1",DE:"E2",DW:"WR"}, "MR":{DE:"BH1"},\
-            "WR":{DE:"BH2"}, "E1":{DW:"BH1"}, "E2":{DW:"BH2"}}
+    SandRLocs = {"BH1":{DS:"BH2",DE:"E1",DW:"MR"}, "BH2":{DN:"BH1",DE:"E2",DW:"WR"},\
+            "MR":{DE:"BH1",DW:"MR0"}, "MR0":{DE:"MR"},"WR":{DE:"BH2"}, "WR1":{DE:"WR"},\
+            "E1":{DW:"BH1"}, "E2":{DW:"BH2"}}
 
-    checkmap = checkSRMap(SandRLocs)
-    if checkmap:
-        return SandRLocs
-    else:
-        print("map contains errors")
+    SandRLocs_small = {k: SandRLocs[k] for k in SandRLocs.keys() & {"BH1","BH2","MR","MR0","WR","WR1","E1","E2"}}
+
+    print(SandRLocs_small)
+
+    return SandRLocs_small
 
 def getSandRMap():
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
     DW = Directions.W
+    dirs = {"N":DN, "S":DS, "E":DE, "W":DW}
 
-    SandRLocs = {"LH1":{DN:"LH2",DE:"XHL2"},"LH2":{DN:"LH3",DS:"LH1",DE:"R203"},"LH3":{DS:"LH2",DE:"R205"},\
-            "XHL2":{DN:"R201",DE:"XHL1",DW:"LH1"},"XHL1":{DN:"RJ",DE:"XHC",DW:"XHL2"},"XHC":{DN:"CH1",\
-            DS:"BH1",DE:"XHR",DW:"XHL1"},"XHR":{DN:"RH1",DW:"XHC"},\
-            "CH1":{DN:"CH2",DS:"XHC",DE:"R209"},"CH2":{DN:"CH3",DS:"CH1",DE:"R211",DW:"R208S"},\
-            "CH3":{DN:"CH4",DS:"CH2",DW:"R208N"},"CH4":{DS:"CH3",DE:"R215",DW:"R210"},\
-            "RH1":{DN:"RH2",DS:"XHR",DW:"R216S"},"RH2":{DN:"RH3",DS:"RH1",DW:"R216N"},\
-            "RH3":{DN:"RH4",DS:"RH2",DW:"R218"},"RH4":{DS:"RH3",DW:"R220"},\
-            "BH1":{DN:"XHC",DS:"BH2",DE:"E1",DW:"MR"},"BH2":{DN:"BH1",DE:"E2",DW:"WR"},"MR":{DE:"BH1"},\
-            "WR":{DE:"BH2"},"E1":{DW:"BH1"},"E2":{DW:"BH2"},"R201":{DN:"R203",DS:"XHL2"},\
-            "R203":{DS:"R201",DE:"R208S",DW:"LH2"},"R205":{DN:"R207",DW:"LH3"},"R207":{DS:"R205",DE:"R210"},\
-            "R210":{DE:"CH4",DW:"R207"},"R208N":{DS:"R208S",DE:"CH3"},"R208S":{DN:"R208N",DE:"CH3",DW:"R203"},\
-            "RJ":{DS:"XHL1"},"R209":{DE:"R216S",DW:"CH1"},"R211":{DN:"R213",DW:"CH2"},\
-            "R213":{DS:"R211",DE:"R218"},"R215":{DE:"R220",DW:"CH4"},"R220":{DE:"RH4",DW:"R215"},\
-            "R218":{DE:"RH3",DW:"R213"},"R216N":{DS:"R216S",DE:"RH2"},\
-            "R216S":{DN:"R216N",DE:"RH1",DW:"R209"}}
+    conn_df = pd.read_csv("sparky_adjacency.csv",sep="\t")
+    num_col = len(conn_df.columns)
+    SandRLocs = {}
+    for key,row in conn_df.iterrows():
+        if row['Room'] not in SandRLocs.keys():
+            SandRLocs[row["Room"]] = {}
+        for i in range(num_col-1):
+            direction = conn_df.columns[i+1]
+            neighbor = row[direction]
+            if type(neighbor) is str:
+                SandRLocs[row["Room"]][dirs[direction]] = neighbor
 
+    print(SandRLocs)
     checkmap = checkSRMap(SandRLocs)
     if checkmap:
         return SandRLocs
@@ -80,7 +78,7 @@ def getSandRMap():
 
 def getSandRVictims():
     # Victims and triage actions
-    vic_df = pd.read_csv("vic_locs.csv",sep="\t")
+    vic_df = pd.read_csv("sparky_vic_locs.csv",sep="\t")
     SandRVics = {}
     for key,row in vic_df.iterrows():
         if row['Victim Location'] not in SandRVics.keys():
@@ -94,6 +92,8 @@ def getSandRVictims():
 def getSmallSandRVictims():
     # small version of victims for debugging
     G = "Green"
-    O = "Orange"
+    O = "Gold"
     SandRVics = {"MR":O, "WR":G, "E1":G, "E2":O}
     return SandRVics
+
+getSmallSandRMap()
