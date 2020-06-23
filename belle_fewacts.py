@@ -10,7 +10,7 @@ import logging
 from psychsim.world import World, WORLD
 from psychsim.pwl import stateKey, actionKey, modelKey, VectorDistribution
 from new_locations_fewacts import Locations, Directions
-from victims_fewacts import Victims
+from victims_clr import Victims
 from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
 from helpers import runMMBelUpdate, setBeliefs, setBeliefsNoVics
 from ftime import FatherTime
@@ -28,7 +28,7 @@ def createWorld(numVictims=0):
         SandRVics = {label: color for label,color in list(SandRVics.items())[:numVictims]}
     ##################
 
-    world = World(stateType=VectorDistribution)
+    world = World()
 
     triageAgent = world.addAgent('TriageAg1')
     agent = world.addAgent('ATOMIC')
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     triageAgent = world.agents['TriageAg1']
     agent = world.agents['ATOMIC']
     triageAgent.omega = [key for key in world.state.keys()]
-    triageAgent.resetBelief(stateType=VectorDistribution)
+    triageAgent.resetBelief()
 
     if opts['number'] < 0:
         ###############  ACTIVATE *ONE* OF THE FOLLOWING BLOCKS TO SEE THE ASSOCIATED ISSUE ############### 
@@ -100,13 +100,11 @@ if __name__ == '__main__':
 
         ############### The following breaks the assertion len(agent.getBelief()) ==1 
         ############### action and thus new location.
-        print(world.resymbolize())
         actions = [Locations.moveActions[triageAgent.name][Directions.W],
                    [Victims.STR_FOV_VAR, 'victim0'],
                    Locations.moveActions[triageAgent.name][Directions.E]]
         #           Victims.getPretriageAction(triageAgent.name, Victims.crosshairActs)]
         runMMBelUpdate(world, agent, triageAgent, actions, Locations)
-        print(world.resymbolize())
     else:
         t = 1
         while opts['number'] == 0 or opts['number'] >= t:
