@@ -21,9 +21,9 @@ if True:
     
     VICTIMS_LOCS = ['E1']
     VICTIM_TYPES = ['Green']
-    Victims.COLOR_PRIOR_P = {'Green':0.3, 'Yellow':0.4}
+    Victims.COLOR_PRIOR_P = {'Green':0.3, 'Gold':0.4}
     # if the following prob's add up to 1, FOV will never be empty after a search
-    Victims.COLOR_FOV_P = {'Green':0.2, 'Yellow':0.2, 'Red':0.2, 'White':0.4}
+    Victims.COLOR_FOV_P = {'Green':0.2, 'Gold':0.2, 'Red':0.2, 'White':0.4}
     
     Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], ['E1'])
     Victims.makePreTriageActions(triageAgent)
@@ -43,8 +43,10 @@ if True:
     Victims.makeSearchAction(triageAgent, ['E1'])
     
     triageAgent.resetBelief()
-    triageAgent.omega = {key for key in world.state.keys() if key not in \
-                   {modelKey(agent.name)}}
+    triageAgent.omega = [key for key in world.state.keys() if key not in \
+                   {modelKey(agent.name)}]
+
+    world.save('obs.psy')
     
 
     def runit(events):
@@ -57,7 +59,7 @@ if True:
             print('== state after', msg)
             world.printState(beliefs=False)
             print('== T''s belief after', msg)
-            world.printBeliefs(triageAgent.name, False)
+            world.printBeliefs(triageAgent.name)
         
     entries = [('before anyting', [], None),
                ('searching once', [Victims.searchActs[triageAgent.name]], True),
@@ -76,13 +78,13 @@ if True:
     srch= [('searching after white', [Victims.searchActs[triageAgent.name]], True)]
 
     ## This runs fine
-#    runit(entries)
+    runit(entries)
 
     ## This breaks
 #    runit(entries + srch)
              
     ## This breaks
-    runit([entries[0], entries[2], srch[0]])
+#    runit([entries[0], entries[2], srch[0]])
     
     ## This runs fine
 #    runit(suxTrig)

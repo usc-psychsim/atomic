@@ -174,7 +174,7 @@ class Victims:
         ks = []
         ds = []
         for loc in allLocations:
-            for color in ['Gold', 'Green']:
+            for color in Victims.COLOR_PRIOR_P:
                 ks.append(Victims.world.defineState(human.name, loc+'_'+color, bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
         
