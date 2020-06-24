@@ -22,10 +22,10 @@ SandRVics = getSandRVictims()
 
 world, triageAgent, agent = makeWorld('Player173', 'BH2', SandRLocs, SandRVics)
 
-#
-### Parse the data file into a sequence of actions and events
-#parser = DataParser('Florian_processed_1.csv')
-#aes = parser.getActionsAndEvents(triageAgent.name)
+
+## Parse the data file into a sequence of actions and events
+parser = DataParser('Florian_processed_1.csv')
+aes = parser.getActionsAndEvents(triageAgent.name)
 ##printAEs(aes)
 #
 #aeDF = pd.DataFrame(columns = ['ts', 'ae', 'attID'])
