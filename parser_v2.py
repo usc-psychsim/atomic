@@ -75,7 +75,6 @@ class DataParser:
 
         ## Create flag for whether each victim is within triage range
         for vi in range(self.maxVicsInLoc):
-            print('hey')
             self.pData['v'+str(vi)+'_dist'] = (self.pData['victim_'+str(vi)+'_dist'] > 0) & \
                                         (self.pData['victim_'+str(vi)+'_dist'] <= self.maxDist)
 
@@ -89,9 +88,9 @@ class DataParser:
         prev = None
         lastLoc = None
         actsAndEvents = []
-        triageOn = False
         attemptID = 0
         for ir,row in self.pData.iterrows():
+            print('----', len(actsAndEvents))
             acts = []
             events = []
             moveActs = []
@@ -130,7 +129,6 @@ class DataParser:
                 for vi in range(self.maxVicsInLoc):
                     color = row['victim_'+str(vi)+'_color']
                     if row['victim_' + str(vi) + '_in_FOV'] == True:
-                        ## Get the ID of this victim
                         events.append([Victims.STR_FOV_VAR, color])
                         print(color, 'in FOV')
 
@@ -141,7 +139,7 @@ class DataParser:
                         acts.append(Victims.getPretriageAction(human, Victims.approachActs))
                         print(color, 'in range')
 
-                # For there's a victim in crosshair, add action
+                # If there's a victim in crosshair, add action
                 if row['victim_in_cross_hair_color'] != 'None':
                     acts.append(Victims.getPretriageAction(human, Victims.crosshairActs))
                     print(row['victim_in_cross_hair_color'], 'in CH')
@@ -149,7 +147,7 @@ class DataParser:
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
                     acts.append(Victims.getTriageAction(human))
-                    print('triage')
+                    print('triage started in new room')
 
             # same room. Compare flag values to know what changed!
             else:
@@ -185,7 +183,7 @@ class DataParser:
                         acts.append(Victims.getPretriageAction(human, Victims.crosshairActs))
                         print(row[var], 'in CH')
                 
-                # Is if TIP changed
+                # If TIP changed
                 var = 'triage_in_progress'
                 if row[var] != prev[var]:
                     if row[var]:
@@ -215,9 +213,6 @@ class DataParser:
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-
-        print('\n\n====Running actions and events for', human)
-        
         [actOrEvFlag, actEv, stamp, attempt] = actsAndEvents[0]
         if actOrEvFlag == DataParser.SET_FLG:
             varName = actEv[0]
@@ -239,8 +234,8 @@ class DataParser:
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
                 world.setState(human, var, val)
-            world.printState()
-            input('go on-->')
+            world.printState(beliefs=False)
+#            input('go on-->')
 
 def printAEs(aes):
     for ae in aes:

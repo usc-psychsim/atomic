@@ -392,7 +392,7 @@ class Victims:
                                 equalRow(saviorKey, human.name),
                                 equalRow(locKey, loc),
                                 equalRow(actionKey(human.name), Victims.triageActs[human.name])],
-                                incrementMatrix(rKey, Victims.COLOR_REWARDS[color]),
+                                setToConstantMatrix(rKey, Victims.COLOR_REWARDS[color]),
                                 noChangeMatrix(rKey))
                 human.setReward(makeTree(rtree),1)
 
