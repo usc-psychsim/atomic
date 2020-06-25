@@ -50,14 +50,18 @@ def getSmallSandRMap():
 
     return SandRLocs_small
 
-def getSandRMap():
+def getSandRMap(small=False):
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
     DW = Directions.W
     dirs = {"N":DN, "S":DS, "E":DE, "W":DW}
 
-    conn_df = pd.read_csv("sparky_adjacency.csv",sep="\t")
+    if small:
+        file = "sparky_adjacency_small.csv"
+    else:
+        file = "sparky_adjacency.csv"
+    conn_df = pd.read_csv(file,sep=None)
     num_col = len(conn_df.columns)
     SandRLocs = {}
     for key,row in conn_df.iterrows():
@@ -76,9 +80,13 @@ def getSandRMap():
     else:
         print("map contains errors")
 
-def getSandRVictims():
+def getSandRVictims(small=False):
     # Victims and triage actions
-    vic_df = pd.read_csv("sparky_vic_locs.csv",sep="\t")
+    if small:
+        file = "sparky_vic_locs_small.csv"
+    else:
+        file = "sparky_vic_locs.csv"
+    vic_df = pd.read_csv(file,sep=None)
     SandRVics = {}
     for key,row in vic_df.iterrows():
         if row['Victim Location'] not in SandRVics.keys():

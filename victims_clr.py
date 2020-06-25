@@ -164,6 +164,9 @@ class Victims:
             return ''
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
+    def getUnObsName(loc,color):
+        return 'unobs' + loc+'_'+color
+
     def createObsVars4Victims(human, allLocations):
         """
         Create a boolean per room per victim color.
@@ -174,8 +177,8 @@ class Victims:
         ks = []
         ds = []
         for loc in allLocations:
-            for color in Victims.COLOR_PRIOR_P:
-                ks.append(Victims.world.defineState(human.name, loc+'_'+color, bool))
+            for color in Victims.COLOR_PRIOR_P.keys():
+                ks.append(Victims.world.defineState(human.name, Victims.getUnObsName(loc,color), bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
         
         if Victims.FULL_OBS:
@@ -183,7 +186,6 @@ class Victims:
                 Victims.world.setFeature(key, False)
         else:
             for i, (key,dist) in enumerate(zip(ks,ds)):
-            	print('Creating obs var', key, i, '/', len(ks))
             	human.setBelief(key, dist)
             	Victims.world.setFeature(key, dist)
             
@@ -259,12 +261,12 @@ class Victims:
         newFov = makeFuture(fovKey)
         for loc in allLocations:
             for color in ['Gold', 'Green']:
-                obsVicColorKey = stateKey(human.name, loc+'_'+color)
+                obsVicColorKey = stateKey(human.name, Victims.getUnObsName(loc,color))
                 tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
                                setToConstantMatrix(obsVicColorKey, True),
                                noChangeMatrix(obsVicColorKey))
                 Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
-                dynTrees[loc+'_'+color] = tree
+                dynTrees[Victims.getUnObsName(loc,color)] = tree
     
         ## Reset CH and approached victim variables to None
         for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:            

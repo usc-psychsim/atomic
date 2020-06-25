@@ -54,14 +54,15 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics):
     
     if not Victims.FULL_OBS:
         print('Start to make observable variables and priors')
-        Victims.createObsVars4Victims(triageAgent, Locations.AllLocations[:5])
+        Victims.createObsVars4Victims(triageAgent, Locations.AllLocations)
         print('Made observable variables and priors')
-#        Victims.makeSearchAction(triageAgent, Locations.AllLocations)
+        Victims.makeSearchAction(triageAgent, Locations.AllLocations)
         print('Made search action')
 
     triageAgent.resetBelief()
-    triageAgent.omega = {key for key in world.state.keys() if key not in \
-                   {modelKey(agent.name)}}
+    triageAgent.omega = [key for key in world.state.keys() \
+                         if not ((key in {modelKey(agent.name)}) or key.startswith('victim')\
+                                 or (key.find('unobs')>-1))]
     
 
     return world, triageAgent, agent
