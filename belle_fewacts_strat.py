@@ -16,57 +16,12 @@ from helpers import runMMBelUpdate, setBeliefs, setBeliefsNoVics, anding
 from ftime import FatherTime
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
+from maker import makeWorld
 
 PREFER_NONE_MODEL = 'prefer_none'
 PREFER_GOLD_MODEL = 'prefer_gold'
 PREFER_GREEN_MODEL = 'prefer_green'
 MODEL_SELECTION = 'distribution'
-
-
-def createWorld(numVictims=0):
-    # MDP or POMDP
-    Victims.FULL_OBS = True
-
-    ##################
-    ##### Get Map Data
-    SandRLocs = getSandRMap()
-    SandRVics = getSandRVictims()
-    if numVictims > 0:
-        # Subset of possible victims
-        SandRVics = {label: color for label,color in list(SandRVics.items())[:numVictims]}
-    ##################
-
-    world = World()
-
-    player = world.addAgent('TriageAg1')
-    agent = world.addAgent('ATOMIC')
-    clock = FatherTime(world, False)
-
-
-    VICTIMS_LOCS = list(SandRVics.keys())
-    VICTIM_TYPES = [SandRVics[v] for v in VICTIMS_LOCS]
-    Victims.world = world
-    Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [player.name], list(SandRLocs.keys()))
-    Victims.makePreTriageActions(player)
-    Victims.makeTriageAction(player)
-
-    ################# Locations and Move actions
-    Locations.EXPLORE_BONUS = 0
-    Locations.world = world
-    Locations.makeMapDict(SandRLocs)
-    Locations.makePlayerLocation(player, Victims, "CH4")
-
-    ## These must come before setting triager's beliefs
-    world.setOrder([{player.name}])
-
-    ## Set players horizons
-    player.setAttribute('horizon',4)
-
-    ####### Test if action effects are back
-    #Locations.move(player, Directions.W)
-    #clock.tick()
-    #world.printState(beliefs=False)
-    return world
 
 def createRwd(player,mm_list):
     for mm in mm_list:
@@ -88,9 +43,9 @@ def createRwd(player,mm_list):
 
 if __name__ == '__main__':
 
-    world = createWorld()
-    player = world.agents['TriageAg1']
-    atomic = world.agents['ATOMIC']
+    SandRLocs = getSandRMap(small=True)
+    SandRVics = getSandRVictims(small=True)
+    world, player, atomic = makeWorld('TriageAg1','CH4',SandRLocs,SandRVics)
 
     # setup mental models and beliefs
     # atomic does not model itself
@@ -137,9 +92,9 @@ if __name__ == '__main__':
 #
     while cmd != '':
       legalActions = player.getActions()
-      agent_state = player.getState('loc')
-      print("Player state: ", agent_state)
-      print("reward: ",player.reward())
+      player_state = player.getState('loc')
+      print("Player state: ", player_state)
+      #  print("reward: ",player.reward())
       print('Legal Actions:')
       for a,n in zip(legalActions,range(len(legalActions))):
           print(n,': ',a)
