@@ -157,6 +157,18 @@ class Victims:
         if loc not in Victims.victimsByLocAndColor.keys():
             Victims.victimsByLocAndColor[loc] = {}
         Victims.victimsByLocAndColor[loc][color] = vicObj
+        
+    def setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, locations):
+        ## Create booleans for whether I just saved a green/gold victim
+        for color in Victims.COLOR_REQD_TIMES.keys():
+            key = Victims.world.defineState(triageAgent.name, 'saved_' + color, bool)
+            Victims.world.setFeature(key, False)
+
+        Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
+        Victims.makePreTriageActions(triageAgent)
+        Victims.makeTriageAction(triageAgent)
+        ## TODO: insert victim sensor creation here
+        
 
     def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
@@ -274,8 +286,11 @@ class Victims:
             tree = makeTree(setToConstantMatrix(vtKey, 'none'))
             Victims.world.setDynamics(vtKey,action,tree)        
     
-        dynTrees['fov'] = fovTree
         Victims.searchActs[human.name] = action
+        Victims.resetJustSavedFlags(human, action)
+
+        ## this structure is just for debugging
+        dynTrees['fov'] = fovTree
         return dynTrees
 
     def makePreTriageActions(human):
@@ -307,7 +322,14 @@ class Victims:
 
         Victims.crosshairActs[human.name] = crossHairAction
         Victims.approachActs[human.name] = getCloseAction
+        Victims.resetJustSavedFlags(human, crossHairAction)
+        Victims.resetJustSavedFlags(human, getCloseAction)
         
+    def resetJustSavedFlags(human, action):  
+        for color in Victims.COLOR_REQD_TIMES.keys():
+            key = stateKey(human.name, 'saved_' + color)
+            tree = makeTree(setToConstantMatrix(key, False))
+            Victims.world.setDynamics(key, action, tree)
 
     def makeTriageAction(human):
         """
@@ -347,8 +369,17 @@ class Victims:
                                         noChangeMatrix(colorKey)))
                 Victims.world.setDynamics(colorKey,action,tree)
                 
+                ## Did I save a victim victim of this color?
+                savedKey = stateKey(human.name, 'saved_'+color)
+                tree = makeTree(anding([equalRow(crossKey, color),
+                                        equalRow(locKey, loc),
+                                        equalRow(dangerKey, 1)],
+                                        setToConstantMatrix(savedKey, True),
+                                        noChangeMatrix(savedKey)))
+                Victims.world.setDynamics(savedKey,action,tree)
+                
                 ## Color in FOV, CH, approached: if victim I'm aiming at turns white
-                ## reflect the color change
+                ## reflect change in these 3 variables
                 for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
                     k = stateKey(human.name, varname)
                     tree = makeTree(anding([equalRow(crossKey, color),
@@ -377,6 +408,17 @@ class Victims:
         Victims.makeVictimReward(human)
 
     def makeVictimReward(human):
+        """ Human gets reward if flag is set
+        """
+        rKey = rewardKey(human.name)        
+        for color in Victims.COLOR_REQD_TIMES.keys():
+            key = stateKey(human.name, 'saved_' + color)
+            rtree = {'if': equalRow(key, True),
+                     True: setToConstantMatrix(rKey, Victims.COLOR_REWARDS[color]),
+                     False: noChangeMatrix(rKey)}
+            human.setReward(makeTree(rtree),1)
+
+    def old_makeVictimReward(human):
         """ Human gets reward if:
         a) victim is white;
         b) human is the savior;
@@ -420,3 +462,6 @@ class Victims:
 
     def triage(human):
         Victims.world.step(Victims.getTriageAction(human))
+
+    def search(human, s):
+        Victims.world.step(Victims.searchActs[human.name], select=s)

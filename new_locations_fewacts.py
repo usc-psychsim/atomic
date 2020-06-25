@@ -113,9 +113,13 @@ class Locations:
                                  True: setToConstantMatrix(destKey, True),
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
+                
+            # A move resets the flags of whether I just saved someone
+            Victims.resetJustSavedFlags(human, action)
 
             ## If we're not using search actions, move action sets FOV            
             if getattr(Victims, 'searchActs', None) == None:
+                print('======== We are NOT using searching actions')
                  # A move has some probability of setting FOV to any victim, regardless of whether 
                  # victim is in the current location
                 fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
