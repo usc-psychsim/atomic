@@ -16,11 +16,15 @@ from maker import makeWorld
 Victims.FULL_OBS = False
 
 ##### Get Map Data
-#small = True
-#SandRLocs = getSandRMap(small)
-#SandRVics = getSandRVictims(small)
+small = False
+SandRLocs = getSandRMap(small)
+SandRVics = getSandRVictims(small)
 
-world, triageAgent, agent = makeWorld('Player173', 'BH2', SandRLocs, SandRVics)
+### Parse the data file into a sequence of actions and events
+parser = DataParser('data/processed_ASIST_data_study_id_000001_condition_id_000002_trial_id_000010_messages.csv')
+name =	parser.data['player_ID'].iloc[0]
+
+world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 
 Locations.move(triageAgent, Directions.S)
 Victims.search(triageAgent, True)
@@ -29,8 +33,5 @@ Victims.putInCH(triageAgent)
 Victims.triage(triageAgent)
 print(triageAgent.reward())
 
-### Parse the data file into a sequence of actions and events
-#parser = DataParser('Florian_processed_1.csv')
-#aes = parser.getActionsAndEvents(triageAgent.name)
-
-#DataParser.runTimeless(world, triageAgent.name, aes[:15])
+aes = parser.getActionsAndEvents(triageAgent.name)
+DataParser.runTimeless(world, triageAgent.name, aes)
