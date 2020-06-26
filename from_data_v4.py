@@ -26,12 +26,13 @@ name =	parser.data['player_ID'].iloc[0]
 
 world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 
-Locations.move(triageAgent, Directions.S)
-Victims.search(triageAgent, True)
-Victims.approach(triageAgent)
-Victims.putInCH(triageAgent)
-Victims.triage(triageAgent)
-print(triageAgent.reward())
+world.save('atomic.psy')
+#Locations.move(triageAgent, Directions.S)
+#Victims.search(triageAgent, True)
+#Victims.approach(triageAgent)
+#Victims.putInCH(triageAgent)
+#Victims.triage(triageAgent)
+#print(triageAgent.reward())
 
 aes = parser.getActionsAndEvents(triageAgent.name)
 DataParser.runTimeless(world, triageAgent.name, aes)
