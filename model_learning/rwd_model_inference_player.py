@@ -24,7 +24,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
                   'of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-DATA_FILENAME = 'data/Florian_processed_1.csv'
+DATA_FILENAME = 'data/processed_ASIST_data_study_id_000001_condition_id_000002_trial_id_000010_messages.csv'
 
 OBSERVER_NAME = 'ATOMIC'
 PLAYER_NAME = 'Player173'
@@ -72,12 +72,34 @@ def _get_trajectory_from_parsing(world, agent, aes):
             world.setState(agent.name, 'seenloc_' + act_event, True)
 
     for act_event in aes[1:]:
+        print(act_event)
         if act_event[0] == DataParser.ACTION:
             trajectory.append((copy.deepcopy(world), act_event[1]))
             world.step(act_event[1])
         elif act_event[0] == DataParser.SET_FLG:
             var, val = act_event[1]
-            world.setState(agent.name, var, val)
+            key = stateKey(agent.name,var)
+            if val not in world.getFeature(key).domain():
+                logging.warning('Impossible data point at time %s: %s=%s' % (act_event[2],var,val))
+            world.state[key] = world.value2float(key,val)
+            for model in world.getModel(agent.name).domain():
+                if val not in world.getFeature(key,agent.models[model]['beliefs']).domain():
+                    logging.warning('Unbelievable data point at time %s: %s=%s' % (act_event[2],var,val))
+                agent.models[model]['beliefs'][key] = world.value2float(key,val)
+        models = world.getModel(OBSERVER_NAME)
+        print(len(models),len(world.state))
+#        old = None
+        for model in models.domain():
+            print(model,models[model])
+            beliefs = observer.models[model]['beliefs']
+#            if old is None:
+#                old = beliefs
+#            else:
+#                for key in old.keys():
+#                    if old[key] != beliefs[key]:
+#                        print(key,world.getFeature(key,old),world.getFeature(key,beliefs))
+            print(world.getFeature(modelKey(PLAYER_NAME),beliefs))
+
     return trajectory
 
 
@@ -95,8 +117,12 @@ if __name__ == '__main__':
     # MDP or POMDP
     Victims.FULL_OBS = FULL_OBS
 
+    logging.info('Parsing data file {}...'.format(DATA_FILENAME))
+    parser = DataParser(DATA_FILENAME)
+    PLAYER_NAME = parser.data['player_ID'].iloc[0]
+
     # create world, agent and observer
-    world, agent, _ = makeWorld('Player173', 'BH2', getSandRMap(), getSandRVictims())
+    world, agent, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     observer = world.agents[OBSERVER_NAME]
@@ -105,7 +131,7 @@ if __name__ == '__main__':
     observer.resetBelief(ignore={modelKey(observer.name)})
 
     # agent does not model itself and sees everything except true models and its reward
-    agent.resetBelief(ignore={modelKey(observer.name)}|{k for k in world.state.keys() if state2agent(k)[:6] == 'victim'})
+    agent.resetBelief(ignore={modelKey(observer.name)})
 #    agent.omega.extend([key for key in world.state.keys()
 #                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
 
@@ -141,8 +167,6 @@ if __name__ == '__main__':
                       if key not in {modelKey(agent.name), modelKey(observer.name)}]  # rewardKey(agent.name),
 
     # generates trajectory
-    logging.info('Parsing data file {}...'.format(DATA_FILENAME))
-    parser = DataParser(DATA_FILENAME)
     aes = parser.getActionsAndEvents(agent.name)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
     trajectory = _get_trajectory_from_parsing(world, agent, aes)
