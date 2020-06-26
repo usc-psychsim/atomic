@@ -263,7 +263,7 @@ class Victims:
                     for ic1,c1 in enumerate(Victims.COLORS):
                         fovTree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
 
-        Victims.world.setDynamics(fovKey,action,makeTree(fovTree))
+        Victims.world.setDynamics(fovKey,True,makeTree(fovTree))
 
         ## For every location and victim color, if this color is in (future) FOV and player in loc,
         ## set the corresponding observed variable to True
@@ -282,7 +282,7 @@ class Victims:
         for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:
             vtKey = stateKey(human.name, varname)
             tree = makeTree(setToConstantMatrix(vtKey, 'none'))
-            Victims.world.setDynamics(vtKey,action,tree)
+            Victims.world.setDynamics(vtKey,True,tree)
 
         Victims.searchActs[human.name] = action
         Victims.resetJustSavedFlags(human, action)
@@ -423,7 +423,7 @@ class Victims:
         if len(rtree) > 0:
             nested_tree[False] = noChangeMatrix(rKey)
 
-        agent.setReward(makeTree(rtree), 1., model)
+        agent.setReward(makeTree(rtree), 1, model)
 
     def old_makeVictimReward(human):
         """ Human gets reward if:
