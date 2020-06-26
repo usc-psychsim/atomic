@@ -9,6 +9,7 @@ import pandas as pd
 from victims_clr import Victims
 from new_locations_fewacts import Locations
 from psychsim.action import ActionSet
+from psychsim.pwl import stateKey
 
 class ActionTypes:
     MOVE = 0
@@ -233,8 +234,15 @@ class DataParser:
                 world.step(actEvent[1])
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
-                world.setState(human, var, val)
-            world.printState(beliefs=False)
+                key = stateKey(human,var)
+                if var == 'vicInFOV':
+                    world.step({'subject': human,'verb': 'search'},select={key: world.value2float(key,val)})
+                else:
+                    world.state[key] = world.value2float(key,val)
+                    for model in world.getModel(human).domain():
+                        if val not in world.getFeature(key,world.agents[human].models[model]['beliefs']).domain():
+                            raise ValueError('Unbelievable data point at time %s: %s=%s' % (actEvent[2],var,val))
+                        world.agents[human].models[model]['beliefs'][key] = world.value2float(key,val)
 #            input('go on-->')
 
 def printAEs(aes):
