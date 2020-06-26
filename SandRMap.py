@@ -86,7 +86,7 @@ def getSandRVictims(small=False):
         file = "sparky_vic_locs_small.csv"
     else:
         file = "sparky_vic_locs.csv"
-    vic_df = pd.read_csv(file,sep=None)
+    vic_df = pd.read_csv(file,sep=None,engine='python')
     SandRVics = {}
     for key,row in vic_df.iterrows():
         if row['Victim Location'] not in SandRVics.keys():
