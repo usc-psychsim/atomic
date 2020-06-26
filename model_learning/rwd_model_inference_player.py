@@ -4,7 +4,7 @@ import os
 from psychsim.action import ActionSet
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
-from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
+from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix, state2agent
 from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
@@ -24,7 +24,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
                   'of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-DATA_FILENAME = 'Florian_processed_1.csv'
+DATA_FILENAME = 'data/Florian_processed_1.csv'
 
 OBSERVER_NAME = 'ATOMIC'
 PLAYER_NAME = 'Player173'
@@ -105,9 +105,9 @@ if __name__ == '__main__':
     observer.resetBelief(ignore={modelKey(observer.name)})
 
     # agent does not model itself and sees everything except true models and its reward
-    agent.resetBelief(ignore={modelKey(observer.name)})
-    agent.omega.extend([key for key in world.state.keys()
-                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
+    agent.resetBelief(ignore={modelKey(observer.name)}|{k for k in world.state.keys() if state2agent(k)[:6] == 'victim'})
+#    agent.omega.extend([key for key in world.state.keys()
+#                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
 
     # get the canonical name of the "true" agent model
     true_model = get_true_model_name(agent)
