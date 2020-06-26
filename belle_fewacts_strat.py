@@ -85,12 +85,8 @@ if __name__ == '__main__':
     atomic.omega = {key for key in world.state.keys()
                       if key not in {modelKey(player.name), modelKey(atomic.name)}}
 
-    world.printBeliefs(atomic.name)
-
     ##### Simulation
     cmd = 'blank'
-    Victims.victimAgents
-#
     while cmd != '':
       legalActions = player.getLegalActions()
       player_state = player.getState('loc')
@@ -100,19 +96,16 @@ if __name__ == '__main__':
       for a,n in zip(legalActions,range(len(legalActions))):
           print(n,': ',a)
 
-      print()
-      print(SandRLocs)
-      print(SandRVics)
       cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
       try:
           cmd_int = int(cmd)
-          Victims.world.step(list(legalActions)[cmd_int])
+          Victims.world.step(list(legalActions)[cmd_int],select=True)
       except:
           #do nothing
           pass
 
+      print('Triage Agent Reward: ', player.reward())
       if cmd == 's':
-          world.printBeliefs(atomic.name)
-          #  print('Triage Agent Reward: ', player.reward())
+          world.printState()
       elif cmd == '':
           print('Finishing Simulation')
