@@ -89,9 +89,10 @@ if __name__ == '__main__':
 
     ##### Simulation
     cmd = 'blank'
+    Victims.victimAgents
 #
     while cmd != '':
-      legalActions = player.getActions()
+      legalActions = player.getLegalActions()
       player_state = player.getState('loc')
       print("Player state: ", player_state)
       #  print("reward: ",player.reward())
@@ -100,6 +101,8 @@ if __name__ == '__main__':
           print(n,': ',a)
 
       print()
+      print(SandRLocs)
+      print(SandRVics)
       cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
       try:
           cmd_int = int(cmd)
@@ -110,6 +113,6 @@ if __name__ == '__main__':
 
       if cmd == 's':
           world.printBeliefs(atomic.name)
-          print('Triage Agent Reward: ', player.reward())
+          #  print('Triage Agent Reward: ', player.reward())
       elif cmd == '':
           print('Finishing Simulation')
