@@ -192,14 +192,12 @@ class Victims:
             for color in Victims.COLOR_PRIOR_P.keys():
                 ks.append(Victims.world.defineState(human.name, Victims.getUnObsName(loc,color), bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
+                # dp: Set true value on world state
+                Victims.world.setFeature(ks[-1],loc in Victims.victimsByLocAndColor and color in Victims.victimsByLocAndColor[loc])
 
-        if Victims.FULL_OBS:
-            for key in ks:
-                Victims.world.setFeature(key, False)
-        else:
+        if not Victims.FULL_OBS:
             for i, (key,dist) in enumerate(zip(ks,ds)):
             	human.setBelief(key, dist)
-            	Victims.world.setFeature(key, dist)
 
     def normalizeD(d, key):
         sammy = sum(d.values())
