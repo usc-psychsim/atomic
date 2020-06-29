@@ -9,16 +9,13 @@ import pandas as pd
 from victims_clr import Victims
 from new_locations_fewacts import Locations
 from psychsim.action import ActionSet
-
-class ActionTypes:
-    MOVE = 0
-    PRETRIAGE = 1
-    TRIAGE = 2
-    SEARCH = 3
+from psychsim.pwl import stateKey
 
 class DataParser:
     ACTION = 0
     SET_FLG = 1
+    SEARCH = 3
+    
 
     def __init__(self, filename, maxDist=5):
         self.maxDist = maxDist
@@ -90,10 +87,13 @@ class DataParser:
         actsAndEvents = []
         attemptID = 0
         for ir,row in self.pData.iterrows():
+            if len(actsAndEvents) > 50:
+                break
             print('----', len(actsAndEvents))
             acts = []
             events = []
             moveActs = []
+            searchActs = []
             stamp = row['@timestamp']
             print('----')
             
@@ -129,7 +129,7 @@ class DataParser:
                 for vi in range(self.maxVicsInLoc):
                     color = row['victim_'+str(vi)+'_color']
                     if row['victim_' + str(vi) + '_in_FOV'] == True:
-                        events.append([Victims.STR_FOV_VAR, color])
+                        searchActs.append([Victims.getSearchAction(human), color])
                         print(color, 'in FOV')
 
                 # For each victim, if in distance range, add approach action
@@ -156,8 +156,8 @@ class DataParser:
                     color = row['victim_'+str(vi)+'_color']
                     var = 'victim_' + str(vi) + '_in_FOV'
                     if row[var] and not prev[var]:
-                        print(color, 'in FOV')
-                        events.append([Victims.STR_FOV_VAR, color])
+                        print(color, 'in FOV')                        
+                        searchActs.append([Victims.getSearchAction(human), color])
                     elif prev[var] and not row[var]:
                         print(color, 'out of FOV')
                         events.append([Victims.STR_FOV_VAR, 'none'])
@@ -196,6 +196,8 @@ class DataParser:
             ## Inject move action(s), then events, then crosshair/approach actions
             for mact in moveActs:
                 actsAndEvents.append([DataParser.ACTION, mact, stamp, attemptID])
+            for sact in searchActs:
+                actsAndEvents.append([DataParser.SEARCH, sact, stamp, attemptID])
             for ev in events:
                 actsAndEvents.append([DataParser.SET_FLG, ev, stamp, attemptID])
             for act in acts:
@@ -218,7 +220,7 @@ class DataParser:
             varName = actEv[0]
             varValue = actEv[1]
             world.setState(human, varName, varValue)
-        else:
+        elif actOrEvFlag == DataParser.SET_FLG:
             # This first action can be an actual action or an initial location
             if type(actEv) == ActionSet:
                 world.step(actEv)
@@ -230,12 +232,15 @@ class DataParser:
         for actEvent in actsAndEvents[1:]:
             print('Running',  actEvent[1])
             if actEvent[0] == DataParser.ACTION:
-                world.step(actEvent[1])
+                world.step(actEvent[1], select=True)
+                
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
                 world.setState(human, var, val)
-            world.printState(beliefs=False)
-#            input('go on-->')
+                
+            elif actEvent[0] == DataParser.SEARCH:
+                [sact, color] = actEvent[1]
+                world.step(sact, select={stateKey(human, 'vicInFOV'):color})
 
 def printAEs(aes):
     for ae in aes:

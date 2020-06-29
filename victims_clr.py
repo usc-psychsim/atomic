@@ -352,6 +352,8 @@ class Victims:
                               True, False),
                  False: False}
         action = human.addAction({'verb': 'triage'}, makeTree(legal))
+        
+        Victims.makeSavedColorDyn(human, action)
 
         for loc in Victims.victimsByLocAndColor.keys():
             for color in Victims.victimsByLocAndColor[loc].keys():
@@ -369,14 +371,6 @@ class Victims:
                                         noChangeMatrix(colorKey)))
                 Victims.world.setDynamics(colorKey,action,tree)
                 
-                ## Did I save a victim victim of this color?
-                savedKey = stateKey(human.name, 'saved_'+color)
-                tree = makeTree(anding([equalRow(crossKey, color),
-                                        equalRow(locKey, loc),
-                                        equalRow(dangerKey, 1)],
-                                        setToConstantMatrix(savedKey, True),
-                                        noChangeMatrix(savedKey)))
-                Victims.world.setDynamics(savedKey,action,tree)
                 
                 ## Color in FOV, CH, approached: if victim I'm aiming at turns white
                 ## reflect change in these 3 variables
@@ -387,7 +381,10 @@ class Victims:
                                             equalRow(makeFuture(colorKey), 'White')],
                                             setToConstantMatrix(k, 'White'),
                                             noChangeMatrix(k)))
+                    
+                    ## TODO Fix multiple settings of same key-action pair
                     Victims.world.setDynamics(k,action,tree)
+                    print('set dyn of', varname, 'for vic', color, 'in', loc)
     
                 ## Savior name: if danger is down to 0, set to human's name. Else none
                 tree = makeTree(anding([equalRow(crossKey, color),
@@ -404,8 +401,36 @@ class Victims:
                                         noChangeMatrix(dangerKey)))
                 Victims.world.setDynamics(dangerKey,action,tree)
 
+
         Victims.triageActs[human.name] = action
         Victims.makeVictimReward(human)
+
+    def makeSavedColorDyn(human, action):
+        for color in Victims.COLOR_EXPIRY.keys():
+            ## Did I save a victim victim of this color?
+            savedKey = stateKey(human.name, 'saved_'+color)
+            ifTrue = setToConstantMatrix(savedKey, True)
+            ifFalse = noChangeMatrix(savedKey)
+            colorVics = []
+            for vDict in Victims.victimsByLocAndColor.values():
+                if color in vDict.keys():
+                    colorVics.append(vDict[color])
+
+            if len(colorVics) == 0:
+                print('No vics of color', color)
+                continue                    
+            thisAnd = anding([equalRow(stateKey(colorVics[0].vicAgent.name, 'savior'), 'none'),
+                            equalRow(makeFuture(stateKey(colorVics[0].vicAgent.name, 'savior')), human.name)],
+                            ifTrue, ifFalse)
+            for vic in colorVics[1:]:
+                thisAnd = anding([equalRow(stateKey(vic.vicAgent.name, 'savior'), 'none'),
+                                  equalRow(makeFuture(stateKey(vic.vicAgent.name, 'savior')), human.name)],
+                                 ifTrue,
+                                 thisAnd)
+
+            tree = makeTree(thisAnd)
+#            print(color, tree)
+            Victims.world.setDynamics(savedKey,action, tree)
 
     def makeVictimReward(human):
         """ Human gets reward if flag is set
@@ -453,6 +478,9 @@ class Victims:
         else:
             name = human.name
         return acts[name]
+    
+    def getSearchAction(human):
+        return Victims.searchActs[human.name]
 
     def approach(human):
         Victims.world.step(Victims.getPretriageAction(human, Victims.approachActs))
@@ -464,4 +492,4 @@ class Victims:
         Victims.world.step(Victims.getTriageAction(human))
 
     def search(human, s):
-        Victims.world.step(Victims.searchActs[human.name], select=s)
+        Victims.world.step(Victims.getSearchAction(human), select=s)
