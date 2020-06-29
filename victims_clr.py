@@ -5,7 +5,7 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
-    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture
+    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow
 from helpers import anding, oring
 
 class Victim:
@@ -69,14 +69,14 @@ class Victims:
     STR_CROSSHAIR_ACT = 'actCH'
     STR_APPROACH_ACT = 'actApproach'
     STR_TRIAGE_ACT = 'actTriage'
-    
+
     STR_CROSSHAIR_VAR = 'vicInCH'
     STR_APPROACH_VAR = 'vicApproached'
     STR_FOV_VAR = 'vicInFOV'
 
     victimsByLocAndColor = {}
     victimAgents = []
-    
+
     triageActs = {}
     crosshairActs = {}
     approachActs = {}
@@ -157,7 +157,7 @@ class Victims:
         if loc not in Victims.victimsByLocAndColor.keys():
             Victims.victimsByLocAndColor[loc] = {}
         Victims.victimsByLocAndColor[loc][color] = vicObj
-        
+
     def setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, locations):
         ## Create booleans for whether I just saved a green/gold victim
         for color in Victims.COLOR_REQD_TIMES.keys():
@@ -168,7 +168,7 @@ class Victims:
         Victims.makePreTriageActions(triageAgent)
         Victims.makeTriageAction(triageAgent)
         ## TODO: insert victim sensor creation here
-        
+
 
     def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
@@ -192,7 +192,7 @@ class Victims:
             for color in Victims.COLOR_PRIOR_P.keys():
                 ks.append(Victims.world.defineState(human.name, Victims.getUnObsName(loc,color), bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
-        
+
         if Victims.FULL_OBS:
             for key in ks:
                 Victims.world.setFeature(key, False)
@@ -200,7 +200,7 @@ class Victims:
             for i, (key,dist) in enumerate(zip(ks,ds)):
             	human.setBelief(key, dist)
             	Victims.world.setFeature(key, dist)
-            
+
     def normalizeD(d, key):
         sammy = sum(d.values())
         nd = {c:p/sammy for c,p in d.items()}
@@ -211,7 +211,7 @@ class Victims:
             d = {c:0 for c in Victims.COLORS}
             d['none'] = 1
             return Victims.normalizeD(d, fovKey)
-        
+
         if numVicsInRoom == 1:
             allDs = dict()
             for c1 in Victims.COLORS:
@@ -220,7 +220,7 @@ class Victims:
                 d['none'] = 1 - sum(Victims.COLOR_FOV_P.values())
                 allDs[c1] = Victims.normalizeD(d, fovKey)
             return allDs
-        
+
         if numVicsInRoom == 2:
             allDs = dict()
             for c1 in Victims.COLORS:
@@ -239,7 +239,7 @@ class Victims:
     def makeSearchAction(human, allLocations):
         dynTrees = dict()
         action = human.addAction({'verb': 'search'})
-        
+
         fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
         fovTree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations)}
         for il, loc in enumerate(allLocations):
@@ -264,9 +264,9 @@ class Victims:
                     fovTree[il][ic0] = {'if': equalRow(v1Color, Victims.COLORS)}
                     for ic1,c1 in enumerate(Victims.COLORS):
                         fovTree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
-                
+
         Victims.world.setDynamics(fovKey,action,makeTree(fovTree))
-        
+
         ## For every location and victim color, if this color is in (future) FOV and player in loc,
         ## set the corresponding observed variable to True
         locKey = stateKey(human.name, 'loc')
@@ -279,13 +279,13 @@ class Victims:
                                noChangeMatrix(obsVicColorKey))
                 Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
                 dynTrees[Victims.getUnObsName(loc,color)] = tree
-    
+
         ## Reset CH and approached victim variables to None
-        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:            
+        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:
             vtKey = stateKey(human.name, varname)
             tree = makeTree(setToConstantMatrix(vtKey, 'none'))
-            Victims.world.setDynamics(vtKey,action,tree)        
-    
+            Victims.world.setDynamics(vtKey,action,tree)
+
         Victims.searchActs[human.name] = action
         Victims.resetJustSavedFlags(human, action)
 
@@ -324,8 +324,8 @@ class Victims:
         Victims.approachActs[human.name] = getCloseAction
         Victims.resetJustSavedFlags(human, crossHairAction)
         Victims.resetJustSavedFlags(human, getCloseAction)
-        
-    def resetJustSavedFlags(human, action):  
+
+    def resetJustSavedFlags(human, action):
         for color in Victims.COLOR_REQD_TIMES.keys():
             key = stateKey(human.name, 'saved_' + color)
             tree = makeTree(setToConstantMatrix(key, False))
@@ -362,7 +362,7 @@ class Victims:
                 colorKey = stateKey(victim.name,'color')
                 dangerKey = stateKey(victim.name,'danger')
                 saviorKey = stateKey(victim.name,'savior')
-    
+
                 ## Color: if danger is down to 0, victim turns white
                 tree = makeTree(anding([equalRow(crossKey, color),
                                         equalRow(locKey, loc),
@@ -391,9 +391,9 @@ class Victims:
                                         equalRow(locKey, loc),
                                         equalRow(dangerKey, 1)],
                                         setToConstantMatrix(saviorKey, human.name),
-                                        noChangeMatrix(saviorKey))) 
+                                        noChangeMatrix(saviorKey)))
                 Victims.world.setDynamics(saviorKey,action,tree)
-    
+
                 ## Danger: dencrement danger by 1
                 tree = makeTree(anding([equalRow(crossKey, color),
                                         equalRow(locKey, loc)],
@@ -432,16 +432,25 @@ class Victims:
 #            print(color, tree)
             Victims.world.setDynamics(savedKey,action, tree)
 
-    def makeVictimReward(human):
+    @staticmethod
+    def makeVictimReward(agent, model=None, rwd_dict=None):
         """ Human gets reward if flag is set
         """
-        rKey = rewardKey(human.name)        
+        rKey = rewardKey(agent.name)
+        rtree = nested_tree = {}
         for color in Victims.COLOR_REQD_TIMES.keys():
-            key = stateKey(human.name, 'saved_' + color)
-            rtree = {'if': equalRow(key, True),
-                     True: setToConstantMatrix(rKey, Victims.COLOR_REWARDS[color]),
-                     False: noChangeMatrix(rKey)}
-            human.setReward(makeTree(rtree),1)
+            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
+            key = stateKey(agent.name, 'saved_' + color)
+            if len(nested_tree) > 0 and False not in nested_tree:
+                nested_tree[False] = {}
+                nested_tree = nested_tree[False]
+            nested_tree['if'] = trueRow(key)
+            nested_tree[True] = setToConstantMatrix(rKey, rwd)
+
+        if len(rtree) > 0:
+            nested_tree[False] = noChangeMatrix(rKey)
+
+        agent.setReward(makeTree(rtree), 1., model)
 
     def old_makeVictimReward(human):
         """ Human gets reward if:
