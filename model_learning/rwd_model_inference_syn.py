@@ -13,19 +13,19 @@ from victims_clr import Victims
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
-__description__ = 'Perform reward model inference in the ASIST world based on human player data.' \
-                  'There is an observer agent that has 4 models of the moving agent (uniform prior):' \
-                  '  - a model with the true reward function;' \
+__description__ = 'Perform reward model inference in the ASIST world based on synthetic/generated data.' \
+                  'There is one acting agent whose reward function is to save victims according to the task score.' \
+                  'There is an observer agent that has models of the moving agent (uniform prior):' \
                   '  - a model with a zero reward function, resulting in a random behavior;' \
                   '  - other models with different weights for each victim type.' \
-                  'We collect a trajectory where the world is updated for some steps and the observer updates its ' \
-                  'belief over the models of the triaging agent via PsychSim inference. ' \
+                  'We collect a trajectory based on a data file and the observer updates its belief over the models ' \
+                  'of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
 NUM_STEPS = 100
 
 OBSERVER_NAME = 'ATOMIC'
-AGENT_NAME = 'Player173'
+AGENT_NAME = 'Player'
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
 
