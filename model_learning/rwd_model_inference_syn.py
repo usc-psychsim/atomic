@@ -76,11 +76,6 @@ if __name__ == '__main__':
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})
 
-    # agent does not model itself and sees everything except true models and its reward
-    agent.resetBelief(ignore={modelKey(observer.name)})
-    agent.omega.extend([key for key in world.state.keys()
-                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
-
     # get the canonical name of the "true" agent model
     true_model = get_true_model_name(agent)
 
