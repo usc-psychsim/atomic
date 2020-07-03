@@ -292,7 +292,7 @@ class Victims:
         for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:
             vtKey = stateKey(human.name, varname)
             tree = makeTree(setToConstantMatrix(vtKey, 'none'))
-            Victims.world.setDynamics(vtKey,True,tree)
+            Victims.world.setDynamics(vtKey,action,tree)
 
         Victims.searchActs[human.name] = action
         Victims.resetJustSavedFlags(human, action)
