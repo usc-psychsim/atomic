@@ -71,6 +71,13 @@ def _get_trajectory_from_parsing(world, agent, aes):
             world.setState(agent.name, 'loc', act_event)
             world.setState(agent.name, 'seenloc_' + act_event, True)
 
+
+    for search in agent.actions:
+        if search['verb'] == 'search':
+            break
+    else:
+        raise ValueError('I don\'t know how to search!?')
+
     for act_event in aes[1:]:
         print(act_event)
         if act_event[0] == DataParser.ACTION:
@@ -80,7 +87,7 @@ def _get_trajectory_from_parsing(world, agent, aes):
             var, val = act_event[1]
             key = stateKey(agent.name,var)
             if var == 'vicInFOV':
-                world.step({'subject': agent.name,'verb': 'search'},select={key: world.value2float(key,val)})
+                world.step(search,select={key: world.value2float(key,val)})
             else:
                 if val not in world.getFeature(key).domain():
                     logging.warning('Impossible data point at time %s: %s=%s' % (act_event[2],var,val))
