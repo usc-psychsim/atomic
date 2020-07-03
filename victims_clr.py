@@ -204,18 +204,18 @@ class Victims:
         nd = {c:p/sammy for c,p in d.items()}
         return [(setToConstantMatrix(key, c), p) for c,p in nd.items()]
 
-    def makeAllFOVDistrs(fovKey, numVicsInRoom):
+    def makeAllFOVDistrs(fovKey, numVicsInRoom, default=0):
         if numVicsInRoom == 0:
-            d = {c:0 for c in Victims.COLORS}
+            d = {c:default for c in Victims.COLORS if default > 0}
             d['none'] = 1
             return Victims.normalizeD(d, fovKey)
 
         if numVicsInRoom == 1:
             allDs = dict()
             for c1 in Victims.COLORS:
-                d = {c:0 for c in Victims.COLORS}
+                d = {c:default for c in Victims.COLORS if default > 0}
                 d[c1] = Victims.COLOR_FOV_P[c1]
-                d['none'] = 1 - sum(Victims.COLOR_FOV_P.values())
+                d['none'] = 1 - sum(d.values())
                 allDs[c1] = Victims.normalizeD(d, fovKey)
             return allDs
 
@@ -224,13 +224,13 @@ class Victims:
             for c1 in Victims.COLORS:
                 allDs[c1] = dict()
                 for c2 in Victims.COLORS:
-                    d = {c:0 for c in Victims.COLORS}
-                    d['none'] = 1 - sum(Victims.COLOR_FOV_P.values())
+                    d = {c:default for c in Victims.COLORS if default > 0}
                     if c1 == c2:
                         d[c1] = 2 * Victims.COLOR_FOV_P[c1]
                     else:
                         d[c1] = Victims.COLOR_FOV_P[c1]
                         d[c2] = Victims.COLOR_FOV_P[c2]
+                    d['none'] = 1 - sum(d.values())
                     allDs[c1][c2] = Victims.normalizeD(d, fovKey)
             return allDs
 
@@ -242,7 +242,11 @@ class Victims:
         fovTree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations)}
         for il, loc in enumerate(allLocations):
             if loc not in Victims.victimsByLocAndColor.keys():
-                fovTree[il] = {'distribution': Victims.makeAllFOVDistrs(fovKey, 0)}
+                dist = Victims.makeAllFOVDistrs(fovKey, 0)
+                if len(dist) > 1:
+                    fovTree[il] = {'distribution': dist}
+                else:
+                    fovTree[il] = dist[0][0]
                 continue
             # Get IDs of victims in this room
             vicsHere = Victims.victimsByLocAndColor[loc].values()
@@ -253,7 +257,10 @@ class Victims:
                 v0Color = stateKey(vicsHereNames[0], 'color')
                 fovTree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
                 for ic,c0 in enumerate(Victims.COLORS):
-                    fovTree[il][ic] = {'distribution': allDistributions[c0]}
+                    if len(allDistributions[c0]) > 1:
+                        fovTree[il][ic] = {'distribution': allDistributions[c0]}
+                    else:
+                        fovTree[il][ic] = allDistributions[c0][0][0]
             if numVicsInLoc == 2:
                 v0Color = stateKey(vicsHereNames[0], 'color')
                 v1Color = stateKey(vicsHereNames[1], 'color')
@@ -261,9 +268,12 @@ class Victims:
                 for ic0,c0 in enumerate(Victims.COLORS):
                     fovTree[il][ic0] = {'if': equalRow(v1Color, Victims.COLORS)}
                     for ic1,c1 in enumerate(Victims.COLORS):
-                        fovTree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
+                        if len(allDistributions[c0][c1]) > 1:
+                            fovTree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
+                        else:
+                            fovTree[il][ic0][ic1] = allDistributions[c0][c1][0][0]
 
-        Victims.world.setDynamics(fovKey,True,makeTree(fovTree))
+        Victims.world.setDynamics(fovKey,action,makeTree(fovTree))
 
         ## For every location and victim color, if this color is in (future) FOV and player in loc,
         ## set the corresponding observed variable to True
