@@ -258,7 +258,9 @@ class DataParser:
             for name in sorted(world.agents):
                 if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
                     print('%s color: %s' % (name,world.getState(name,'color',unique=True)))
+            print('Approached: %s' % (world.getState(human,'vicApproached',unique=True)))
             print('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+            print('CH: %s' % (world.getState(human,'vicInCH',unique=True)))
 #            input('go on-->')
 
 def printAEs(aes):
