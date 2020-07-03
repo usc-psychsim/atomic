@@ -79,13 +79,16 @@ def _get_trajectory_from_parsing(world, agent, aes):
         elif act_event[0] == DataParser.SET_FLG:
             var, val = act_event[1]
             key = stateKey(agent.name,var)
-            if val not in world.getFeature(key).domain():
-                logging.warning('Impossible data point at time %s: %s=%s' % (act_event[2],var,val))
-            world.state[key] = world.value2float(key,val)
-            for model in world.getModel(agent.name).domain():
-                if val not in world.getFeature(key,agent.models[model]['beliefs']).domain():
-                    logging.warning('Unbelievable data point at time %s: %s=%s' % (act_event[2],var,val))
-                agent.models[model]['beliefs'][key] = world.value2float(key,val)
+            if var == 'vicInFOV':
+                world.step({'subject': agent.name,'verb': 'search'},select={key: world.value2float(key,val)})
+            else:
+                if val not in world.getFeature(key).domain():
+                    logging.warning('Impossible data point at time %s: %s=%s' % (act_event[2],var,val))
+                world.state[key] = world.value2float(key,val)
+                for model in world.getModel(agent.name).domain():
+                    if val not in world.getFeature(key,agent.models[model]['beliefs']).domain():
+                        logging.warning('Unbelievable data point at time %s: %s=%s' % (act_event[2],var,val))
+                    agent.models[model]['beliefs'][key] = world.value2float(key,val)
         models = world.getModel(OBSERVER_NAME)
         print(len(models),len(world.state))
 #        old = None
