@@ -380,7 +380,7 @@ class Victims:
                 ## Did I save a victim victim of this color?
                 savedKey = stateKey(human.name, 'saved_'+color)
                 tree = makeTree(anding([equalRow(crossKey, color),
-                                        equalRow(locKey, loc),
+#                                        equalRow(locKey, loc),
                                         equalRow(dangerKey, 1)],
                                         setToConstantMatrix(savedKey, True),
                                         noChangeMatrix(savedKey)))
