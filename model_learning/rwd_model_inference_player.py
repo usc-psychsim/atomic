@@ -41,7 +41,7 @@ RANDOM_MODEL = 'zero_rwd'
 # agents properties
 HORIZON = 1
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
-MODEL_RATIONALITY = .5
+MODEL_RATIONALITY = .1
 AGENT_SELECTION = 'random'
 
 # victim reward values
@@ -63,13 +63,16 @@ def _get_trajectory_from_parsing(world, agent, aes):
         var_name = act_event[0]
         var_value = act_event[1]
         world.setState(agent.name, var_name, var_value)
+        agent.setBelief(stateKey(agent.name,var_name),var_value)
     else:
         # This first action can be an actual action or an initial location
         if isinstance(act_event, ActionSet):
             world.step(act_event)
         else:
             world.setState(agent.name, 'loc', act_event)
+            agent.setBelief(stateKey(agent.name,'loc'),act_event)
             world.setState(agent.name, 'seenloc_' + act_event, True)
+            agent.setBelief(stateKey(agent.name,'seenloc_'+act_event),True)
 
 
     for search in agent.actions:
@@ -81,6 +84,12 @@ def _get_trajectory_from_parsing(world, agent, aes):
     for act_event in aes[1:]:
         print(act_event)
         if act_event[0] == DataParser.ACTION:
+            expectation = observer.expectation(agent.name)
+            assert len(expectation) <= 1,sorted(expectation.keys())
+            for model,entry in next(iter(expectation.values())).items():
+                print('%3d%%: %s' % (entry['probability']*100,model))
+                for a in sorted(entry['decision']['action'].domain()):
+                    print('\t%7.3f%%: %s' % (entry['decision']['action'][a]*100,a))
             trajectory.append((copy.deepcopy(world), act_event[1]))
             world.step(act_event[1])
         elif act_event[0] == DataParser.SET_FLG:
@@ -96,20 +105,9 @@ def _get_trajectory_from_parsing(world, agent, aes):
                     if val not in world.getFeature(key,agent.models[model]['beliefs']).domain():
                         logging.warning('Unbelievable data point at time %s: %s=%s' % (act_event[2],var,val))
                     agent.models[model]['beliefs'][key] = world.value2float(key,val)
-        models = world.getModel(OBSERVER_NAME)
-        print(len(models),len(world.state))
-#        old = None
-        for model in models.domain():
-            print(model,models[model])
-            beliefs = observer.models[model]['beliefs']
-#            if old is None:
-#                old = beliefs
-#            else:
-#                for key in old.keys():
-#                    if old[key] != beliefs[key]:
-#                        print(key,world.getFeature(key,old),world.getFeature(key,beliefs))
-            print(world.getFeature(modelKey(PLAYER_NAME),beliefs))
-
+        for model,beliefs in observer.getBelief().items():
+            print(model)
+            print(world.getFeature(modelKey(agent.name),beliefs))
     return trajectory
 
 
