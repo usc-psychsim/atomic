@@ -87,7 +87,7 @@ def _get_trajectory_from_parsing(world, agent, aes):
             expectation = observer.expectation(agent.name)
             assert len(expectation) <= 1,sorted(expectation.keys())
             for model,entry in next(iter(expectation.values())).items():
-                print('%3d%%: %s' % (entry['probability']*100,model))
+                print('%3d%%: %s expects' % (entry['probability']*100,model))
                 for a in sorted(entry['decision']['action'].domain()):
                     print('\t%7.3f%%: %s' % (entry['decision']['action'][a]*100,a))
             trajectory.append((copy.deepcopy(world), act_event[1]))
@@ -106,7 +106,7 @@ def _get_trajectory_from_parsing(world, agent, aes):
                         logging.warning('Unbelievable data point at time %s: %s=%s' % (act_event[2],var,val))
                     agent.models[model]['beliefs'][key] = world.value2float(key,val)
         for model,beliefs in observer.getBelief().items():
-            print(model)
+            print('%s believes:' % (model))
             print(world.getFeature(modelKey(agent.name),beliefs))
     return trajectory
 
