@@ -15,19 +15,30 @@ from maker import makeWorld
 # MDP or POMDP
 Victims.FULL_OBS = False
 
+def ptree(tree, level):
+    
+    pre = ' '.ljust(4*level)
+    if type(tree) == dict:
+        for k in tree.keys():
+            print(pre, k)
+            ptree(tree[k], level+1)
+    else:
+        print(pre, tree)
+
 ##### Get Map Data
 #small = True
 #SandRLocs = getSandRMap(small)
 #SandRVics = getSandRVictims(small)
 
-world, triageAgent, agent = makeWorld('Player173', 'BH2', SandRLocs, SandRVics)
+#world, triageAgent, agent = makeWorld('Player173', 'BH2', SandRLocs, SandRVics)
+world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
 
-Locations.move(triageAgent, Directions.S)
-Victims.search(triageAgent, True)
-Victims.approach(triageAgent)
-Victims.putInCH(triageAgent)
-Victims.triage(triageAgent)
-print(triageAgent.reward())
+#Locations.move(triageAgent, Directions.N)
+#Victims.search(triageAgent, True)
+#Victims.approach(triageAgent)
+#Victims.putInCH(triageAgent)
+#Victims.triage(triageAgent)
+#print(triageAgent.reward())
 
 ### Parse the data file into a sequence of actions and events
 #parser = DataParser('Florian_processed_1.csv')
