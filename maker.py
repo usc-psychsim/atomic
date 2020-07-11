@@ -34,7 +34,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics):
     Victims.COLOR_PRIOR_P = {'Green':0.3, 'Gold':0.4}
     # if the following prob's add up to 1, FOV will never be empty after a search
     Victims.COLOR_FOV_P = {'Green':0.2, 'Gold':0.2, 'Red':0.2, 'White':0.4}
-    Victims.setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, list(SandRLocs.keys()))
+    debug = Victims.setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, list(SandRLocs.keys()))
     
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
@@ -60,4 +60,4 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics):
                                  or (key.find('unobs')>-1))]
     
 
-    return world, triageAgent, agent
+    return world, triageAgent, agent, debug
