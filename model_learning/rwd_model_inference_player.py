@@ -1,10 +1,11 @@
 import copy
 import logging
 import os
+import sys
 from psychsim.action import ActionSet
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
-from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
+from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix, state2agent
 from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
@@ -24,7 +25,10 @@ __description__ = 'Perform reward model inference in the ASIST world based on hu
                   'belief over the models of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-DATA_FILENAME = 'Florian_processed_1.csv'
+try:
+    DATA_FILENAME = sys.argv[1]
+except IndexError:
+    DATA_FILENAME = 'Florian_processed_1.csv'
 
 OBSERVER_NAME = 'ATOMIC'
 PLAYER_NAME = 'Player173'
@@ -63,13 +67,21 @@ def _get_trajectory_from_parsing(world, agent, aes):
         var_name = act_event[0]
         var_value = act_event[1]
         world.setState(agent.name, var_name, var_value)
+        agent.setBelief(stateKey(agent.name,var_name),var_value)
+                
+    elif act_or_event == DataParser.SEARCH:
+        [sact, color] = act_event[1]
+        key = stateKey(agent.name, 'vicInFOV')
+        world.step(sact, select={key:world.value2float(key,color)})
     else:
         # This first action can be an actual action or an initial location
         if isinstance(act_event, ActionSet):
             world.step(act_event)
         else:
             world.setState(agent.name, 'loc', act_event)
+            agent.setBelief(stateKey(agent.name,'loc'),act_event)
             world.setState(agent.name, 'seenloc_' + act_event, True)
+            agent.setBelief(stateKey(agent.name,'seenloc_'+act_event),True)
 
     for act_event in aes[1:]:
         if act_event[0] == DataParser.ACTION:
@@ -89,6 +101,10 @@ if __name__ == '__main__':
     # sets up log to screen
     logging.basicConfig(format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
+    logging.info('Parsing data file {}...'.format(DATA_FILENAME))
+    parser = DataParser(DATA_FILENAME)
+    PLAYER_NAME = parser.data['player_ID'].iloc[0]
+
     # create output
     create_clear_dir(OUTPUT_DIR)
 
@@ -96,7 +112,7 @@ if __name__ == '__main__':
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _ = makeWorld('Player173', 'BH2', getSandRMap(), getSandRVictims())
+    world, agent, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     observer = world.agents[OBSERVER_NAME]
@@ -106,8 +122,8 @@ if __name__ == '__main__':
 
     # agent does not model itself and sees everything except true models and its reward
     agent.resetBelief(ignore={modelKey(observer.name)})
-    agent.omega.extend([key for key in world.state.keys()
-                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
+#    agent.omega.extend([key for key in world.state.keys()
+#                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
 
     # get the canonical name of the "true" agent model
     true_model = get_true_model_name(agent)
@@ -141,8 +157,6 @@ if __name__ == '__main__':
                       if key not in {modelKey(agent.name), modelKey(observer.name)}]  # rewardKey(agent.name),
 
     # generates trajectory
-    logging.info('Parsing data file {}...'.format(DATA_FILENAME))
-    parser = DataParser(DATA_FILENAME)
     aes = parser.getActionsAndEvents(agent.name)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
     trajectory = _get_trajectory_from_parsing(world, agent, aes)
