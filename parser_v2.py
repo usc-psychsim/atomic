@@ -87,8 +87,8 @@ class DataParser:
         actsAndEvents = []
         attemptID = 0
         for ir,row in self.pData.iterrows():
-            if len(actsAndEvents) > 50:
-                break
+#            if len(actsAndEvents) > 50:
+#                break
             print('----', len(actsAndEvents))
             acts = []
             events = []
@@ -220,30 +220,51 @@ class DataParser:
             varName = actEv[0]
             varValue = actEv[1]
             world.setState(human, varName, varValue)
+            world.agents[human].setBelief(stateKey(human,varName),varValue)
         elif actOrEvFlag == DataParser.SET_FLG:
             # This first action can be an actual action or an initial location
             if type(actEv) == ActionSet:
                 world.step(actEv)
             else:
                 world.setState(human, 'loc', actEv)
+                world.agents[human].setBelief(stateKey(human,'loc'),actEv)
                 world.setState(human, 'seenloc_'+actEv, True)
+                world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv),True)
                 
 
-        for actEvent in actsAndEvents[1:]:
-            print('Running',  actEvent[1])
+        for t,actEvent in enumerate(actsAndEvents[1:]):
+            print('\n%d) Running: %s' % (t, actEvent[1]))
             if actEvent[0] == DataParser.ACTION:
-                world.step(actEvent[1], select=True)
+                if actEvent[1] not in world.agents[human].getLegalActions():
+                    raise ValueError('Illegal action!')
+                world.step(actEvent[1])
                 
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
-                world.setState(human, var, val)
+                key = stateKey(human,var)
+                world.state[key] = world.value2float(key,val)
+                for model in world.getModel(human).domain():
+                    if val not in world.getFeature(key,world.agents[human].models[model]['beliefs']).domain():
+                        raise ValueError('Unbelievable data point at time %s: %s=%s' % (actEvent[2],var,val))
+                    world.agents[human].models[model]['beliefs'][key] = world.value2float(key,val)
                 
             elif actEvent[0] == DataParser.SEARCH:
                 [sact, color] = actEvent[1]
-                world.step(sact, select={stateKey(human, 'vicInFOV'):color})
+                key = stateKey(human, 'vicInFOV')
+                world.step(sact, select={key:world.value2float(key,color)})
+            summarizeState(world,human)
 
 def printAEs(aes):
     for ae in aes:
         print(ae[2], ae[1])
                 
 
+def summarizeState(world,human):
+    loc = world.getState(human,'loc',unique=True)
+    print('Player location: %s' % (loc))
+    for name in sorted(world.agents):
+        if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
+            print('%s color: %s' % (name,world.getState(name,'color',unique=True)))
+    print('Approached: %s' % (world.getState(human,'vicApproached',unique=True)))
+    print('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+    print('CH: %s' % (world.getState(human,'vicInCH',unique=True)))
