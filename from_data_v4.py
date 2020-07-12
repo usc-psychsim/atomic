@@ -34,11 +34,11 @@ except IndexError:
 name = parser.data['player_ID'].iloc[0]
 
 ##### Get Map Data
-#small = True
-#SandRLocs = getSandRMap(small)
-#SandRVics = getSandRVictims(small)
+small = True
+SandRLocs = getSandRMap(small)
+SandRVics = getSandRVictims(small)
 
-world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
+world, triageAgent, agent, debug = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 #world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
 
 #Locations.move(triageAgent, Directions.N)
@@ -49,6 +49,6 @@ world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 #print(triageAgent.reward())
 
 ### Replay sequence of actions and events
-#aes = parser.getActionsAndEvents(triageAgent.name)
+aes = parser.getActionsAndEvents(triageAgent.name)
 
-#DataParser.runTimeless(world, triageAgent.name, aes[:15])
+DataParser.runTimeless(world, triageAgent.name, aes)
