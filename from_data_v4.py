@@ -5,6 +5,7 @@ Created on Sun Apr  5 17:00:50 2020
 
 @author: mostafh
 """
+import sys
 
 from new_locations_fewacts import Locations, Directions
 from victims_clr import Victims
@@ -25,13 +26,20 @@ def ptree(tree, level):
     else:
         print(pre, tree)
 
+### Parse the data file into a sequence of actions and events
+try:
+       parser = DataParser(sys.argv[1])
+except IndexError:
+       parser = DataParser('Florian_processed_1.csv')
+name = parser.data['player_ID'].iloc[0]
+
 ##### Get Map Data
 #small = True
 #SandRLocs = getSandRMap(small)
 #SandRVics = getSandRVictims(small)
 
-#world, triageAgent, agent = makeWorld('Player173', 'BH2', SandRLocs, SandRVics)
-world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
+world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
+#world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
 
 #Locations.move(triageAgent, Directions.N)
 #Victims.search(triageAgent, True)
@@ -40,8 +48,7 @@ world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, Sand
 #Victims.triage(triageAgent)
 #print(triageAgent.reward())
 
-### Parse the data file into a sequence of actions and events
-#parser = DataParser('Florian_processed_1.csv')
+### Replay sequence of actions and events
 #aes = parser.getActionsAndEvents(triageAgent.name)
 
 #DataParser.runTimeless(world, triageAgent.name, aes[:15])
