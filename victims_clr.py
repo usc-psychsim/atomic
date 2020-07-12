@@ -489,7 +489,10 @@ class Victims:
         return acts[name]
     
     def getSearchAction(human):
-        return Victims.searchActs[human.name]
+        if type(human) == str:
+            return Victims.searchActs[human]
+        else:
+            return Victims.searchActs[human.name]
 
     def approach(human):
         Victims.world.step(Victims.getPretriageAction(human, Victims.approachActs))
