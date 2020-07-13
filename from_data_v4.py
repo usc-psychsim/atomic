@@ -28,17 +28,17 @@ def ptree(tree, level):
 
 ### Parse the data file into a sequence of actions and events
 try:
-       parser = DataParser(sys.argv[1])
+       parser = DataParser('data/' + sys.argv[1])
 except IndexError:
-       parser = DataParser('Florian_processed_1.csv')
+       parser = DataParser('data/' + 'Florian_processed_1.csv')
 name = parser.data['player_ID'].iloc[0]
 
-##### Get Map Data
-#small = True
-#SandRLocs = getSandRMap(small)
-#SandRVics = getSandRVictims(small)
+#### Get Map Data
+small = False
+SandRLocs = getSandRMap(small)
+SandRVics = getSandRVictims(small)
 
-world, triageAgent, agent = makeWorld(name, 'BH2', SandRLocs, SandRVics)
+world, triageAgent, agent, debug = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 #world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
 
 #Locations.move(triageAgent, Directions.N)
