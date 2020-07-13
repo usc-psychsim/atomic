@@ -233,7 +233,7 @@ class DataParser:
                 
 
         for t,actEvent in enumerate(actsAndEvents[1:]):
-            print('\n%d) Running: %s' % (t, actEvent[1]))
+            print('\n%d) Running[%d]: %s' % (t, actEvent[0],actEvent[1]))
             if actEvent[0] == DataParser.ACTION:
                 if actEvent[1] not in world.agents[human].getLegalActions():
                     raise ValueError('Illegal action!')
