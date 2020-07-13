@@ -156,11 +156,12 @@ class DataParser:
                     color = row['victim_'+str(vi)+'_color']
                     var = 'victim_' + str(vi) + '_in_FOV'
                     if row[var] and not prev[var]:
-                        print(color, 'in FOV')                        
+                        print(color, 'in FOV')
                         searchActs.append([Victims.getSearchAction(human), color])
                     elif prev[var] and not row[var]:
                         print(color, 'out of FOV')
-                        events.append([Victims.STR_FOV_VAR, 'none'])
+                        searchActs.append([Victims.getSearchAction(human), 'none'])
+#                        events.append([Victims.STR_FOV_VAR, 'none'])
 
                 # Compare flags for victim within range
                 for vi in range(self.maxVicsInLoc):
@@ -221,7 +222,7 @@ class DataParser:
             varValue = actEv[1]
             world.setState(human, varName, varValue)
             world.agents[human].setBelief(stateKey(human,varName),varValue)
-        elif actOrEvFlag == DataParser.SET_FLG:
+        else:
             # This first action can be an actual action or an initial location
             if type(actEv) == ActionSet:
                 world.step(actEv)
