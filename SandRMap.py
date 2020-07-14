@@ -1,4 +1,5 @@
 from new_locations import Directions
+import os.path
 import pandas as pd
 from math import isnan
 
@@ -58,9 +59,9 @@ def getSandRMap(small=False):
     dirs = {"N":DN, "S":DS, "E":DE, "W":DW}
 
     if small:
-        file = "sparky_adjacency_small.csv"
+        file = os.path.join(os.path.dirname(__file__),"data","sparky_adjacency_small.csv")
     else:
-        file = "sparky_adjacency.csv"
+        file = os.path.join(os.path.dirname(__file__),"data","sparky_adjacency.csv")
     conn_df = pd.read_csv(file,sep=None)
     num_col = len(conn_df.columns)
     SandRLocs = {}
@@ -83,9 +84,9 @@ def getSandRMap(small=False):
 def getSandRVictims(small=False):
     # Victims and triage actions
     if small:
-        file = "sparky_vic_locs_small.csv"
+        file = os.path.join(os.path.dirname(__file__),"data","sparky_vic_locs_small.csv")
     else:
-        file = "sparky_vic_locs.csv"
+        file = os.path.join(os.path.dirname(__file__),"data","sparky_vic_locs.csv")
     vic_df = pd.read_csv(file,sep=None,engine='python')
     SandRVics = {}
     for key,row in vic_df.iterrows():

@@ -5,6 +5,7 @@ Created on Sun Apr  5 17:00:50 2020
 
 @author: mostafh
 """
+import os.path
 import sys
 
 from new_locations_fewacts import Locations, Directions
@@ -28,13 +29,13 @@ def ptree(tree, level):
 
 ### Parse the data file into a sequence of actions and events
 try:
-       parser = DataParser(sys.argv[1])
+       parser = DataParser(os.path.join(os.path.dirname(__file__),'data',sys.argv[1]))
 except IndexError:
-       parser = DataParser('Florian_processed_1.csv')
+       parser = DataParser(os.path.join(os.path.dirname(__file__),'data','Florian_processed_1.csv'))
 name = parser.data['player_ID'].iloc[0]
 
 ##### Get Map Data
-small = True
+small = False
 SandRLocs = getSandRMap(small)
 SandRVics = getSandRVictims(small)
 
