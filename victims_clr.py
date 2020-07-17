@@ -293,11 +293,11 @@ class Victims:
                 Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
                 dynTrees[Victims.getUnObsName(loc,color)] = tree
 
-        ## Reset CH and approached victim variables to None
-        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR]:
-            vtKey = stateKey(human.name, varname)
-            tree = makeTree(setToConstantMatrix(vtKey, 'none'))
-            Victims.world.setDynamics(vtKey,action,tree)
+        ## Reset CH victim variable to None
+        ## Approached victim doesn't change
+        vtKey = stateKey(human.name, Victims.STR_CROSSHAIR_VAR)
+        tree = makeTree(setToConstantMatrix(vtKey, 'none'))
+        Victims.world.setDynamics(vtKey,action,tree)
 
         Victims.searchActs[human.name] = action
         Victims.resetJustSavedFlags(human, action)
