@@ -226,11 +226,11 @@ class DataParser:
         return attemptRows
 
 
-    def runTimeless(world, human, actsAndEvents, fromTheBeg=True, ffwdTo=0):
+    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-        if fromTheBeg:
+        if start == 0:
             [actOrEvFlag, actEv, stamp, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
                 varName = actEv[0]
@@ -246,12 +246,9 @@ class DataParser:
                     world.agents[human].setBelief(stateKey(human,'loc'),actEv)
                     world.setState(human, 'seenloc_'+actEv, True)
                     world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv),True)
-            start = 1
-        else:
-            start = 0
-                
+            start = 1                
 
-        for t,actEvent in enumerate(actsAndEvents[start:]):
+        for t,actEvent in enumerate(actsAndEvents[start:end]):
             print('\n%d) Running: %s' % (t+start, actEvent[1]))
             if t >= ffwdTo:
                 input('go on? ')

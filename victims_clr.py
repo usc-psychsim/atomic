@@ -142,7 +142,7 @@ class Victims:
         Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
         Victims.makePreTriageActions(triageAgent)
         Victims.makeTriageAction(triageAgent)
-#        debug = Victims.makeColorChangeDynamics(triageAgent)
+        
         ## TODO: insert victim sensor creation here
 
         return []
@@ -339,6 +339,7 @@ class Victims:
         action = human.addAction({'verb': 'triage'}, makeTree(legal))
         
         Victims.makeSavedColorDyn(human, action)
+        debug = Victims.makeColorChangeDynamics(human, action)
 
         for loc in Victims.victimsByLocAndColor.keys():
             for color in Victims.victimsByLocAndColor[loc].keys():
@@ -375,7 +376,7 @@ class Victims:
         Victims.triageActs[human.name] = action
         Victims.makeVictimReward(human)
         
-    def makeColorChangeDynamics(human):
+    def makeColorChangeDynamics(human, action):
         ''' Setting color of victim in FOV, crosshair, approached: 
             If victim I'm aiming at turns white, reflect change in these 3 variables
         '''
@@ -412,7 +413,7 @@ class Victims:
                                 ifTrue,
                                 thisAnd)
                 mainTree[ic] = thisAnd
-            Victims.world.setDynamics(k,True,makeTree(mainTree))
+            Victims.world.setDynamics(k, action, makeTree(mainTree))
             debug[varname] = mainTree
         return debug
 
