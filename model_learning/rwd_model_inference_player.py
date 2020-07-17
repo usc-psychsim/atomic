@@ -112,7 +112,7 @@ if __name__ == '__main__':
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
+    world, agent, _, debug = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     observer = world.agents[OBSERVER_NAME]
