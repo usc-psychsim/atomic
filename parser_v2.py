@@ -226,7 +226,7 @@ class DataParser:
         return attemptRows
 
 
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0):
+    def runTimeless(world, human, actsAndEvents, start=0, end=None, ffwdTo=0):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
