@@ -264,11 +264,12 @@ class Victims:
         for loc in allLocations:
             for color in ['Gold', 'Green']:
                 obsVicColorKey = stateKey(human.name, Victims.getUnObsName(loc,color))
-                tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
-                               setToConstantMatrix(obsVicColorKey, True),
-                               noChangeMatrix(obsVicColorKey))
-                Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
-                dynTrees[Victims.getUnObsName(loc,color)] = tree
+                if obsVicColorKey in Victims.world.variables:
+                    tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
+                                   setToConstantMatrix(obsVicColorKey, True),
+                                   noChangeMatrix(obsVicColorKey))
+                    Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
+                    dynTrees[Victims.getUnObsName(loc,color)] = tree
 
         ## Reset CH victim variable to None
         ## Approached victim doesn't change
