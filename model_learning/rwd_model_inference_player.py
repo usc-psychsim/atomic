@@ -90,6 +90,10 @@ def _get_trajectory_from_parsing(world, agent, aes):
         elif act_event[0] == DataParser.SET_FLG:
             var, val = act_event[1]
             world.setState(agent.name, var, val)
+        elif act_event[0] == DataParser.SEARCH:
+            [sact, color] = act_event[1]
+            key = stateKey(agent.name, 'vicInFOV')
+            world.step(sact, select={key:world.value2float(key,color),'__default__': False})
     return trajectory
 
 
@@ -112,7 +116,7 @@ if __name__ == '__main__':
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
+    world, agent, _, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims())
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     observer = world.agents[OBSERVER_NAME]
