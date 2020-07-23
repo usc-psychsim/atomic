@@ -110,7 +110,7 @@ if __name__ == '__main__':
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
-    trajectory = generate_trajectory(agent, NUM_STEPS)
+    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent
