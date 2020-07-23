@@ -5,7 +5,8 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
-    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow
+    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow
+from psychsim.world import WORLD
 from helpers import anding, oring
 
 class Victim:
@@ -62,7 +63,7 @@ class Victims:
     COLORS = ['Green', 'Gold', 'Red', 'White']
     COLOR_REWARDS = {'Green':10, 'Gold':200}
     COLOR_REQD_TIMES = {'Green':1, 'Gold':1}
-    COLOR_EXPIRY = {'Green':15*60, 'Gold':7.5*60}
+    COLOR_EXPIRY = {'Green':int(10*60), 'Gold':int(7*60)}
     COLOR_PRIOR_P = {'Green':0, 'Gold':0}
     COLOR_FOV_P = {'Green':0, 'Gold':0, 'Red':0, 'White':0}
 
@@ -120,6 +121,15 @@ class Victims:
 
         Victims.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
         victim.setState('savior', 'none')
+        
+        ## Victim expiry
+        clock = stateKey(WORLD,'seconds')
+        clrKey = stateKey(victim.name, 'color')
+        expire = Victims.COLOR_EXPIRY[color]
+        deathTree = anding([equalRow(clrKey, color),
+                            thresholdRow(clock, expire)], 
+                            setToConstantMatrix(clrKey, 'Red'), noChangeMatrix(clrKey))
+        Victims.world.setDynamics(clrKey, True, makeTree(deathTree))
 
         vicObj = Victim(loc, color, Victims.COLOR_EXPIRY[color], victim, rew)
         Victims.victimAgents.append(vicObj)
@@ -142,6 +152,7 @@ class Victims:
         Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
         Victims.makePreTriageActions(triageAgent)
         Victims.makeTriageAction(triageAgent)
+        Victims.approachRandomVic(triageAgent, locations)
         
         ## TODO: insert victim sensor creation here
 
@@ -216,51 +227,71 @@ class Victims:
                     allDs[c1][c2] = Victims.normalizeD(d, fovKey)
             return allDs
 
-    def makeSearchAction(human, allLocations):
-        dynTrees = dict()
-        action = human.addAction({'verb': 'search'})
-
-        fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
-        fovTree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations)}
+    def randomVicInRoom(human, humanKey, allLocations):
+        tree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations)}
         for il, loc in enumerate(allLocations):
             if loc not in Victims.victimsByLocAndColor.keys():
-                dist = Victims.makeAllFOVDistrs(fovKey, 0)
+                dist = Victims.makeAllFOVDistrs(humanKey, 0)
                 if len(dist) > 1:
-                    fovTree[il] = {'distribution': dist}
+                    tree[il] = {'distribution': dist}
                 else:
-                    fovTree[il] = dist[0][0]
+                    tree[il] = dist[0][0]
                 continue
             # Get IDs of victims in this room
             vicsHere = Victims.victimsByLocAndColor[loc].values()
             vicsHereNames = [v.vicAgent.name for v in vicsHere]
             numVicsInLoc = len(vicsHereNames)
-            allDistributions = Victims.makeAllFOVDistrs(fovKey, numVicsInLoc)
+            allDistributions = Victims.makeAllFOVDistrs(humanKey, numVicsInLoc)
             if numVicsInLoc == 1:
                 v0Color = stateKey(vicsHereNames[0], 'color')
-                fovTree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
+                tree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
                 for ic,c0 in enumerate(Victims.COLORS):
                     if len(allDistributions[c0]) > 1:
-                        fovTree[il][ic] = {'distribution': allDistributions[c0]}
+                        tree[il][ic] = {'distribution': allDistributions[c0]}
                     else:
-                        fovTree[il][ic] = allDistributions[c0][0][0]
+                        tree[il][ic] = allDistributions[c0][0][0]
             elif numVicsInLoc == 2:
                 v0Color = stateKey(vicsHereNames[0], 'color')
                 v1Color = stateKey(vicsHereNames[1], 'color')
-                fovTree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
+                tree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
                 for ic0,c0 in enumerate(Victims.COLORS):
-                    fovTree[il][ic0] = {'if': equalRow(v1Color, Victims.COLORS)}
+                    tree[il][ic0] = {'if': equalRow(v1Color, Victims.COLORS)}
                     for ic1,c1 in enumerate(Victims.COLORS):
                         if len(allDistributions[c0][c1]) > 1:
-                            fovTree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
+                            tree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
                         else:
-                            fovTree[il][ic0][ic1] = allDistributions[c0][c1][0][0]
+                            tree[il][ic0][ic1] = allDistributions[c0][c1][0][0]
+        return tree
+    
+    def approachRandomVic(human, allLocations):
+        '''
+        Add possibility that a victim is randomly approached
+        Unrelated to victim in FOV.
+        Different from the 'deliberate' approach action that approaches the victim
+        currently in FOV.
+        '''
+        approachedKey = stateKey(human.name, Victims.STR_APPROACH_VAR)
+        tree = Victims.randomVicInRoom(human, approachedKey, allLocations)
+#        approachedTree = {'if': equalRow(approachedKey, 'none'),
+#                          True: tree,
+#                          False: noChangeMatrix(approachedKey)}      
+#        
+        Victims.world.setDynamics(approachedKey,True,makeTree(tree))
 
+
+    def makeSearchAction(human, allLocations):
+        action = human.addAction({'verb': 'search'})
+
+        ## A victim can randomly appear in FOV
+        fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
+        fovTree = Victims.randomVicInRoom(human, fovKey, allLocations)
         Victims.world.setDynamics(fovKey,action,makeTree(fovTree))
 
         ## For every location and victim color, if this color is in (future) FOV and player in loc,
         ## set the corresponding observed variable to True
         locKey = stateKey(human.name, 'loc')
         newFov = makeFuture(fovKey)
+        dynTrees = dict()
         for loc in allLocations:
             for color in ['Gold', 'Green']:
                 obsVicColorKey = stateKey(human.name, Victims.getUnObsName(loc,color))

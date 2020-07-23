@@ -6,6 +6,7 @@ Created on Sat Jun 20 15:39:15 2020
 @author: mostafh
 """
 from psychsim.world import World, WORLD
+from psychsim.pwl import makeTree, incrementMatrix
 from new_locations_fewacts import Locations
 from victims_clr import Victims
 from psychsim.pwl import modelKey
@@ -13,8 +14,8 @@ from psychsim.pwl import modelKey
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     world = World()
-    k = world.defineState(WORLD, 'seconds', int)
-    world.setFeature(k, 0)
+    time = world.defineState(WORLD, 'seconds', int)
+    world.setFeature(time, 0)
     
     triageAgent = world.addAgent(playerName)
     agent = world.addAgent('ATOMIC')
@@ -60,5 +61,11 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
                          if not ((key in {modelKey(agent.name)}) or key.startswith('victim')\
                                  or (key.find('unobs')>-1))]
     
+
+    ## TODO Add effect of actions on time
+#    for human, acts in Locations.moveActions.items():
+#        for moveAct in acts:
+#            effect = incrementMatrix(time, x)
+#            world.setDynamics(time, moveAct, makeTree(effect))
 
     return world, triageAgent, agent, debug

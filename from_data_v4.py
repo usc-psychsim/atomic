@@ -10,7 +10,7 @@ import sys
 
 from new_locations_fewacts import Locations, Directions
 from victims_clr import Victims
-from parser_v2 import DataParser, printAEs
+from parser_v2 import DataParser
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 
@@ -27,12 +27,13 @@ def ptree(tree, level):
     else:
         print(pre, tree)
 
-### Parse the data file into a sequence of actions and events
+#### Parse the data file into a sequence of actions and events
 try:
        parser = DataParser(os.path.join(os.path.dirname(__file__),'data',sys.argv[1]))
 except IndexError:
-       parser = DataParser(os.path.join(os.path.dirname(__file__),'data','Florian_processed_1.csv'))
+       parser = DataParser(os.path.join(os.path.dirname(__file__),'data','processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'))
 name = parser.data['player_ID'].iloc[0]
+
 
 ##### Get Map Data
 small = False
@@ -50,6 +51,5 @@ world, triageAgent, agent, debug = makeWorld(name, 'BH2', SandRLocs, SandRVics)
 #print(triageAgent.reward())
 
 ### Replay sequence of actions and events
-aes = parser.getActionsAndEvents(triageAgent.name)
-
-DataParser.runTimeless(world, triageAgent.name, aes)
+aes = parser.getActionsAndEvents(triageAgent.name, True, 50)
+DataParser.runTimeless(world, triageAgent.name, aes,  0, 48, 0)
