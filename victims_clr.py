@@ -83,36 +83,6 @@ class Victims:
     searchActs = {}
     world = None
 
-    def makeGoldGreenVictims(roomsWith1, roomsWith2, humanNames):
-        """
-        This method puts an Gold victim in every room that has 1+ victims
-        and a green victim in every room that has 2 victims.
-
-        Parameters:
-            roomsWith1: list of rooms with a single victim
-            roomsWith2: list of rooms with two victims
-            humanNames: list of agent names that constitute legal values for the `savior` state of each victim
-
-        Returns:
-            Creates victims in the psychsim world, updates the total number of victims `vi` and adds victims to `vicNames`
-
-        Note:
-            The limitation to 2 victims per room with alternate colors is a limitation of the current implementation.
-            This will  need to be addressed in the future.
-
-        """
-        vi = 0
-        roomsWithVics = list(roomsWith1) + list(roomsWith2)
-        for r in roomsWithVics:
-            Victims._makeVictim(vi, r, 'Gold', humanNames, roomsWithVics)
-            vi += 1
-        for r in roomsWith2:
-            Victims._makeVictim(vi, r, 'Green', humanNames, roomsWithVics)
-            vi += 1
-
-        Victims.numVictims = vi
-        Victims.vicNames = ['victim'+str(i) for i in range(Victims.numVictims)]
-
     def makeVictims(vLocations, colors, humanNames, locationNames):
         """Method for creating victims in the world
 
@@ -163,12 +133,19 @@ class Victims:
         for color in Victims.COLOR_REQD_TIMES.keys():
             key = Victims.world.defineState(triageAgent.name, 'saved_' + color, bool)
             Victims.world.setFeature(key, False)
+            
+        # create and initialize fov/crosshair/approached vars 
+        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
+            Victims.world.defineState(triageAgent.name,varname,list, ['none'] + Victims.COLORS)
+            triageAgent.setState(varname,'none')
 
         Victims.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
         Victims.makePreTriageActions(triageAgent)
         Victims.makeTriageAction(triageAgent)
+        
         ## TODO: insert victim sensor creation here
 
+        return []
 
     def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
@@ -192,7 +169,7 @@ class Victims:
             for color in Victims.COLOR_PRIOR_P.keys():
                 ks.append(Victims.world.defineState(human.name, Victims.getUnObsName(loc,color), bool))
                 ds.append(Distribution({True:Victims.COLOR_PRIOR_P[color], False:1-Victims.COLOR_PRIOR_P[color]}))
- 
+
         if Victims.FULL_OBS:
             for key in ks:
                 Victims.world.setFeature(key, False)
@@ -287,11 +264,12 @@ class Victims:
         for loc in allLocations:
             for color in ['Gold', 'Green']:
                 obsVicColorKey = stateKey(human.name, Victims.getUnObsName(loc,color))
-                tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
-                               setToConstantMatrix(obsVicColorKey, True),
-                               noChangeMatrix(obsVicColorKey))
-                Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
-                dynTrees[Victims.getUnObsName(loc,color)] = tree
+                if obsVicColorKey in Victims.world.variables:
+                    tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
+                                   setToConstantMatrix(obsVicColorKey, True),
+                                   noChangeMatrix(obsVicColorKey))
+                    Victims.world.setDynamics(obsVicColorKey,action,makeTree(tree))
+                    dynTrees[Victims.getUnObsName(loc,color)] = tree
 
         ## Reset CH victim variable to None
         ## Approached victim doesn't change
@@ -312,11 +290,6 @@ class Victims:
         Legal if: there is a victim in FoV
         Action effects: set the crosshair/approached var to the victim in FoV
         """
-        # create and initialize fov/crosshair/approached vars
-        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
-            Victims.world.defineState(human.name,varname,list, ['none'] + Victims.COLORS)
-            human.setState(varname,'none')
-
         # Legal if there's a victim in your field of view
         legalityTree = makeTree({'if': equalRow(stateKey(human.name, Victims.STR_FOV_VAR), 'none'),
                                  True: False,
@@ -367,6 +340,7 @@ class Victims:
         action = human.addAction({'verb': 'triage'}, makeTree(legal))
         
         Victims.makeSavedColorDyn(human, action)
+        debug = Victims.makeColorChangeDynamics(human, action)
 
         for loc in Victims.victimsByLocAndColor.keys():
             for color in Victims.victimsByLocAndColor[loc].keys():
@@ -383,22 +357,7 @@ class Victims:
                                         setToConstantMatrix(colorKey, 'White'),
                                         noChangeMatrix(colorKey)))
                 Victims.world.setDynamics(colorKey,action,tree)
-                
-                
-                ## Color in FOV, CH, approached: if victim I'm aiming at turns white
-                ## reflect change in these 3 variables
-                for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:
-                    k = stateKey(human.name, varname)
-                    tree = makeTree(anding([equalRow(crossKey, color),
-                                            equalRow(locKey, loc),
-                                            equalRow(makeFuture(colorKey), 'White')],
-                                            setToConstantMatrix(k, 'White'),
-                                            noChangeMatrix(k)))
-                    
-                    ## TODO Fix multiple settings of same key-action pair
-                    Victims.world.setDynamics(k,action,tree)
-                    print('set dyn of', varname, 'for vic', color, 'in', loc)
-    
+                                
                 ## Savior name: if danger is down to 0, set to human's name. Else none
                 tree = makeTree(anding([equalRow(crossKey, color),
                                         equalRow(locKey, loc),
@@ -417,10 +376,53 @@ class Victims:
 
         Victims.triageActs[human.name] = action
         Victims.makeVictimReward(human)
+        
+    def makeColorChangeDynamics(human, action):
+        ''' Setting color of victim in FOV, crosshair, approached: 
+            If victim I'm aiming at turns white, reflect change in these 3 variables
+        '''
+        debug = {}
+        humanLoc = stateKey(human.name, 'loc')
+        for varname in [Victims.STR_APPROACH_VAR, Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR]:            
+            k = stateKey(human.name, varname)            
+            ifTrue,ifFalse = setToConstantMatrix(k, 'White'), noChangeMatrix(k)                
+            
+            ## This tree has a branch per color
+            colors = list(Victims.COLOR_PRIOR_P.keys())
+            mainTree = {'if':equalRow(k, colors)}
+            for ic, color in enumerate(colors):
+                ## Collect victims of this color
+                colorVics = []
+                for loc, vDict in Victims.victimsByLocAndColor.items():
+                    if color in vDict.keys():
+                        colorVics.append((loc, vDict[color]))
+    
+                if len(colorVics) == 0:
+                    print('No vics of color', color)
+                    mainTree[ic] = ifFalse
+                    continue                    
+                
+                ## If any victim of this color is in FOV/CH/approach, same loc as player, and turned white
+                ## update the corresponding variable
+                loc, vic = colorVics[0]
+                thisAnd = anding([equalRow(humanLoc, loc),
+                            equalRow(makeFuture(stateKey(vic.vicAgent.name, 'color')), 'White')],
+                            ifTrue,ifFalse)                
+                for loc, vic in colorVics[1:]:
+                    thisAnd = anding([equalRow(humanLoc, loc),
+                                equalRow(makeFuture(stateKey(vic.vicAgent.name, 'color')), 'White')],
+                                ifTrue,
+                                thisAnd)
+                mainTree[ic] = thisAnd
+            Victims.world.setDynamics(k, action, makeTree(mainTree))
+            debug[varname] = mainTree
+        return debug
 
     def makeSavedColorDyn(human, action):
+        ''' For each color, specify the dynamics for the flag that indicates whether
+        player has just saved a victim of this color
+        '''
         for color in Victims.COLOR_EXPIRY.keys():
-            ## Did I save a victim victim of this color?
             savedKey = stateKey(human.name, 'saved_'+color)
             ifTrue = setToConstantMatrix(savedKey, True)
             ifFalse = noChangeMatrix(savedKey)

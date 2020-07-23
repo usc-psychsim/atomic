@@ -11,7 +11,7 @@ from victims_clr import Victims
 from psychsim.pwl import modelKey
 
 
-def makeWorld(playerName, initLoc, SandRLocs, SandRVics):
+def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     world = World()
     k = world.defineState(WORLD, 'seconds', int)
     world.setFeature(k, 0)
@@ -48,8 +48,9 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics):
     world.setOrder([{triageAgent.name}])
     
     if not Victims.FULL_OBS:
-        print('Start to make observable variables and priors')
-        Victims.createObsVars4Victims(triageAgent, Locations.AllLocations)
+        if use_unobserved:
+            print('Start to make observable variables and priors')
+            Victims.createObsVars4Victims(triageAgent, Locations.AllLocations)
         print('Made observable variables and priors')
         Victims.makeSearchAction(triageAgent, Locations.AllLocations)
         print('Made search action')

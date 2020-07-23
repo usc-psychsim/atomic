@@ -5,7 +5,7 @@ from psychsim.probability import Distribution
 from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
 from model_learning.inference import track_reward_model_inference
 from model_learning.trajectory import generate_trajectory
-from model_learning.util.io import create_clear_dir
+from model_learning.util.io import create_clear_dir, save_object
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
@@ -36,7 +36,7 @@ PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
 # agents properties
-HORIZON = 1
+HORIZON = 2
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
 MODEL_RATIONALITY = .5
 AGENT_SELECTION = 'random'
@@ -58,20 +58,21 @@ def _get_fancy_name(name):
 
 
 if __name__ == '__main__':
-    # sets up log to screen
-    logging.basicConfig(format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
-
     # create output
     create_clear_dir(OUTPUT_DIR)
+
+    # sets up log to screen
+    logging.basicConfig(
+        handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
+        format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
     # MDP or POMDP
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _ = makeWorld(AGENT_NAME, 'BH2', getSandRMap(), getSandRVictims())
+    world, agent, observer, _ = makeWorld(AGENT_NAME, 'BH2', getSandRMap(), getSandRVictims(), False)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
-    observer = world.agents[OBSERVER_NAME]
 
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})
@@ -109,7 +110,8 @@ if __name__ == '__main__':
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
-    trajectory = generate_trajectory(agent, NUM_STEPS)
+    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
+    save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent
     probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')])

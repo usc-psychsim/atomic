@@ -67,7 +67,7 @@ class DataParser:
         # Collect names of locations
         self.locations = [str(loc) for loc in self.data['Room_in'].unique()]
 
-    def getActionsAndEvents(self, human):
+    def getActionsAndEvents(self, human, printTrace=False):
         self.pData = self.data.loc[self.data['player_ID'] == human]
 
         ## Create flag for whether each victim is within triage range
@@ -89,13 +89,15 @@ class DataParser:
         for ir,row in self.pData.iterrows():
 #            if len(actsAndEvents) > 50:
 #                break
-            print('----', len(actsAndEvents))
+            if printTrace:
+                print('----', len(actsAndEvents))
             acts = []
             events = []
             moveActs = []
             searchActs = []
             stamp = row['@timestamp']
-            print('----')
+            if printTrace:
+                print('----')
             
             ## Check that victim in CH is also in FoV
             if row['victim_in_crosshair_id'] != 'None':
@@ -123,31 +125,36 @@ class DataParser:
                         print('unreachable', lastLoc, row['Room_in'], row['@timestamp'])
 
                 lastLoc = row['Room_in']
-                print('moved to', lastLoc, stamp)
+                if printTrace:
+                    print('moved to', lastLoc, stamp)
 
                 # For each victim, if in FOV, set the FOV variable to victim's name
                 for vi in range(self.maxVicsInLoc):
                     color = row['victim_'+str(vi)+'_color']
                     if row['victim_' + str(vi) + '_in_FOV'] == True:
                         searchActs.append([Victims.getSearchAction(human), color])
-                        print(color, 'in FOV')
+                        if printTrace:
+                            print(color, 'in FOV')
 
                 # For each victim, if in distance range, add approach action
                 for vi in range(self.maxVicsInLoc):
                     color = row['victim_'+str(vi)+'_color']
                     if row['v' + str(vi) + '_dist'] == True:
                         acts.append(Victims.getPretriageAction(human, Victims.approachActs))
-                        print(color, 'in range')
+                        if printTrace:
+                            print(color, 'in range')
 
                 # If there's a victim in crosshair, add action
                 if row['victim_in_cross_hair_color'] != 'None':
                     acts.append(Victims.getPretriageAction(human, Victims.crosshairActs))
-                    print(row['victim_in_cross_hair_color'], 'in CH')
+                    if printTrace:
+                        print(row['victim_in_cross_hair_color'], 'in CH')
 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
                     acts.append(Victims.getTriageAction(human))
-                    print('triage started in new room')
+                    if printTrace:
+                        print('triage started in new room')
 
             # same room. Compare flag values to know what changed!
             else:
@@ -156,10 +163,12 @@ class DataParser:
                     color = row['victim_'+str(vi)+'_color']
                     var = 'victim_' + str(vi) + '_in_FOV'
                     if row[var] and not prev[var]:
-                        print(color, 'in FOV')
+                        if printTrace:
+                            print(color, 'in FOV')
                         searchActs.append([Victims.getSearchAction(human), color])
                     elif prev[var] and not row[var]:
-                        print(color, 'out of FOV')
+                        if printTrace:
+                            print(color, 'out of FOV')
                         searchActs.append([Victims.getSearchAction(human), 'none'])
 #                        events.append([Victims.STR_FOV_VAR, 'none'])
 
@@ -168,10 +177,12 @@ class DataParser:
                     color = row['victim_'+str(vi)+'_color']
                     var = 'v' + str(vi) + '_dist'
                     if row[var] and not prev[var]:
-                        print(color, 'in range')
+                        if printTrace:
+                            print(color, 'in range')
                         acts.append(Victims.getPretriageAction(human, Victims.approachActs))
                     elif prev[var] and not row[var]:
-                        print(color, 'out of range')
+                        if printTrace:
+                            print(color, 'out of range')
                         events.append([Victims.STR_APPROACH_VAR, 'none'])
 
                 # Compare color of victim in crosshairs
@@ -179,17 +190,20 @@ class DataParser:
                 if row[var] != prev[var]:
                     if prev[var] != 'None':
                         events.append([Victims.STR_CROSSHAIR_VAR, 'none'])
-                        print(prev[var], 'out of CH')
+                        if printTrace:
+                            print(prev[var], 'out of CH')
                     if row[var] != 'None':
                         acts.append(Victims.getPretriageAction(human, Victims.crosshairActs))
-                        print(row[var], 'in CH')
+                        if printTrace:
+                            print(row[var], 'in CH')
                 
                 # If TIP changed
                 var = 'triage_in_progress'
                 if row[var] != prev[var]:
                     if row[var]:
                         acts.append(Victims.getTriageAction(human))
-                        print('triage started')
+                        if printTrace:
+                            print('triage started')
                     if prev[var]:
                         print('triage stopped')
                         attemptID = attemptID  + 1
@@ -212,29 +226,32 @@ class DataParser:
         return attemptRows
 
 
-    def runTimeless(world, human, actsAndEvents):
+    def runTimeless(world, human, actsAndEvents, start=0, end=None, ffwdTo=0):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-        [actOrEvFlag, actEv, stamp, attempt] = actsAndEvents[0]
-        if actOrEvFlag == DataParser.SET_FLG:
-            varName = actEv[0]
-            varValue = actEv[1]
-            world.setState(human, varName, varValue)
-            world.agents[human].setBelief(stateKey(human,varName),varValue)
-        else:
-            # This first action can be an actual action or an initial location
-            if type(actEv) == ActionSet:
-                world.step(actEv)
+        if start == 0:
+            [actOrEvFlag, actEv, stamp, attempt] = actsAndEvents[0]
+            if actOrEvFlag == DataParser.SET_FLG:
+                varName = actEv[0]
+                varValue = actEv[1]
+                world.setState(human, varName, varValue)
+                world.agents[human].setBelief(stateKey(human,varName),varValue)
             else:
-                world.setState(human, 'loc', actEv)
-                world.agents[human].setBelief(stateKey(human,'loc'),actEv)
-                world.setState(human, 'seenloc_'+actEv, True)
-                world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv),True)
-                
+                # This first action can be an actual action or an initial location
+                if type(actEv) == ActionSet:
+                    world.step(actEv)
+                else:
+                    world.setState(human, 'loc', actEv)
+                    world.agents[human].setBelief(stateKey(human,'loc'),actEv)
+                    world.setState(human, 'seenloc_'+actEv, True)
+                    world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv),True)
+            start = 1                
 
-        for t,actEvent in enumerate(actsAndEvents[1:]):
-            print('\n%d) Running[%d]: %s' % (t, actEvent[0],actEvent[1]))
+        for t,actEvent in enumerate(actsAndEvents[start:end]):
+            print('\n%d) Running: %s' % (t+start, actEvent[1]))
+            if t >= ffwdTo:
+                input('go on? ')
             if actEvent[0] == DataParser.ACTION:
                 if actEvent[1] not in world.agents[human].getLegalActions():
                     raise ValueError('Illegal action!')
@@ -242,6 +259,9 @@ class DataParser:
                 
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
+                if (var == 'vicApproached') and (val == 'none'):
+                    print('Skip setting vicApproached to none')
+                    continue
                 key = stateKey(human,var)
                 world.state[key] = world.value2float(key,val)
                 for model in world.getModel(human).domain():
@@ -268,4 +288,6 @@ def summarizeState(world,human):
             print('%s color: %s' % (name,world.getState(name,'color',unique=True)))
     print('Approached: %s' % (world.getState(human,'vicApproached',unique=True)))
     print('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
-    print('CH: %s' % (world.getState(human,'vicInCH',unique=True)))
+    print('CH: %s' % (world.getState(human,'vicInCH',unique=True)))    
+    print('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
+    print('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))
