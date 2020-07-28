@@ -34,24 +34,7 @@ def checkSRMap(SRMap):
     print("Check complete")
     return True
 
-def getSmallSandRMap():
-    # small verison of map for debugging
-    DN = Directions.N
-    DS = Directions.S
-    DE = Directions.E
-    DW = Directions.W
-
-    SandRLocs = {"BH1":{DS:"BH2",DE:"E1",DW:"MR"}, "BH2":{DN:"BH1",DE:"E2",DW:"WR"},\
-            "MR":{DE:"BH1",DW:"MR0"}, "MR0":{DE:"MR"},"WR":{DE:"BH2"}, "WR1":{DE:"WR"},\
-            "E1":{DW:"BH1"}, "E2":{DW:"BH2"}}
-
-    SandRLocs_small = {k: SandRLocs[k] for k in SandRLocs.keys() & {"BH1","BH2","MR","MR0","WR","WR1","E1","E2"}}
-
-    print(SandRLocs_small)
-
-    return SandRLocs_small
-
-def getSandRMap(small=False):
+def getSandRMap(small=False,fldr="data",fname="sparky_adjacency"):
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
@@ -59,9 +42,9 @@ def getSandRMap(small=False):
     dirs = {"N":DN, "S":DS, "E":DE, "W":DW}
 
     if small:
-        file = os.path.join(os.path.dirname(__file__),"data","sparky_adjacency_small.csv")
+        file = os.path.join(os.path.dirname(__file__),fldr,fname+"_small.csv")
     else:
-        file = os.path.join(os.path.dirname(__file__),"data","sparky_adjacency.csv")
+        file = os.path.join(os.path.dirname(__file__),fldr,fname+".csv")
     conn_df = pd.read_csv(file,sep=None)
     num_col = len(conn_df.columns)
     SandRLocs = {}
@@ -81,12 +64,12 @@ def getSandRMap(small=False):
     else:
         print("map contains errors")
 
-def getSandRVictims(small=False):
+def getSandRVictims(small=False,fldr="data",fname="sparky_vic_locs"):
     # Victims and triage actions
     if small:
-        file = os.path.join(os.path.dirname(__file__),"data","sparky_vic_locs_small.csv")
+        file = os.path.join(os.path.dirname(__file__),fldr,fname+"_small.csv")
     else:
-        file = os.path.join(os.path.dirname(__file__),"data","sparky_vic_locs.csv")
+        file = os.path.join(os.path.dirname(__file__),fldr,fname+".csv")
     vic_df = pd.read_csv(file,sep=None,engine='python')
     SandRVics = {}
     for key,row in vic_df.iterrows():
@@ -97,12 +80,3 @@ def getSandRVictims(small=False):
 
 
     return SandRVics
-
-def getSmallSandRVictims():
-    # small version of victims for debugging
-    G = "Green"
-    O = "Gold"
-    SandRVics = {"MR":O, "WR":G, "E1":G, "E2":O}
-    return SandRVics
-
-getSmallSandRMap()
