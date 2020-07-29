@@ -1,117 +1,136 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 19 14:35:40 2020
-
-@author: brett
-"""
-from argparse import ArgumentParser
-
-from psychsim.world import World, WORLD
-from psychsim.pwl import stateKey, actionKey, modelKey, rewardKey, equalRow, \
-    noChangeMatrix, incrementMatrix, makeTree, setToConstantMatrix
-from new_locations_fewacts import Locations, Directions
-from victims_clr import Victims
-from SandRMap import getSandRMap, getSandRVictims, checkSRMap
-from helpers import runMMBelUpdate, setBeliefs, setBeliefsNoVics, anding
-from ftime import FatherTime
+import logging
+import os
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
+from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
+from model_learning.inference import track_reward_model_inference
+from model_learning.trajectory import generate_trajectory
+from model_learning.util.io import create_clear_dir, save_object
+from model_learning.util.plot import plot_evolution
+from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
+from victims_clr import Victims
 
+__author__ = 'Pedro Sequeira'
+__email__ = 'pedrodbs@gmail.com'
+__description__ = 'Perform reward model inference in the ASIST world based on synthetic/generated data.' \
+                  'There is one acting agent whose reward function is to save victims according to the task score.' \
+                  'There is an observer agent that has models of the moving agent (uniform prior):' \
+                  '  - a model with a zero reward function, resulting in a random behavior;' \
+                  '  - other models with different weights for each victim type.' \
+                  'We collect a trajectory based on a data file and the observer updates its belief over the models ' \
+                  'of the triaging agent via PsychSim inference. ' \
+                  'A plot is show with the inference evolution.'
+
+NUM_STEPS = 5
+
+OBSERVER_NAME = 'ATOMIC'
+AGENT_NAME = 'Player'
+YELLOW_VICTIM = 'Gold'
+GREEN_VICTIM = 'Green'
+
+# models
 PREFER_NONE_MODEL = 'prefer_none'
-PREFER_GOLD_MODEL = 'prefer_gold'
+PREFER_YELLOW_MODEL = 'prefer_yellow'
 PREFER_GREEN_MODEL = 'prefer_green'
-MODEL_SELECTION = 'distribution'
+RANDOM_MODEL = 'zero_rwd'
 
-def createRwd(player,mm_list):
-    for mm in mm_list:
-        rwd_dict = mm_list[mm]
-        rKey = rewardKey(player.name)
-        crossKey = stateKey(player.name, Victims.STR_CROSSHAIR_VAR)
-        testAllVics = {'if': equalRow(crossKey, ['none'] + Victims.vicNames),
-                       0: noChangeMatrix(rKey)}
-        for i, vobj in enumerate(Victims.victimAgents):
-            vn = vobj.vicAgent.name
-            rwd = rwd_dict[vobj.color]
-            testAllVics[i+1] = anding([equalRow(stateKey(vn,'color'),'White'),
-                                       equalRow(stateKey(vn, 'savior'), player.name),
-                                       equalRow(actionKey(player.name), Victims.triageActs[player.name])],
-                                setToConstantMatrix(rKey, rwd),
-                                noChangeMatrix(rKey))
+# agents properties
+HORIZON = 10
+MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
+MODEL_RATIONALITY = .5
+AGENT_SELECTION = 'random'
 
-        player.setReward(makeTree(testAllVics),1.,mm)
+# victim reward values
+HIGH_VAL = 200
+LOW_VAL = 10
+MEAN_VAL = (HIGH_VAL + LOW_VAL) / 2
+
+OUTPUT_DIR = 'output/reward-model-inference'
+DEBUG = False
+SHOW = True
+INCLUDE_RANDOM_MODEL = False
+FULL_OBS = False
+
+
+def _get_fancy_name(name):
+    return name.title().replace('_', ' ')
+
 
 if __name__ == '__main__':
-    adj_fname = 'falcon_adjacency_v1.1_OCN'
-    vics_fname = 'falcon_vic_locs_v1.1_OCN'
-    start_room = 'el'
-    isSmall = False
+    # create output
+    create_clear_dir(OUTPUT_DIR)
 
-    SandRLocs = getSandRMap(small=isSmall,fname=adj_fname)
-    SandRVics = getSandRVictims(small=isSmall,fname=vics_fname)
-    print("making world")
-    world, player, atomic, dbg = makeWorld('TriageAg1',start_room,SandRLocs,SandRVics)
+    # sets up log to screen
+    logging.basicConfig(
+        handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
+        format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
-    # setup mental models and beliefs
-    # atomic does not model itself
-    atomic.resetBelief(ignore={modelKey(atomic.name)})
+    # MDP or POMDP
+    Victims.FULL_OBS = FULL_OBS
 
-    # player does not model itself and sees everything except true models and its reward
-    player.resetBelief(ignore={modelKey(atomic.name)})
-    player.omega = {key for key in world.state.keys()
-                   if key not in {modelKey(player.name), rewardKey(player.name), modelKey(atomic.name)}}
+    expt = 'sparky'
+    if expt == 'falcon':
+        adj_fname = 'falcon_adjacency_v1.1_OCN'
+        vics_fname = 'falcon_vic_locs_v1.1_OCN'
+        start_room = 'el'
+        isSmall = False
+    elif expt == 'sparky':
+        adj_fname = 'sparky_adjacency'
+        vics_fname = 'sparky_vic_locs'
+        start_room = 'CH4'
+        isSmall = True
 
-    # get the canonical name of the "true" player model
-    true_model = get_true_model_name(player)
+    sr_map = getSandRMap(small=isSmall,fldr='data',fname=adj_fname)
+    sr_vics = getSandRVictims(small=isSmall,fldr='data',fname=vics_fname)
+    # create world, agent and observer
+    world, agent, observer, _ = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False)
+    agent.setAttribute('horizon', HORIZON)
+    agent.setAttribute('selection', AGENT_SELECTION)
 
-    # player's models
-    HIGH_VAL = 100
-    LOW_VAL = 10
-    MEAN_VAL = (HIGH_VAL+LOW_VAL)/2
+    # observer does not model itself
+    observer.resetBelief(ignore={modelKey(observer.name)})
 
-    mm_list = {PREFER_NONE_MODEL:{'Green':MEAN_VAL,'Gold':MEAN_VAL},
-            #  PREFER_GREEN_MODEL:{'Green':HIGH_VAL,'Gold':LOW_VAL},
-            PREFER_GOLD_MODEL:{'Green':LOW_VAL,'Gold':HIGH_VAL}}
+    # get the canonical name of the "true" agent model
+    true_model = get_true_model_name(agent)
 
-    player.addModel(PREFER_NONE_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
-    #  player.addModel(PREFER_GREEN_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
-    player.addModel(PREFER_GOLD_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
+    # reward models (as linear combinations of victim color)
+    mm_list = {
+        #  PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
+        PREFER_GREEN_MODEL: {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
+        PREFER_YELLOW_MODEL: {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL}  # should be the most likely at the end
+    }
+    for name, rwd_dict in mm_list.items():
+        if name != true_model:
+            agent.addModel(name, parent=true_model, rationality=MODEL_RATIONALITY, selection=MODEL_SELECTION)
+        Victims.makeVictimReward(agent, name, rwd_dict)
 
-    createRwd(player,mm_list)
+    if INCLUDE_RANDOM_MODEL:
+        agent.addModel(RANDOM_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
+        agent.setReward(makeTree(setToConstantMatrix(rewardKey(agent.name), 0)), model=RANDOM_MODEL)
 
-    model_names = [name for name in player.models.keys() if name != true_model]
+    model_names = [name for name in agent.models.keys() if name != true_model]
 
-    # atomic has uniform prior distribution over possible player models
-    world.setMentalModel(atomic.name, player.name,
-                         Distribution({name: 1. / (len(player.models) - 1)
-                                       for name in player.models.keys() if name != true_model}))
+    for name in model_names:
+        agent.resetBelief(model=name, ignore={modelKey(observer.name)})
 
-    # atomic sees everything except true models
-    atomic.omega = {key for key in world.state.keys()
-                      if key not in {modelKey(player.name), modelKey(atomic.name)}}
+    # observer has uniform prior distribution over possible agent models
+    world.setMentalModel(observer.name, agent.name,
+                         Distribution({name: 1. / (len(agent.models) - 1) for name in model_names}))
 
-    ##### Simulation
-    cmd = 'blank'
-    while cmd != '':
-      legalActions = player.getLegalActions()
-      player_state = player.getState('loc')
-      print("Player state: ", player_state)
-      #  print("reward: ",player.reward())
-      print('Legal Actions:')
-      for a,n in zip(legalActions,range(len(legalActions))):
-          print(n,': ',a)
+    # observer sees everything except true models
+    observer.omega = [key for key in world.state.keys()
+                      if key not in {modelKey(agent.name), modelKey(observer.name)}]  # rewardKey(agent.name),
 
-      cmd = input('select action, or type "s" to print belief, press return with no entry to stop: ')
-      try:
-          cmd_int = int(cmd)
-          Victims.world.step(list(legalActions)[cmd_int],select=True)
-      except:
-          #do nothing
-          pass
+    # generates trajectory
+    logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
+    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
+    save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
-      print('Triage Agent Reward: ', player.reward())
-      if cmd == 's':
-          world.printBeliefs(atomic.name)
-          #  world.printState()
-      elif cmd == '':
-          print('Finishing Simulation')
+    # gets evolution of inference over reward models of the agent
+    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')])
+
+    # create and save inference evolution plot
+    plot_evolution(probs.T, [_get_fancy_name(name) for name in model_names],
+                   'Evolution of Model Inference', None,
+                   os.path.join(OUTPUT_DIR, 'inference.png'), 'Time', 'Model Probability', True)
