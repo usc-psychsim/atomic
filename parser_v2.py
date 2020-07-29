@@ -361,6 +361,14 @@ class DataParser:
                 world.step(sact, select={k:world.value2float(k,v) for k,v in selDict.items()})
             summarizeState(world,human,self.logger)
 
+    def player_name(self):
+        """
+        :return: the name of the human player in this log file
+        :rtype: str
+        """
+        return self.data['player_ID'].iloc[0]
+
+
 def printAEs(aes,logger=logging):
     for ae in aes:
         logger.info(ae[2], ae[1])

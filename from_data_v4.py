@@ -32,7 +32,7 @@ try:
        parser = DataParser(os.path.join(os.path.dirname(__file__),'data',sys.argv[1]))
 except IndexError:
        parser = DataParser(os.path.join(os.path.dirname(__file__),'data','processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'))
-name = parser.data['player_ID'].iloc[0]
+name = parser.player_name()
 
 
 ##### Get Map Data
