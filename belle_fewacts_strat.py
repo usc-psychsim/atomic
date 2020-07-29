@@ -11,7 +11,7 @@ from psychsim.pwl import stateKey, actionKey, modelKey, rewardKey, equalRow, \
     noChangeMatrix, incrementMatrix, makeTree, setToConstantMatrix
 from new_locations_fewacts import Locations, Directions
 from victims_clr import Victims
-from SandRMap import getSandRMap, getSandRVictims, getSmallSandRMap, getSmallSandRVictims, checkSRMap
+from SandRMap import getSandRMap, getSandRVictims, checkSRMap
 from helpers import runMMBelUpdate, setBeliefs, setBeliefsNoVics, anding
 from ftime import FatherTime
 from psychsim.helper_functions import get_true_model_name
@@ -42,10 +42,15 @@ def createRwd(player,mm_list):
         player.setReward(makeTree(testAllVics),1.,mm)
 
 if __name__ == '__main__':
+    adj_fname = 'falcon_adjacency_v1.1_OCN'
+    vics_fname = 'falcon_vic_locs_v1.1_OCN'
+    start_room = 'el'
+    isSmall = False
 
-    SandRLocs = getSandRMap(small=True)
-    SandRVics = getSandRVictims(small=True)
-    world, player, atomic = makeWorld('TriageAg1','CH4',SandRLocs,SandRVics)
+    SandRLocs = getSandRMap(small=isSmall,fname=adj_fname)
+    SandRVics = getSandRVictims(small=isSmall,fname=vics_fname)
+    print("making world")
+    world, player, atomic, dbg = makeWorld('TriageAg1',start_room,SandRLocs,SandRVics)
 
     # setup mental models and beliefs
     # atomic does not model itself
@@ -106,6 +111,7 @@ if __name__ == '__main__':
 
       print('Triage Agent Reward: ', player.reward())
       if cmd == 's':
-          world.printState()
+          world.printBeliefs(atomic.name)
+          #  world.printState()
       elif cmd == '':
           print('Finishing Simulation')
