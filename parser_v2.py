@@ -11,6 +11,7 @@ from new_locations_fewacts import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
 import numpy as np
+from psychsim.world import WORLD
 
 class DataParser:
     ACTION = 0
@@ -66,6 +67,12 @@ class DataParser:
         newRoom = 'R' + self.data['Room_in']
         self.data.loc[mask, 'Room_in'] = newRoom.loc[mask]
         self.data['Room_in'] = self.data['Room_in'].astype(str)
+                
+        # Rempve 'd' or 'x' at the end of room names
+        rooms = [str(loc) for loc in self.data['Room_in'].unique()]
+        newRooms = {r:r for r in rooms if not (r.endswith('x') or r.endswith('d'))}
+        newRooms.update({r:r[:-1] for r in rooms if r.endswith('x') or r.endswith('d')})
+        self.data['Room_in'].replace(newRooms, inplace=True)
 
         ## Create flag for whether each victim is within triage range
         for vi in range(self.maxVicsInLoc):
@@ -372,6 +379,9 @@ def printAEs(aes):
 
 def summarizeState(world,human):
     loc = world.getState(human,'loc',unique=True)
+    time = world.getState(WORLD,'seconds',unique=True)
+    print('Time: %d' % (time))
+    
     print('Player location: %s' % (loc))
     for name in sorted(world.agents):
         if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
