@@ -1,9 +1,11 @@
+from collections import OrderedDict
+import logging
 from new_locations import Directions
 import os.path
 import pandas as pd
 from math import isnan
 
-def checkSRMap(SRMap):
+def checkSRMap(SRMap,logger=logging):
     # small verison of map for debugging
     DN = Directions.N
     DS = Directions.S
@@ -13,7 +15,7 @@ def checkSRMap(SRMap):
 
     for x in SRMap:
         #  input("press key to continue...")
-        print("########## Checking room ", x)
+        logger.debug("########## Checking room %s" % (x))
         #  print("room: ",x," neighbors: ", SRMap[x])
         for d in range(4):
             try:
@@ -28,13 +30,13 @@ def checkSRMap(SRMap):
                 #  print("room: ", n," neighbors: ", SRMap[n])
                 #  print("direction ", invd, " neighbor: ",bn)
             except:
-                print("neighbor mismatch with ", n)
+                logger.warning("%s has neighbor mismatch with %s" % (x,n))
 
     # return True if no errors
-    print("Check complete")
+    logger.info("Check complete")
     return True
 
-def getSandRMap(small=False,fldr="data",fname="sparky_adjacency"):
+def getSandRMap(small=False,fldr="data",fname="sparky_adjacency",logger=logging):
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
@@ -45,9 +47,9 @@ def getSandRMap(small=False,fldr="data",fname="sparky_adjacency"):
         file = os.path.join(os.path.dirname(__file__),fldr,fname+"_small.csv")
     else:
         file = os.path.join(os.path.dirname(__file__),fldr,fname+".csv")
-    conn_df = pd.read_csv(file,sep=None)
+    conn_df = pd.read_csv(file,sep=None,engine='python')
     num_col = len(conn_df.columns)
-    SandRLocs = {}
+    SandRLocs = OrderedDict()
     for key,row in conn_df.iterrows():
         if row['Room'] not in SandRLocs.keys():
             SandRLocs[row["Room"]] = {}
@@ -57,12 +59,12 @@ def getSandRMap(small=False,fldr="data",fname="sparky_adjacency"):
             if type(neighbor) is str:
                 SandRLocs[row["Room"]][dirs[direction]] = neighbor
 
-    print(SandRLocs)
-    checkmap = checkSRMap(SandRLocs)
+    logger.debug(SandRLocs)
+    checkmap = checkSRMap(SandRLocs,logger)
     if checkmap:
         return SandRLocs
     else:
-        print("map contains errors")
+        logger.error("map contains errors")
 
 def getSandRVictims(small=False,fldr="data",fname="sparky_vic_locs"):
     # Victims and triage actions
