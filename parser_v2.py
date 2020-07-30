@@ -375,6 +375,12 @@ def printAEs(aes,logger=logging):
                 
 
 def summarizeState(world,human,logger=logging):
+    """
+    Generates output about the player's current status
+    :param world: the PsychSim simulation object
+    :param human: the name of the player whose status is to be displayed
+    :type human: str
+    """
     loc = world.getState(human,'loc',unique=True)
     logger.info('Player location: %s' % (loc))
     for name in sorted(world.agents):
