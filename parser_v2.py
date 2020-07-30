@@ -308,7 +308,7 @@ class DataParser:
         return attemptRows
 
 
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0):
+    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, logger=logging):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
@@ -332,7 +332,7 @@ class DataParser:
 
         apprKey = stateKey(human, Victims.STR_APPROACH_VAR)
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            self.logger.info('\n%d) Running: %s' % (t+start, actEvent[1]))
+            logger.info('\n%d) Running: %s' % (t+start, actEvent[1]))
             if t+start >= ffwdTo:
                 input('press any key.. ')
             if actEvent[0] == DataParser.ACTION:
@@ -366,7 +366,7 @@ class DataParser:
 #                    selDict[nextkey] = world.value2float(nextkey, nextval)
                 
                 world.step(sact, select={k:world.value2float(k,v) for k,v in selDict.items()})
-            summarizeState(world,human,self.logger)
+            summarizeState(world,human,logger)
 
     def player_name(self):
         """
