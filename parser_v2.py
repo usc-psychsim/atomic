@@ -209,7 +209,7 @@ class DataParser:
                     self.logger.error('%s vic in CH ID %s not in FOV' % (stamp,vi))
                     continue
 
-            self.logger.debug('---- %d dur %d %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
+            self.logger.debug('---- %d dur %f %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
                 
             # Entered a new room.
             if row['Room_in'] != lastLoc:
@@ -222,7 +222,7 @@ class DataParser:
                     for m in mv:
                         moveActs.append(m)
                     if mv == []:
-                        self.logger.info('unreachable', lastLoc, row['Room_in'], row['@timestamp'])
+                        self.logger.info('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['@timestamp']))
 
                 lastLoc = row['Room_in']
                 self.logger.debug('moved to %s %s' % (lastLoc, stamp))
@@ -332,7 +332,7 @@ class DataParser:
 
         apprKey = stateKey(human, Victims.STR_APPROACH_VAR)
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            logger.info('\n%d) Running: %s' % (t+start, actEvent[1]))
+            logger.info('%d) Running: %s' % (t+start, actEvent[1]))
             if t+start >= ffwdTo:
                 input('press any key.. ')
             if actEvent[0] == DataParser.ACTION:
