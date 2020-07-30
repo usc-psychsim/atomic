@@ -5,6 +5,8 @@ Created on Sat Jun 20 15:39:15 2020
 
 @author: mostafh
 """
+import logging
+
 from psychsim.world import World, WORLD
 from psychsim.pwl import makeTree, incrementMatrix
 from new_locations_fewacts import Locations
@@ -12,7 +14,7 @@ from victims_clr import Victims
 from psychsim.pwl import modelKey
 
 
-def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
+def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, logger=logging):
     world = World()
     time = world.defineState(WORLD, 'seconds', int)
     world.setFeature(time, 0)
@@ -40,21 +42,22 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
+    assert isinstance(Locations.AllLocations,set)
     Locations.makeMapDict(SandRLocs)
     Locations.makePlayerLocation(triageAgent,Victims,  initLoc)
     Locations.AllLocations = list(Locations.AllLocations)
-    print('Made move actions')
+    logger.debug('Made move actions')
     
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
     
     if not Victims.FULL_OBS:
         if use_unobserved:
-            print('Start to make observable variables and priors')
+            logger.debug('Start to make observable variables and priors')
             Victims.createObsVars4Victims(triageAgent, Locations.AllLocations)
-        print('Made observable variables and priors')
+        logger.debug('Made observable variables and priors')
         Victims.makeSearchAction(triageAgent, Locations.AllLocations)
-        print('Made search action')
+        logger.debug('Made search action')
 
     triageAgent.resetBelief()
     triageAgent.omega = [key for key in world.state.keys() \
