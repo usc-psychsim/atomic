@@ -2,6 +2,8 @@
 """
 The module contains classes and methods for dealing with victims in the ASIST S&R problem. ``fewacts`` refers to the fact that this implementation has "few actions".
 """
+import logging
+logger = logging
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
@@ -160,7 +162,7 @@ class Victims:
 
     def getVicName(loc, color):
         if color not in Victims.victimsByLocAndColor[loc].keys():
-            print('ERROR. No', color, 'victim in', loc)
+            logger.error('No %s victim in %s' % (color, loc))
             return ''
         return Victims.victimsByLocAndColor[loc][color].vicAgent.name
 
@@ -429,7 +431,7 @@ class Victims:
                         colorVics.append((loc, vDict[color]))
     
                 if len(colorVics) == 0:
-                    print('No vics of color', color)
+                    logger.warning('No vics of color %s'  % (color))
                     mainTree[ic] = ifFalse
                     continue                    
                 
@@ -463,7 +465,7 @@ class Victims:
                     colorVics.append(vDict[color])
 
             if len(colorVics) == 0:
-                print('No vics of color', color)
+                logger.warning('No vics of color %s' % (color))
                 continue                    
             thisAnd = anding([equalRow(stateKey(colorVics[0].vicAgent.name, 'savior'), 'none'),
                             equalRow(makeFuture(stateKey(colorVics[0].vicAgent.name, 'savior')), human.name)],
@@ -475,7 +477,7 @@ class Victims:
                                  thisAnd)
 
             tree = makeTree(thisAnd)
-#            print(color, tree)
+            logger.debug('%s %s' % (color, tree))
             Victims.world.setDynamics(savedKey,action, tree)
 
     @staticmethod
