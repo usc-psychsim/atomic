@@ -175,3 +175,9 @@ class Locations:
         if ds[0] == -1:
             return []
         return [Locations.moveActions[name][d] for d in ds]
+
+    def clear():
+        Locations.AllLocations = set()
+        Locations.Nbrs = []
+        Locations.moveActions = {}
+        Locations.world = None
