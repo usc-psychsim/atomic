@@ -42,7 +42,6 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
-    assert isinstance(Locations.AllLocations,set)
     Locations.makeMapDict(SandRLocs)
     Locations.makePlayerLocation(triageAgent,Victims,  initLoc)
     Locations.AllLocations = list(Locations.AllLocations)
