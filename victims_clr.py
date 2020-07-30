@@ -475,7 +475,6 @@ class Victims:
                                   equalRow(makeFuture(stateKey(vic.vicAgent.name, 'savior')), human.name)],
                                  ifTrue,
                                  thisAnd)
-
             tree = makeTree(thisAnd)
             logger.debug('%s %s' % (color, tree))
             Victims.world.setDynamics(savedKey,action, tree)
@@ -553,3 +552,13 @@ class Victims:
 
     def search(human, s):
         Victims.world.step(Victims.getSearchAction(human), select=s)
+
+    def clear():
+        Victims.victimsByLocAndColor.clear()
+        Victims.victimAgents = []
+
+        Victims.triageActs.clear()
+        Victims.crosshairActs.clear()
+        Victims.approachActs.clear()
+        Victims.searchActs.clear()
+        Victims.world = None
