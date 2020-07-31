@@ -80,3 +80,13 @@ def getSandRVictims(small=False,fldr="data",fname="sparky_vic_locs"):
 
 
     return SandRVics
+
+def getSandRCoords():
+    file = os.path.join(os.path.dirname(__file__), "data", "sparky_coords.csv")
+    coords = {}
+    with open(file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            coord = line.split(',')
+            coords[coord[0]] = float(coord[1]), float(coord[2])
+    return coords
