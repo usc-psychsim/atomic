@@ -11,7 +11,7 @@ from psychsim.world import World, WORLD
 from psychsim.pwl import makeTree, incrementMatrix
 from new_locations_fewacts import Locations
 from victims_clr import Victims
-from psychsim.pwl import modelKey
+from psychsim.pwl import modelKey, rewardKey
 
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, logger=logging):
@@ -60,7 +60,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
 
     triageAgent.resetBelief()
     triageAgent.omega = [key for key in world.state.keys() \
-                         if not ((key in {modelKey(agent.name)}) or key.startswith('victim')\
+                         if not ((key in {modelKey(agent.name),rewardKey(triageAgent.name)}) or key.startswith('victim')\
                                  or (key.find('unobs')>-1))]
     
 
