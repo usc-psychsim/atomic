@@ -136,3 +136,4 @@ tags
 psychsim/
 
 augmented_data_w_successful_triage_attempts.csv
+/tests/

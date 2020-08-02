@@ -8,10 +8,10 @@ Created on Sat Jun 20 15:39:15 2020
 import logging
 
 from psychsim.world import World, WORLD
-from psychsim.pwl import makeTree, incrementMatrix
-from new_locations_fewacts import Locations
-from victims_clr import Victims
-from psychsim.pwl import modelKey, rewardKey
+from psychsim.pwl import makeTree, incrementMatrix, modelKey, rewardKey
+from locations_no_pre import Locations
+from victims_no_pre import Victims
+from ftime import makeExpiryDynamics, incrementTime
 
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, logger=logging):
@@ -47,6 +47,17 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     Locations.AllLocations = list(Locations.AllLocations)
     logger.debug('Made move actions')
     
+    ################# T I M E
+    ## Increment time if none of the durative actions is taken
+    incrementTime(world)
+    ## Make victim expiration dynamics
+    makeExpiryDynamics(Victims.victimsByLocAndColor, Victims.world, Victims.COLOR_EXPIRY)
+    ## Reflect victims turning to red on player's FOV  and CH
+#    Victims.makeColorChangeDynamics(triageAgent, True, [Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR], \
+#                                    'Red', Locations.AllLocations)
+#   
+    Victims.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations)
+   
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
     
@@ -62,12 +73,4 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     triageAgent.omega = [key for key in world.state.keys() \
                          if not ((key in {modelKey(agent.name),rewardKey(triageAgent.name)}) or key.startswith('victim')\
                                  or (key.find('unobs')>-1))]
-    
-
-    ## TODO Add effect of actions on time
-#    for human, acts in Locations.moveActions.items():
-#        for moveAct in acts:
-#            effect = incrementMatrix(time, x)
-#            world.setDynamics(time, moveAct, makeTree(effect))
-
     return world, triageAgent, agent, debug
