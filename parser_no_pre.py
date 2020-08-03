@@ -5,6 +5,7 @@ Created on Thu Apr  2 20:35:23 2020
 
 @author: mostafh
 """
+import logging
 import pandas as pd
 from victims_no_pre import Victims
 #from new_locations_fewacts import Locations
@@ -20,7 +21,7 @@ class DataParser:
     SEARCH = 3
     
 
-    def __init__(self, filename, maxDist=5):
+    def __init__(self, filename, maxDist=5, logger=logging):
         self.maxDist = maxDist
         if filename.endswith('xlsx'):
             self.data = pd.read_excel(filename)
@@ -41,22 +42,23 @@ class DataParser:
                     'triage_result']
         
         self.maxVicsInLoc = 2
+        self.logger = logger
 
         # Remove rows w/o locations
         print('Number of rows', len(self.data))
         self.data.dropna(axis=0, subset=['Room_in'], inplace=True)
         self.data= self.data.loc[self.data['Room_in']!='None',:]
-        print('Number of rows after empty room removal', len(self.data))
+        self.logger.info('Number of rows after empty room removal %d' % (len(self.data)))
         
         # Remove in_progress rows that were never back-filled
         self.data= self.data.loc[self.data['triage_result']!='IN_PROGRESS',:]
-        print('Number of rows after triage in progress removal', len(self.data))
+        self.logger.info('Number of rows after triage in progress removal %d' % (len(self.data)))
         
         # Remove triage_in_progress rows where victim being triaged different from victim in CH
         triageOn = self.data['triage_in_progress'] == True
         sameVic = self.data['event_triage_victim_id']==self.data['victim_in_crosshair_id']
         self.data= self.data.loc[~triageOn | sameVic,:]
-        print('Number of rows after inconsistent triage vic and CH removal', len(self.data))
+        self.logger.info('Number of rows after inconsistent triage vic and CH removal %d' % (len(self.data)))
         
         # Rooms with numeric names: Prepend 'R'
         mask = self.data['Room_in'].str.startswith('2')
@@ -75,7 +77,7 @@ class DataParser:
         
         manyInFov = self.data[self.data['victim_0_in_FOV'] & self.data['victim_1_in_FOV']]
         if len(manyInFov) > 0:
-            print('WARNING', len(manyInFov), 'rows with multiple victims in FOV')
+            self.logger.warning('%d rows with multiple victims in FOV' % (len(manyInFov)))
 
         # Collect names of locations
         self.locations = [str(loc) for loc in self.data['Room_in'].unique()]
@@ -101,8 +103,7 @@ class DataParser:
             if newRoom or (not prevFOV):
                 if inFov:  #this dude just got into my FOV because of a search action
                     searchActs.append([Victims.getSearchAction(human), color])
-                    if printTrace:
-                        print('Searched and found', color)
+                    self.logger.debug('Searched and found %s' % (color))
             else: # same room and previously in FOV
                 # Either remain in FOV ==> noop
                 # Or search action found: a) another victim ==> search action injected in another iteration of vi
@@ -116,21 +117,21 @@ class DataParser:
         if prevSomeone and (not someoneInFOV) and (not newRoom):
             searchActs.append([Victims.getSearchAction(human), 'none'])
             if printTrace:
-                print('Searched and found none')
+                self.logger.info('Searched and found none')
 
 
     def getActionsAndEvents(self, human, printTrace=False, maxEvents=-1):
         self.pData = self.data.loc[self.data['player_ID'] == human]
         
-        print('Locations in player data but not map', [l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations])
-        print('Locations in map but not player data', [l for l in Locations.AllLocations if not l in self.data['Room_in'].unique()])
+        self.logger.warning('Locations in player data but not map %s' % (','.join(sorted([l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations]))))
+        self.logger.warning('Locations in map but not player data %s' % (','.join(sorted([l for l in Locations.AllLocations if not l in self.data['Room_in'].unique()]))))
         
         ## Sort by time
         self.pData = self.pData.loc[:, ['@timestamp', 'seconds'] + self.cols].sort_values('@timestamp', axis = 0)
 
         ## Drop consecutive duplicate entries (ignoring the timestamp)
         self.pData = self.pData.loc[(self.pData[self.cols].shift() != self.pData[self.cols]).any(axis=1)]
-        print('Dropped duplicates. Down to', len(self.pData))
+        self.logger.info('Dropped duplicates. Down to %d' % (len(self.pData)))
         
         self.pData['duration'] = - self.pData['seconds'].diff(periods=-1)
 
@@ -149,9 +150,7 @@ class DataParser:
             duration = row['duration']
             triageAct = None
                         
-            if printTrace:
-                print('----', row['seconds'], 'dur', duration, 
-                      np.sum([a[3] for a in actsAndEvents[:]]))
+            self.logger.debug('---- %s dur %s %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
                 
             # Entered a new room.
             if row['Room_in'] != lastLoc:
@@ -164,11 +163,10 @@ class DataParser:
                     for m in mv:
                         moveActs.append(m)
                     if mv == []:
-                        print('unreachable', lastLoc, row['Room_in'], row['@timestamp'])
+                        self.logger.warning('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['@timestamp']))
 
                 lastLoc = row['Room_in']
-                if printTrace:
-                    print('moved to', lastLoc, stamp)
+                self.logger.debug('moved to %s %s' % (lastLoc, stamp))
 
                 self.parseFOV(row, True, prev, printTrace, human, searchActs)
                 
@@ -176,8 +174,7 @@ class DataParser:
                 if row['triage_in_progress']:
                     triageAct = Victims.getTriageAction(human)
                     acts.append(triageAct)
-                    if printTrace:
-                        print('triage started in new room')
+                    self.logger.debug('triage started in new room')
 
             # same room. Compare flag values to know what changed!
             else:
@@ -189,8 +186,7 @@ class DataParser:
                     if row[var]:
                         triageAct = Victims.getTriageAction(human)
                         acts.append(triageAct)
-                        if printTrace:
-                            print('triage started')
+                        self.logger.debug('triage started')
                     if prev[var]:
                         attemptID = attemptID  + 1
 
@@ -230,12 +226,12 @@ class DataParser:
         return attemptRows
 
 
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0):
+    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, logger=logging):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-        print(actsAndEvents[start])
         if start == 0:
+            print(actsAndEvents[0])
             [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
                 varName = actEv[0]
@@ -254,7 +250,7 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            print('\n%d) Running: %s' % (t+start, actEvent[1]))
+            logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
             if t+start >= ffwdTo:
                 input('press any key.. ')
             if actEvent[0] == DataParser.ACTION:
@@ -277,22 +273,29 @@ class DataParser:
                 k = stateKey(human, Victims.STR_FOV_VAR)
                 selDict = {k:world.value2float(k, color)}
                 world.step(sact, select=selDict)
-            summarizeState(world,human)
+            summarizeState(world,human,logger)
 
-def printAEs(aes):
+    def player_name(self):
+        """
+        :return: the name of the human player in this log file
+        :rtype: str
+        """
+        return self.data['player_ID'].iloc[0]
+
+def printAEs(aes,logger=logging):
     for ae in aes:
-        print(ae[2], ae[1])
+        logger.info('%s %s' % (ae[2], ae[1]))
                 
 
-def summarizeState(world,human):
+def summarizeState(world,human,logger=logging):
     loc = world.getState(human,'loc',unique=True)
     time = world.getState(WORLD,'seconds',unique=True)
-    print('Time: %d' % (time))
+    logger.debug('Time: %d' % (time))
     
-    print('Player location: %s' % (loc))
+    logger.debug('Player location: %s' % (loc))
     for name in sorted(world.agents):
         if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
-            print('%s color: %s' % (name,world.getState(name,'color',unique=True)))
-    print('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
-    print('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
-    print('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))
+            logger.debug('%s color: %s' % (name,world.getState(name,'color',unique=True)))
+    logger.debug('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+    logger.debug('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
+    logger.debug('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))
