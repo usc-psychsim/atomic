@@ -28,7 +28,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on hu
 try:
     DATA_FILENAME = sys.argv[1]
 except IndexError:
-    DATA_FILENAME = 'Florian_processed_1.csv'
+    DATA_FILENAME = 'data/Florian_processed_1.csv'
 
 OBSERVER_NAME = 'ATOMIC'
 PLAYER_NAME = 'Player173'
