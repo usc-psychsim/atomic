@@ -80,3 +80,9 @@ def getSandRVictims(small=False,fldr="data",fname="sparky_vic_locs"):
 
 
     return SandRVics
+
+if __name__ == '__main__':
+    print("Victims:")
+    print(getSandRVictims())
+    print("Map:")
+    print(getSandRMap())
