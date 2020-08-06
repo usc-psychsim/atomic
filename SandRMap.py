@@ -92,3 +92,9 @@ def getSandRCoords():
             coord = line.split(',')
             coords[coord[0]] = float(coord[1]), float(coord[2])
     return coords
+
+if __name__ == '__main__':
+    print("Victims:")
+    print(getSandRVictims())
+    print("Map:")
+    print(getSandRMap())
