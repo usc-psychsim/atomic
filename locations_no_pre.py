@@ -56,7 +56,7 @@ class Locations:
                 Locations.Nbrs[d][room] = n
                 Locations.AllLocations.add(n)
 
-    def makePlayerLocation(human, Victims, initLoc=None):
+    def makePlayerLocation(human, victimsObj, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
         if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
@@ -69,10 +69,10 @@ class Locations:
             Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
 
         ## Make move actions
-        Locations.__makeMoveActions(human, Victims)
+        Locations.__makeMoveActions(human, victimsObj)
         Locations.__makeExplorationBonus(human)
 
-    def __makeMoveActions(human, Victims):
+    def __makeMoveActions(human, victimsObj):
         """
         N/E/S/W actions
         Legality: if current location has a neighbor in the given direction
@@ -109,21 +109,12 @@ class Locations:
                 Locations.world.setDynamics(destKey,action,tree)
                 
             # A move resets the flags of whether I just saved someone
-            Victims.resetJustSavedFlags(human, action)
+            victimsObj.resetJustSavedFlags(human, action)
 
-            fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)                
-            ## If we're not using search actions, move action sets FOV            
-            if getattr(Victims, 'searchActs', None) == None:
-                print('======== We are NOT using searching actions')
-                 # A move has some probability of setting FOV to any victim, regardless of whether 
-                 # victim is in the current location
-                distList = [(setToConstantMatrix(fovKey, vic), Victims.P_VIC_FOV) for vic in Victims.vicNames]
-                distList.append((setToConstantMatrix(fovKey, 'none'), Victims.P_EMPTY_FOV))
-                Locations.world.setDynamics(fovKey,action,makeTree({'distribution': distList}))
-            else:
-                ## If we're using search actions, a move resets the FOV
-                tree = makeTree(setToConstantMatrix(fovKey, 'none'))
-                Locations.world.setDynamics(fovKey,action,tree)
+            fovKey  = stateKey(human.name, 'vicInFOV')
+            ## If we're using search actions, a move resets the FOV
+            tree = makeTree(setToConstantMatrix(fovKey, 'none'))
+            Locations.world.setDynamics(fovKey,action,tree)
 
     def __makeExplorationBonus(human):
         if Locations.EXPLORE_BONUS <= 0:

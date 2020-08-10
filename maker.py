@@ -7,9 +7,9 @@ Created on Sat Jun 20 15:39:15 2020
 """
 from psychsim.world import World, WORLD
 from locations_no_pre import Locations
-from victims_no_pre import Victims
+from victims_no_pre_instance import Victims
 from psychsim.pwl import modelKey
-from ftime import makeExpiryDynamics, incrementTime
+from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
 
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
@@ -22,7 +22,13 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     
     
     ################# Victims and triage actions
-    Victims.world = world
+    Victims.FULL_OBS = False
+    Victims.COLOR_PRIOR_P = {'Green':0.3, 'Gold':0.4}
+    # if the following prob's add up to 1, FOV will never be empty after a search
+    Victims.COLOR_FOV_P = {'Green':0.2, 'Gold':0.2, 'Red':0.2, 'White':0.4}
+
+    victimsObj = Victims()
+    victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
     for loc, vics in SandRVics.items():
@@ -31,30 +37,29 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
                 loc = 'R' + loc
             VICTIMS_LOCS.append(loc)
             VICTIM_TYPES.append(vic)
-    Victims.world = world
-    Victims.COLOR_PRIOR_P = {'Green':0.3, 'Gold':0.4}
-    # if the following prob's add up to 1, FOV will never be empty after a search
-    Victims.COLOR_FOV_P = {'Green':0.2, 'Gold':0.2, 'Red':0.2, 'White':0.4}
-    debug = Victims.setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, list(SandRLocs.keys()))
+    victimsObj.setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, list(SandRLocs.keys()))
     
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
     Locations.makeMapDict(SandRLocs)
-    Locations.makePlayerLocation(triageAgent,Victims,  initLoc)
+    Locations.makePlayerLocation(triageAgent, victimsObj,  initLoc)
     Locations.AllLocations = list(Locations.AllLocations)
     print('Made move actions')
     
     ################# T I M E
-    ## Increment time if none of the durative actions is taken
+    ## Increment time by default
     incrementTime(world)
+    
     ## Make victim expiration dynamics
-    makeExpiryDynamics(Victims.victimsByLocAndColor, Victims.world, Victims.COLOR_EXPIRY)
+    makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, Victims.COLOR_EXPIRY)
+    
+    ## Create stochastic duration for triage actions
+    triageDurationDistr = {5:0.2, 8:0.4, 15:0.4}
+    stochasticTriageDur(victimsObj, triageDurationDistr, world)
+    
     ## Reflect victims turning to red on player's FOV  and CH
-#    Victims.makeColorChangeDynamics(triageAgent, True, [Victims.STR_CROSSHAIR_VAR, Victims.STR_FOV_VAR], \
-#                                    'Red', Locations.AllLocations)
-#   
-    Victims.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations)
+    victimsObj.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations)
    
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
@@ -62,13 +67,13 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     if not Victims.FULL_OBS:
         if use_unobserved:
             print('Start to make observable variables and priors')
-            Victims.createObsVars4Victims(triageAgent, Locations.AllLocations)
+            victimsObj.createObsVars4Victims(triageAgent, Locations.AllLocations)
         print('Made observable variables and priors')
-        Victims.makeSearchAction(triageAgent, Locations.AllLocations)
+        victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
         print('Made search action')
 
     triageAgent.resetBelief()
     triageAgent.omega = [key for key in world.state.keys() \
                          if not ((key in {modelKey(agent.name)}) or key.startswith('victim')\
                                  or (key.find('unobs')>-1))]
-    return world, triageAgent, agent, debug
+    return world, triageAgent, agent, victimsObj

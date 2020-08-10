@@ -6,8 +6,7 @@ Created on Thu Apr  2 20:35:23 2020
 @author: mostafh
 """
 import pandas as pd
-from victims_no_pre import Victims
-#from new_locations_fewacts import Locations
+from victims_no_pre_instance import Victims
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -64,7 +63,7 @@ class DataParser:
         self.data.loc[mask, 'Room_in'] = newRoom.loc[mask]
         self.data['Room_in'] = self.data['Room_in'].astype(str)
                 
-        # Rempve 'd' or 'x' at the end of room names
+        # Remove 'd' or 'x' at the end of room names
         rooms = [str(loc) for loc in self.data['Room_in'].unique()]
         newRooms = {r:r for r in rooms if not (r.endswith('x') or r.endswith('d'))}
         newRooms.update({r:r[:-1] for r in rooms if r.endswith('x') or r.endswith('d')})
@@ -100,7 +99,7 @@ class DataParser:
             
             if newRoom or (not prevFOV):
                 if inFov:  #this dude just got into my FOV because of a search action
-                    searchActs.append([Victims.getSearchAction(human), color])
+                    searchActs.append([self.victimsObj.getSearchAction(human), color])
                     if printTrace:
                         print('Searched and found', color)
             else: # same room and previously in FOV
@@ -114,7 +113,7 @@ class DataParser:
         else:
             prevSomeone = prevRow['isAVicInFOV']
         if prevSomeone and (not someoneInFOV) and (not newRoom):
-            searchActs.append([Victims.getSearchAction(human), 'none'])
+            searchActs.append([self.victimsObj.getSearchAction(human), 'none'])
             if printTrace:
                 print('Searched and found none')
 
@@ -123,7 +122,6 @@ class DataParser:
         self.pData = self.data.loc[self.data['player_ID'] == human]
         
         print('Locations in player data but not map', [l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations])
-        print('Locations in map but not player data', [l for l in Locations.AllLocations if not l in self.data['Room_in'].unique()])
         
         ## Sort by time
         self.pData = self.pData.loc[:, ['@timestamp', 'seconds'] + self.cols].sort_values('@timestamp', axis = 0)
@@ -141,7 +139,7 @@ class DataParser:
         for ir,row in self.pData.iterrows():
             if (maxEvents > 0) and (len(actsAndEvents) > maxEvents):
                 break
-            acts = []
+            triageActs = []
             events = []
             moveActs = []
             searchActs = []
@@ -149,6 +147,16 @@ class DataParser:
             duration = row['duration']
             triageAct = None
                         
+            if row['triage_in_progress']:
+                triageAct = self.victimsObj.getTriageAction(human)
+                # Quantize duration to 5, 8 or 15
+                if duration<7:
+                    duration = 5
+                elif (duration > 7) and (duration < 15):
+                    duration = 8
+                elif duration >= 15:
+                    duration = 15
+
             if printTrace:
                 print('----', row['seconds'], 'dur', duration, 
                       np.sum([a[3] for a in actsAndEvents[:]]))
@@ -161,10 +169,13 @@ class DataParser:
                 else:
                     # Add a move action
                     mv = Locations.getMoveAction(human, lastLoc, row['Room_in'])
-                    for m in mv:
-                        moveActs.append(m)
                     if mv == []:
                         print('unreachable', lastLoc, row['Room_in'], row['@timestamp'])
+                        # Player may be floating in spectator mode.
+                        # Skip until you find a room connected to the last connected room
+                        continue
+                    for m in mv:
+                        moveActs.append(m)
 
                 lastLoc = row['Room_in']
                 if printTrace:
@@ -174,8 +185,8 @@ class DataParser:
                 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
-                    triageAct = Victims.getTriageAction(human)
-                    acts.append(triageAct)
+                    triageAct = self.victimsObj.getTriageAction(human)
+                    triageActs.append([triageAct, duration])
                     if printTrace:
                         print('triage started in new room')
 
@@ -187,8 +198,8 @@ class DataParser:
                 var = 'triage_in_progress'
                 if row[var] != prev[var]:
                     if row[var]:
-                        triageAct = Victims.getTriageAction(human)
-                        acts.append(triageAct)
+                        triageAct = self.victimsObj.getTriageAction(human)
+                        triageActs.append([triageAct, duration])
                         if printTrace:
                             print('triage started')
                     if prev[var]:
@@ -210,9 +221,9 @@ class DataParser:
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
                 actsAndEvents.append([DataParser.SEARCH, sact, stamp, dur, attemptID])
             # acts = triage 
-            for i, act in enumerate(acts):
+            for i, act in enumerate(triageActs):
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                actsAndEvents.append([DataParser.ACTION, [act], stamp, duration, attemptID]) 
+                actsAndEvents.append([DataParser.ACTION, act, stamp, duration, attemptID]) 
                 duration = 0
                 
             for ev in events:
@@ -261,7 +272,18 @@ class DataParser:
                 act = actEvent[1][0]
                 if act not in world.agents[human].getLegalActions():
                     raise ValueError('Illegal action!')
-                world.step(act)
+                if len(actEvent[1]) > 1:
+                    dur = actEvent[1][1]
+                    # This is a triage action with an associated duration
+                    clock = stateKey(WORLD,'seconds')
+                    curTime = world.getState(WORLD,'seconds',unique=True)
+                    newTime = curTime + dur
+                    selDict = {clock:newTime}
+                    print('Time now', curTime, 'triage until', newTime)
+                    world.step(act, select=selDict)
+                else:
+                    
+                    world.step(act)
                 
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
@@ -274,7 +296,7 @@ class DataParser:
                 
             elif actEvent[0] == DataParser.SEARCH:
                 sact, color = actEvent[1][0], actEvent[1][1]
-                k = stateKey(human, Victims.STR_FOV_VAR)
+                k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
                 world.step(sact, select=selDict)
             summarizeState(world,human)
