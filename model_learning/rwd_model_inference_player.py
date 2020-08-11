@@ -116,18 +116,13 @@ if __name__ == '__main__':
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims(), use_unobserved=False)
+    world, agent, observer, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims(), use_unobserved=False)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
-    observer = world.agents[OBSERVER_NAME]
+    agent.resetBelief(ignore={modelKey(observer.name)})
 
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})
-
-    # agent does not model itself and sees everything except true models and its reward
-    agent.resetBelief(ignore={modelKey(observer.name)})
-#    agent.omega.extend([key for key in world.state.keys()
-#                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
 
     # get the canonical name of the "true" agent model
     true_model = get_true_model_name(agent)

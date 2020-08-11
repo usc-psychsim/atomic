@@ -37,7 +37,7 @@ AGENT_SELECTION = 'random'
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
 MODEL_RATIONALITY = .5
 
-OUTPUT_DIR = 'output/reward-model-inference'
+OUTPUT_DIR = 'output/reward-model-inference-simple'
 DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
