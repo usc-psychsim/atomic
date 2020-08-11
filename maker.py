@@ -8,7 +8,7 @@ Created on Sat Jun 20 15:39:15 2020
 from psychsim.world import World, WORLD
 from locations_no_pre import Locations
 from victims_no_pre_instance import Victims
-from psychsim.pwl import modelKey
+from psychsim.pwl import modelKey, rewardKey
 from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
 
 
@@ -16,16 +16,15 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     world = World()
     time = world.defineState(WORLD, 'seconds', int)
     world.setFeature(time, 0)
-    
+
     triageAgent = world.addAgent(playerName)
     agent = world.addAgent('ATOMIC')
-    
-    
+
     ################# Victims and triage actions
     Victims.FULL_OBS = False
-    Victims.COLOR_PRIOR_P = {'Green':0.3, 'Gold':0.4}
+    Victims.COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
     # if the following prob's add up to 1, FOV will never be empty after a search
-    Victims.COLOR_FOV_P = {'Green':0.2, 'Gold':0.2, 'Red':0.2, 'White':0.4}
+    Victims.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 
     victimsObj = Victims()
     victimsObj.world = world
@@ -38,32 +37,32 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
             VICTIMS_LOCS.append(loc)
             VICTIM_TYPES.append(vic)
     victimsObj.setupTriager(VICTIMS_LOCS, VICTIM_TYPES, triageAgent, list(SandRLocs.keys()))
-    
+
     ################# Locations and Move actions
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
     Locations.makeMapDict(SandRLocs)
-    Locations.makePlayerLocation(triageAgent, victimsObj,  initLoc)
+    Locations.makePlayerLocation(triageAgent, victimsObj, initLoc)
     Locations.AllLocations = list(Locations.AllLocations)
     print('Made move actions')
-    
+
     ################# T I M E
     ## Increment time by default
     incrementTime(world)
-    
+
     ## Make victim expiration dynamics
     makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, Victims.COLOR_EXPIRY)
-    
+
     ## Create stochastic duration for triage actions
-    triageDurationDistr = {5:0.2, 8:0.4, 15:0.4}
+    triageDurationDistr = {5: 0.2, 8: 0.4, 15: 0.4}
     stochasticTriageDur(victimsObj, triageDurationDistr, world)
-    
+
     ## Reflect victims turning to red on player's FOV  and CH
     victimsObj.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations)
-   
+
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
-    
+
     if not Victims.FULL_OBS:
         if use_unobserved:
             print('Start to make observable variables and priors')
@@ -72,8 +71,11 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
         victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
         print('Made search action')
 
-    triageAgent.resetBelief()
-    triageAgent.omega = [key for key in world.state.keys() \
-                         if not ((key in {modelKey(agent.name)}) or key.startswith('victim')\
-                                 or (key.find('unobs')>-1))]
+    # agents do not model themselves and see everything except true models and their reward
+    triageAgent.resetBelief(ignore={modelKey(agent.name)})
+    triageAgent.omega = [key for key in world.state.keys()
+                         if not ((key in {modelKey(agent.name), rewardKey(triageAgent.name)})
+                                 or key.startswith('victim')
+                                 or (key.find('unobs') > -1))]
+
     return world, triageAgent, agent, victimsObj
