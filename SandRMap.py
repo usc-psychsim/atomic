@@ -1,7 +1,16 @@
-from new_locations import Directions
 import os.path
 import pandas as pd
-from math import isnan
+
+class Directions:
+    """
+    Dicretions class
+
+    """
+    N = 0
+    E = 1
+    S = 2
+    W = 3
+    Names = ['N', 'E', 'S', 'W']
 
 def checkSRMap(SRMap):
     # small verison of map for debugging
