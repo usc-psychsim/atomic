@@ -5,7 +5,7 @@ Created on Thu Feb 20 11:27:36 2020
 @author: mostafh
 """
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, andRow, stateKey, rewardKey, actionKey, makeFuture,\
-                        setToFeatureMatrix, setFalseMatrix, noChangeMatrix, addFeatureMatrix
+                        setToFeatureMatrix, setFalseMatrix, noChangeMatrix, addFeatureMatrix, incrementMatrix
 from psychsim.world import WORLD
 
 class Directions:
@@ -63,10 +63,10 @@ class Locations:
 
         ## Add a seen flag per location
         for i in Locations.AllLocations:
-            Locations.world.defineState(human,'seenloc_' + str(i),bool, description='Location seen or not')
-            Locations.world.setState(human.name, 'seenloc_' + str(i), False)
+            Locations.world.defineState(human,'locvisits_' + str(i),int, description='Location seen or not')
+            Locations.world.setState(human.name, 'locvisits_' + str(i), 0)
         if initLoc:
-            Locations.world.setState(human.name, 'seenloc_' + str(initLoc), True)
+            Locations.world.setState(human.name, 'locvisits_' + str(initLoc), 1)
 
         ## Make move actions
         Locations.__makeMoveActions(human, victimsObj)
@@ -102,9 +102,9 @@ class Locations:
 
             # A move sets the seen flag of the location we moved to
             for dest in Locations.AllLocations:
-                destKey = stateKey(human.name,'seenloc_'+str(dest))
+                destKey = stateKey(human.name,'locvisits_'+str(dest))
                 tree = makeTree({'if': equalRow(makeFuture(locKey), dest),
-                                 True: setToConstantMatrix(destKey, True),
+                                 True: incrementMatrix(destKey, 1),
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
                 
@@ -121,7 +121,7 @@ class Locations:
             return
         for dest in range(Locations.numLocations):
             bonus = makeTree({'if': equalRow(stateKey(human.name, 'loc'), dest),
-                                True: {'if': equalRow(stateKey(human.name, 'seenloc_'+str(dest)), False),
+                                True: {'if': equalRow(stateKey(human.name, 'locvisits_'+str(dest)), 0),
                                     True: addFeatureMatrix(rewardKey(human.name), Locations.EXPLORE_BONUS) ,
                                     False: noChangeMatrix(rewardKey(human.name))},
                                 False: noChangeMatrix(rewardKey(human.name))})

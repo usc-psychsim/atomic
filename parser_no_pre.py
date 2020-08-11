@@ -260,8 +260,8 @@ class DataParser:
                 else:
                     world.setState(human, 'loc', actEv[0])
                     world.agents[human].setBelief(stateKey(human,'loc'),actEv[0])
-                    world.setState(human, 'seenloc_'+actEv[0], True)
-                    world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv[0]),True)
+                    world.setState(human, 'locvisits_'+actEv[0], 1)
+                    world.agents[human].setBelief(stateKey(human,'locvisits_'+actEv[0]),1)
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
@@ -316,5 +316,6 @@ def summarizeState(world,human):
         if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
             print('%s color: %s' % (name,world.getState(name,'color',unique=True)))
     print('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+    print('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
     print('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
     print('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))
