@@ -72,7 +72,7 @@ def _get_trajectory_from_parsing(world, agent, aes):
     elif act_or_event == DataParser.SEARCH:
         [sact, color] = act_event[1]
         key = stateKey(agent.name, 'vicInFOV')
-        world.step(sact, select={key:world.value2float(key,color)})
+        world.step(sact, select={'__default__': False,key:world.value2float(key,color)})
     else:
         # This first action can be an actual action or an initial location
         if isinstance(act_event, ActionSet):
