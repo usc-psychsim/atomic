@@ -8,15 +8,9 @@ Created on Sun Apr  5 17:00:50 2020
 import os.path
 import sys
 
-#from new_locations_fewacts import Locations, Directions
-from victims_no_pre import Victims
-#from parser_v2 import DataParser
 from parser_no_pre import DataParser
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
-
-# MDP or POMDP
-Victims.FULL_OBS = False
 
 def ptree(tree, level):
     
@@ -46,21 +40,14 @@ except IndexError:
        parser = DataParser(os.path.join(os.path.dirname(__file__),'data','processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'))
 name = parser.player_name()
 
+#
+####### Get Map Data
+#small = False
+#SandRLocs = getSandRMap(small)
+#SandRVics = getSandRVictims(small)
 
-###### Get Map Data
-small = False
-SandRLocs = getSandRMap(small)
-SandRVics = getSandRVictims(small)
-
-world, triageAgent, agent, debug = makeWorld(name, 'BH2', SandRLocs, SandRVics)
-#world, triageAgent, agent, debug = makeWorld('TriageAg1', 'CH4', SandRLocs, SandRVics)
-
-#Locations.move(triageAgent, Directions.N)
-#Victims.search(triageAgent, True)
-#Victims.approach(triageAgent)
-#Victims.putInCH(triageAgent)
-#Victims.triage(triageAgent)
-#print(triageAgent.reward())
+world, triageAgent, agent, victimsObj = makeWorld(name, 'BH2', SandRLocs, SandRVics)
+parser.victimsObj = victimsObj
 
 ### Replay sequence of actions and events
 aes, data = parser.getActionsAndEvents(triageAgent.name, True, 50)

@@ -7,8 +7,7 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
-from victims_no_pre import Victims
-#from new_locations_fewacts import Locations
+from victims_no_pre_instance import Victims
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -66,7 +65,7 @@ class DataParser:
         self.data.loc[mask, 'Room_in'] = newRoom.loc[mask]
         self.data['Room_in'] = self.data['Room_in'].astype(str)
                 
-        # Rempve 'd' or 'x' at the end of room names
+        # Remove 'd' or 'x' at the end of room names
         rooms = [str(loc) for loc in self.data['Room_in'].unique()]
         newRooms = {r:r for r in rooms if not (r.endswith('x') or r.endswith('d'))}
         newRooms.update({r:r[:-1] for r in rooms if r.endswith('x') or r.endswith('d')})
@@ -102,7 +101,7 @@ class DataParser:
             
             if newRoom or (not prevFOV):
                 if inFov:  #this dude just got into my FOV because of a search action
-                    searchActs.append([Victims.getSearchAction(human), color])
+                    searchActs.append([self.victimsObj.getSearchAction(human), color])
                     self.logger.debug('Searched and found %s' % (color))
             else: # same room and previously in FOV
                 # Either remain in FOV ==> noop
@@ -115,15 +114,38 @@ class DataParser:
         else:
             prevSomeone = prevRow['isAVicInFOV']
         if prevSomeone and (not someoneInFOV) and (not newRoom):
-            searchActs.append([Victims.getSearchAction(human), 'none'])
+            searchActs.append([self.victimsObj.getSearchAction(human), 'none'])
             self.logger.debug('Searched and found none')
 
+    def getFOVColor(self, row):
+        for vi in range(self.maxVicsInLoc):
+            if row['victim_' + str(vi) + '_in_FOV']:
+                return row['victim_'+str(vi)+'_color']
+    
+    def getDurationIfTriaging(self, row, originalDuration):        
+        # Quantize duration to 5, 8 or 15
+        if not row['triage_in_progress']:
+            return originalDuration
+        
+        fovColor = self.getFOVColor(row)
+        if originalDuration<=7:
+            duration = 5
+        elif (originalDuration > 7) and (originalDuration < 15):
+            if fovColor == 'Green':
+                duration = 8
+            else:
+                duration = 5
+        elif originalDuration >= 15:
+            if fovColor == 'Green':
+                duration = 8
+            else:
+                duration = 15
+        return duration
 
     def getActionsAndEvents(self, human, printTrace=False, maxEvents=-1):
         self.pData = self.data.loc[self.data['player_ID'] == human]
         
         self.logger.warning('Locations in player data but not map %s' % (','.join(sorted([l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations]))))
-        self.logger.warning('Locations in map but not player data %s' % (','.join(sorted([l for l in Locations.AllLocations if not l in self.data['Room_in'].unique()]))))
         
         ## Sort by time
         self.pData = self.pData.loc[:, ['@timestamp', 'seconds'] + self.cols].sort_values('@timestamp', axis = 0)
@@ -141,13 +163,12 @@ class DataParser:
         for ir,row in self.pData.iterrows():
             if (maxEvents > 0) and (len(actsAndEvents) > maxEvents):
                 break
-            acts = []
+            triageActs = []
             events = []
             moveActs = []
             searchActs = []
             stamp = row['@timestamp']
-            duration = row['duration']
-            triageAct = None
+            duration = self.getDurationIfTriaging(row, duration)
                         
             self.logger.debug('---- %s dur %s %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
                 
@@ -159,10 +180,13 @@ class DataParser:
                 else:
                     # Add a move action
                     mv = Locations.getMoveAction(human, lastLoc, row['Room_in'])
-                    for m in mv:
-                        moveActs.append(m)
                     if mv == []:
                         self.logger.warning('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['@timestamp']))
+#                        ## Transport player to new location by force
+#                        events.append(['loc', row['Room_in']])
+                        continue                        
+                    for m in mv:
+                        moveActs.append(m)
 
                 lastLoc = row['Room_in']
                 self.logger.debug('moved to %s %s' % (lastLoc, stamp))
@@ -171,8 +195,9 @@ class DataParser:
                 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
-                    triageAct = Victims.getTriageAction(human)
-                    acts.append(triageAct)
+                    fovColor = self.getFOVColor(row)
+                    triageAct = self.victimsObj.getTriageAction(human, fovColor)
+                    triageActs.append([triageAct, duration])
                     self.logger.debug('triage started in new room')
 
             # same room. Compare flag values to know what changed!
@@ -183,8 +208,9 @@ class DataParser:
                 var = 'triage_in_progress'
                 if row[var] != prev[var]:
                     if row[var]:
-                        triageAct = Victims.getTriageAction(human)
-                        acts.append(triageAct)
+                        fovColor = self.getFOVColor(row)
+                        triageAct = self.victimsObj.getTriageAction(human, fovColor)
+                        triageActs.append([triageAct, duration])
                         self.logger.debug('triage started')
                     if prev[var]:
                         attemptID = attemptID  + 1
@@ -205,9 +231,9 @@ class DataParser:
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
                 actsAndEvents.append([DataParser.SEARCH, sact, stamp, dur, attemptID])
             # acts = triage 
-            for i, act in enumerate(acts):
+            for i, act in enumerate(triageActs):
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                actsAndEvents.append([DataParser.ACTION, [act], stamp, duration, attemptID]) 
+                actsAndEvents.append([DataParser.ACTION, act, stamp, duration, attemptID]) 
                 duration = 0
                 
             for ev in events:
@@ -243,8 +269,8 @@ class DataParser:
                 else:
                     world.setState(human, 'loc', actEv[0])
                     world.agents[human].setBelief(stateKey(human,'loc'),actEv[0])
-                    world.setState(human, 'seenloc_'+actEv[0], True)
-                    world.agents[human].setBelief(stateKey(human,'seenloc_'+actEv[0]),True)
+                    world.setState(human, 'locvisits_'+actEv[0], 1)
+                    world.agents[human].setBelief(stateKey(human,'locvisits_'+actEv[0]),1)
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
@@ -255,7 +281,18 @@ class DataParser:
                 act = actEvent[1][0]
                 if act not in world.agents[human].getLegalActions():
                     raise ValueError('Illegal action!')
-                world.step(act)
+                if len(actEvent[1]) > 1:
+                    dur = actEvent[1][1]
+                    # This is a triage action with an associated duration
+                    clock = stateKey(WORLD,'seconds')
+                    curTime = world.getState(WORLD,'seconds',unique=True)
+                    newTime = curTime + dur
+                    selDict = {clock:newTime}
+                    print('Time now', curTime, 'triage until', newTime)
+                    world.step(act, select=selDict)
+                else:
+                    
+                    world.step(act)
                 
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
@@ -268,7 +305,7 @@ class DataParser:
                 
             elif actEvent[0] == DataParser.SEARCH:
                 sact, color = actEvent[1][0], actEvent[1][1]
-                k = stateKey(human, Victims.STR_FOV_VAR)
+                k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
                 world.step(sact, select=selDict)
             summarizeState(world,human,logger)
@@ -295,5 +332,6 @@ def summarizeState(world,human,logger=logging):
         if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
             logger.debug('%s color: %s' % (name,world.getState(name,'color',unique=True)))
     logger.debug('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+    logger.debug('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
     logger.debug('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
     logger.debug('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))

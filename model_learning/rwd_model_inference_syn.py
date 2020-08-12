@@ -73,6 +73,7 @@ if __name__ == '__main__':
     world, agent, observer, _ = makeWorld(AGENT_NAME, 'BH2', getSandRMap(), getSandRVictims(), False)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
+    agent.resetBelief(ignore={modelKey(observer.name)})
 
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})

@@ -11,8 +11,8 @@ from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
-from parser_v2 import DataParser
-from victims_clr import Victims
+from parser_no_pre import DataParser
+from victims_no_pre_instance import Victims
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -110,24 +110,21 @@ if __name__ == '__main__':
     PLAYER_NAME = parser.data['player_ID'].iloc[0]
 
     # create output
-    create_clear_dir(OUTPUT_DIR)
+#    create_clear_dir(OUTPUT_DIR)
 
     # MDP or POMDP
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, _, _ = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims(), use_unobserved=False)
+    world, agent, observer, victimsObj = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims(), use_unobserved=False)
+    parser.victimsObj = victimsObj
+
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
-    observer = world.agents[OBSERVER_NAME]
+    agent.resetBelief(ignore={modelKey(observer.name)})
 
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})
-
-    # agent does not model itself and sees everything except true models and its reward
-    agent.resetBelief(ignore={modelKey(observer.name)})
-#    agent.omega.extend([key for key in world.state.keys()
-#                        if key not in {rewardKey(agent.name), modelKey(observer.name)}])
 
     # get the canonical name of the "true" agent model
     true_model = get_true_model_name(agent)
@@ -141,7 +138,7 @@ if __name__ == '__main__':
     for name, rwd_dict in mm_list.items():
         if name != true_model:
             agent.addModel(name, parent=true_model, rationality=MODEL_RATIONALITY, selection=MODEL_SELECTION)
-        Victims.makeVictimReward(agent, name, rwd_dict)
+        victimsObj.makeVictimReward(agent, name, rwd_dict)
 
     if INCLUDE_RANDOM_MODEL:
         agent.addModel(RANDOM_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
