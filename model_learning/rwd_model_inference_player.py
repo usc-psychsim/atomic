@@ -1,12 +1,9 @@
-import copy
 import logging
 import os
 import sys
-sys.path.append('../')
-from psychsim.action import ActionSet
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
-from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix, state2agent
+from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
 from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
@@ -29,17 +26,16 @@ __description__ = 'Perform reward model inference in the ASIST world based on hu
 try:
     DATA_FILENAME = sys.argv[1]
 except IndexError:
-    DATA_FILENAME = 'data/Florian_processed_1.csv'
+    DATA_FILENAME = 'data/processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'
 
 OBSERVER_NAME = 'ATOMIC'
-PLAYER_NAME = 'Player173'
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
 
 # models
 TRUE_MODEL = 'task_scores'
 PREFER_NONE_MODEL = 'prefer_none'
-PREFER_YELLOW_MODEL = 'prefer_yellow'
+PREFER_YELLOW_MODEL = 'prefer_gold'
 PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
@@ -54,48 +50,12 @@ HIGH_VAL = 200
 LOW_VAL = 10
 MEAN_VAL = (HIGH_VAL + LOW_VAL) / 2
 
-OUTPUT_DIR = 'output/reward-model-inference'
+OUTPUT_DIR = 'output/reward-model-inference-data'
 DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
 FULL_OBS = False
-
-
-def _get_trajectory_from_parsing(world, agent, aes):
-    trajectory = []
-    act_or_event, act_event, *_ = aes[0]
-    if act_or_event == DataParser.SET_FLG:
-        var_name = act_event[0]
-        var_value = act_event[1]
-        world.setState(agent.name, var_name, var_value)
-        agent.setBelief(stateKey(agent.name,var_name),var_value)
-
-    elif act_or_event == DataParser.SEARCH:
-        [sact, color] = act_event[1]
-        key = stateKey(agent.name, 'vicInFOV')
-        world.step(sact, select={key:world.value2float(key,color)})
-    else:
-        # This first action can be an actual action or an initial location
-        if isinstance(act_event, ActionSet):
-            world.step(act_event)
-        else:
-            world.setState(agent.name, 'loc', act_event)
-            agent.setBelief(stateKey(agent.name,'loc'),act_event)
-            world.setState(agent.name, 'seenloc_' + act_event, True)
-            agent.setBelief(stateKey(agent.name,'seenloc_'+act_event),True)
-
-    for act_event in aes[1:]:
-        if act_event[0] == DataParser.ACTION:
-            trajectory.append((copy.deepcopy(world), act_event[1]))
-            world.step(act_event[1])
-        elif act_event[0] == DataParser.SET_FLG:
-            var, val = act_event[1]
-            world.setState(agent.name, var, val)
-        elif act_event[0] == DataParser.SEARCH:
-            [sact, color] = act_event[1]
-            key = stateKey(agent.name, 'vicInFOV')
-            world.step(sact, select={key:world.value2float(key,color),'__default__': False})
-    return trajectory
+MAX_TRAJ_LENGTH = 100
 
 
 def _get_fancy_name(name):
@@ -103,22 +63,23 @@ def _get_fancy_name(name):
 
 
 if __name__ == '__main__':
-    # sets up log to screen
-    logging.basicConfig(format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
+    # create output
+    create_clear_dir(OUTPUT_DIR)
+
+    # sets up log to file
+    logging.basicConfig(
+        handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
+        format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
     logging.info('Parsing data file {}...'.format(DATA_FILENAME))
     parser = DataParser(DATA_FILENAME)
-    PLAYER_NAME = parser.data['player_ID'].iloc[0]
-
-    # create output
-#    create_clear_dir(OUTPUT_DIR)
+    player_name = parser.data['player_ID'].iloc[0]
 
     # MDP or POMDP
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(PLAYER_NAME, 'BH2', getSandRMap(), getSandRVictims(), use_unobserved=False)
-    parser.victimsObj = victimsObj
+    world, agent, observer, victimsObj = makeWorld(player_name, 'BH2', getSandRMap(), getSandRVictims(), False)
 
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
@@ -159,9 +120,10 @@ if __name__ == '__main__':
                       if key not in {modelKey(agent.name), modelKey(observer.name)}]  # rewardKey(agent.name),
 
     # generates trajectory
-    aes = parser.getActionsAndEvents(agent.name)
+    parser.victimsObj = victimsObj
+    aes, _ = parser.getActionsAndEvents(agent.name, True, MAX_TRAJ_LENGTH)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
-    trajectory = runTimeless(world, agent, aes,0,len(aes),0)
+    trajectory = parser.runTimeless(world, agent.name, aes, 0, len(aes), len(aes))
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
 
     # gets evolution of inference over reward models of the agent
