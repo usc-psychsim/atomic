@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import sys
+sys.path.append('../')
 from psychsim.action import ActionSet
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
@@ -68,7 +69,7 @@ def _get_trajectory_from_parsing(world, agent, aes):
         var_value = act_event[1]
         world.setState(agent.name, var_name, var_value)
         agent.setBelief(stateKey(agent.name,var_name),var_value)
-                
+
     elif act_or_event == DataParser.SEARCH:
         [sact, color] = act_event[1]
         key = stateKey(agent.name, 'vicInFOV')
@@ -160,7 +161,7 @@ if __name__ == '__main__':
     # generates trajectory
     aes = parser.getActionsAndEvents(agent.name)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
-    trajectory = _get_trajectory_from_parsing(world, agent, aes)
+    trajectory = runTimeless(world, agent, aes,0,len(aes),0)
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
 
     # gets evolution of inference over reward models of the agent
