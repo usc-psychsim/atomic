@@ -45,7 +45,7 @@ class DataParser:
         self.logger = logger
 
         # Remove rows w/o locations
-        print('Number of rows', len(self.data))
+        self.logger.info('Number of rows %d' % (len(self.data)))
         self.data.dropna(axis=0, subset=['Room_in'], inplace=True)
         self.data= self.data.loc[self.data['Room_in']!='None',:]
         self.logger.info('Number of rows after empty room removal %d' % (len(self.data)))
@@ -116,8 +116,7 @@ class DataParser:
             prevSomeone = prevRow['isAVicInFOV']
         if prevSomeone and (not someoneInFOV) and (not newRoom):
             searchActs.append([Victims.getSearchAction(human), 'none'])
-            if printTrace:
-                self.logger.info('Searched and found none')
+            self.logger.debug('Searched and found none')
 
 
     def getActionsAndEvents(self, human, printTrace=False, maxEvents=-1):
@@ -231,7 +230,6 @@ class DataParser:
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
         if start == 0:
-            print(actsAndEvents[0])
             [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
                 varName = actEv[0]
