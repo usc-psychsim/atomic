@@ -6,9 +6,9 @@ from psychsim.action import ActionSet
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
 from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix, state2agent
-#from model_learning.inference import track_reward_model_inference
-#from model_learning.util.io import create_clear_dir
-#from model_learning.util.plot import plot_evolution
+from model_learning.inference import track_reward_model_inference
+from model_learning.util.io import create_clear_dir
+from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 from parser_no_pre import DataParser

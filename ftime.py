@@ -26,10 +26,11 @@ def makeExpiryDynamics(victimsByLocAndColor, world, COLOR_EXPIRY):
                                 setToConstantMatrix(clrKey, 'Red'), noChangeMatrix(clrKey))
             world.setDynamics(clrKey, True, makeTree(deathTree))
         
-def stochasticTriageDur(victimsObj, triageDurationDistr, world):
+def stochasticTriageDur(victimsObj, triageDurationDistr, world, color):
     clock = stateKey(WORLD,'seconds')    
     stochTree = {'distribution': [(incrementMatrix(clock, c), p) for c,p in triageDurationDistr.items()]}
-    for action in victimsObj.triageActs.values():
-        world.setDynamics(clock, action, makeTree(stochTree))
+    for actions in victimsObj.triageActs.values():
+        triageActColor = actions[color]
+        world.setDynamics(clock, triageActColor, makeTree(stochTree))
     
         

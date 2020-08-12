@@ -6,7 +6,6 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow
-from psychsim.world import World
 from helpers import anding, oring
 
 class Victims:
@@ -107,7 +106,11 @@ class Victims:
         triageAgent.setState(Victims.STR_FOV_VAR,'none')
 
         self.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
-        self.makeTriageAction(triageAgent, locations)
+        self.triageActs[triageAgent.name] = {}
+        for color in Victims.COLOR_EXPIRY.keys():
+            self.makeTriageAction(triageAgent, locations, color)
+        
+        self.makeVictimReward(triageAgent)
         ## TODO: insert victim sensor creation here
 
         return []
@@ -242,10 +245,9 @@ class Victims:
             tree = makeTree(setToConstantMatrix(key, False))
             self.world.setDynamics(key, action, tree)
 
-    def makeTriageAction(self, human, locations):
+    def makeTriageAction(self, human, locations, color):
         """
-        Create ONE triage action
-        Legal action if victim in FOV is Gold or Green
+        Legal action if victim in FOV is Gold 
 
         Action effects: For every loc, color, the corresponding victim's state is changed
         if player is in that location and FOV victim is that color
@@ -255,109 +257,98 @@ class Victims:
         fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
         locKey = stateKey(human.name, 'loc')
 
-        legal = oring([equalRow(fovKey, 'Gold'), equalRow(fovKey, 'Green')], True, False)
-        action = human.addAction({'verb': 'triage'}, makeTree(legal))
+        legal = {'if':equalRow(fovKey, color), True:True, False:False}
+        action = human.addAction({'verb': 'triage_'+color}, makeTree(legal))
         
-        self.makeSavedColorDyn(human, action)
-        self.makeColorChangeDynamics(human, action,'White', locations)
+        self.makeSavedColorDyn(human, action, color)
+        self.makeColorChangeDynamics(human, action,'White', locations, color)
 
         for loc in self.victimsByLocAndColor.keys():
-            for color in self.victimsByLocAndColor[loc].keys():
-                victim = self.victimsByLocAndColor[loc][color]
-                colorKey = stateKey(victim.name,'color')
-                dangerKey = stateKey(victim.name,'danger')
-                saviorKey = stateKey(victim.name,'savior')
+            if color not in self.victimsByLocAndColor[loc].keys():
+                continue
+            victim = self.victimsByLocAndColor[loc][color]
+            colorKey = stateKey(victim.name,'color')
+            dangerKey = stateKey(victim.name,'danger')
+            saviorKey = stateKey(victim.name,'savior')
 
-                ## Color: if danger is down to 0, victim turns white
-                tree = makeTree(anding([equalRow(fovKey, color),
-                                        equalRow(locKey, loc),
-                                        equalRow(dangerKey, 1)],
-                                        setToConstantMatrix(colorKey, 'White'),
-                                        noChangeMatrix(colorKey)))
-                self.world.setDynamics(colorKey,action,tree)
-                                
-                ## Savior name: if danger is down to 0, set to human's name. Else none
-                tree = makeTree(anding([equalRow(fovKey, color),
-                                        equalRow(locKey, loc),
-                                        equalRow(dangerKey, 1)],
-                                        setToConstantMatrix(saviorKey, human.name),
-                                        noChangeMatrix(saviorKey)))
-                self.world.setDynamics(saviorKey,action,tree)
+            ## Color: if danger is down to 0, victim turns white
+            tree = makeTree(anding([equalRow(fovKey, color),
+                                    equalRow(locKey, loc),
+                                    equalRow(dangerKey, 1)],
+                                    setToConstantMatrix(colorKey, 'White'),
+                                    noChangeMatrix(colorKey)))
+            self.world.setDynamics(colorKey,action,tree)
+                            
+            ## Savior name: if danger is down to 0, set to human's name. Else none
+            tree = makeTree(anding([equalRow(fovKey, color),
+                                    equalRow(locKey, loc),
+                                    equalRow(dangerKey, 1)],
+                                    setToConstantMatrix(saviorKey, human.name),
+                                    noChangeMatrix(saviorKey)))
+            self.world.setDynamics(saviorKey,action,tree)
 
-                ## Danger: dencrement danger by 1
-                tree = makeTree(anding([equalRow(fovKey, color),
-                                        equalRow(locKey, loc)],
-                                        incrementMatrix(dangerKey,-1),
-                                        noChangeMatrix(dangerKey)))
-                self.world.setDynamics(dangerKey,action,tree)
+            ## Danger: dencrement danger by 1
+            tree = makeTree(anding([equalRow(fovKey, color),
+                                    equalRow(locKey, loc)],
+                                    incrementMatrix(dangerKey,-1),
+                                    noChangeMatrix(dangerKey)))
+            self.world.setDynamics(dangerKey,action,tree)
 
 
-        self.triageActs[human.name] = action
-        self.makeVictimReward(human)
+        self.triageActs[human.name][color] = action
         
-    def makeColorChangeDynamics(self, human, action, newColor, locations):
+    def makeColorChangeDynamics(self, human, action, newColor, locations, color):
         ''' Setting color of victim in FOV 
             For a color: If player colocated with victim of this color and victim's future = new color
             and FOV is this color, set FOV to new color
         '''
         humanLoc = stateKey(human.name, 'loc')
-        varname = Victims.STR_FOV_VAR
-        k = stateKey(human.name, varname)            
-        ifTrue = setToConstantMatrix(k, newColor)
-        ifFalse = noChangeMatrix(k)                
+        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)            
+        ifTrue = setToConstantMatrix(fovKey, newColor)
+        ifFalse = noChangeMatrix(fovKey)
         
         ## This tree has a branch per location
         mainTree = {'if':equalRow(humanLoc, locations)}
         for ic, loc in enumerate(locations):
-            if loc not in self.victimsByLocAndColor.keys():
+            ## If location has no victims or none of this color, no change 
+            if (loc not in self.victimsByLocAndColor.keys()) or (color not in self.victimsByLocAndColor[loc].keys()):
                 mainTree[ic] = ifFalse
                 continue
             
-            ind = 0
-            for color, vic in self.victimsByLocAndColor[loc].items():
-                if ind == 0:
-                    thisAnd = anding([equalRow(k, color),
-                                equalRow(makeFuture(stateKey(vic.name, 'color')), newColor)],
-                                ifTrue,ifFalse)
-                else:
-                    thisAnd = anding([equalRow(k, color),
-                                equalRow(makeFuture(stateKey(vic.name, 'color')), newColor)],
-                                ifTrue,
-                                thisAnd)
-                ind = ind + 1
-            mainTree[ic] = thisAnd
+            vic = self.victimsByLocAndColor[loc][color]
+            mainTree[ic] = anding([equalRow(fovKey, color),
+                            equalRow(makeFuture(stateKey(vic.name, 'color')), newColor)],
+                            ifTrue,ifFalse)            
             
-        self.world.setDynamics(k, action, makeTree(mainTree))
-        return 
+        self.world.setDynamics(fovKey, action, makeTree(mainTree))
 
 
-    def makeSavedColorDyn(self, human, action):
+    def makeSavedColorDyn(self, human, action, color):
         ''' For each color, specify the dynamics for the flag that indicates whether
         player has just saved a victim of this color
         '''
-        for color in Victims.COLOR_EXPIRY.keys():
-            savedKey = stateKey(human.name, 'saved_'+color)
-            ifTrue = setToConstantMatrix(savedKey, True)
-            ifFalse = noChangeMatrix(savedKey)
-            colorVics = []
-            for vDict in self.victimsByLocAndColor.values():
-                if color in vDict.keys():
-                    colorVics.append(vDict[color])
+        savedKey = stateKey(human.name, 'saved_'+color)
+        ifTrue = setToConstantMatrix(savedKey, True)
+        ifFalse = noChangeMatrix(savedKey)
+        colorVics = []
+        for vDict in self.victimsByLocAndColor.values():
+            if color in vDict.keys():
+                colorVics.append(vDict[color])
 
-            if len(colorVics) == 0:
-                print('No vics of color', color)
-                continue                    
-            thisAnd = anding([equalRow(stateKey(colorVics[0].name, 'savior'), 'none'),
-                            equalRow(makeFuture(stateKey(colorVics[0].name, 'savior')), human.name)],
-                            ifTrue, ifFalse)
-            for vic in colorVics[1:]:
-                thisAnd = anding([equalRow(stateKey(vic.name, 'savior'), 'none'),
-                                  equalRow(makeFuture(stateKey(vic.name, 'savior')), human.name)],
-                                 ifTrue,
-                                 thisAnd)
+        if len(colorVics) == 0:
+            print('No vics of color', color)
+            return
+        thisAnd = anding([equalRow(stateKey(colorVics[0].name, 'savior'), 'none'),
+                        equalRow(makeFuture(stateKey(colorVics[0].name, 'savior')), human.name)],
+                        ifTrue, ifFalse)
+        for vic in colorVics[1:]:
+            thisAnd = anding([equalRow(stateKey(vic.name, 'savior'), 'none'),
+                              equalRow(makeFuture(stateKey(vic.name, 'savior')), human.name)],
+                             ifTrue,
+                             thisAnd)
 
-            tree = makeTree(thisAnd)
-            self.world.setDynamics(savedKey,action, tree)
+        tree = makeTree(thisAnd)
+        self.world.setDynamics(savedKey,action, tree)
 
     def makeVictimReward(self, agent, model=None, rwd_dict=None):
         """ Human gets reward if flag is set
@@ -378,12 +369,12 @@ class Victims:
 
         agent.setReward(makeTree(rtree), 1., model)
 
-    def getTriageAction(self, human):
+    def getTriageAction(self, human, color):
         if type(human) == str:
             name = human
         else:
             name = human.name
-        return self.triageActs[name]
+        return self.triageActs[name][color]
 
     def getSearchAction(self, human):
         if type(human) == str:
@@ -391,8 +382,8 @@ class Victims:
         else:
             return self.searchActs[human.name]
 
-    def triage(self, human, s):
-        self.world.step(self.getTriageAction(human), select=s)
+    def triage(self, human, s, color):
+        self.world.step(self.getTriageAction(human, color), select=s)
 
     def search(self, human, s):
         self.world.step(self.getSearchAction(human), select=s)

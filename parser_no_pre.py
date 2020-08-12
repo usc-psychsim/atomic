@@ -117,6 +117,30 @@ class DataParser:
             if printTrace:
                 print('Searched and found none')
 
+    def getFOVColor(self, row):
+        for vi in range(self.maxVicsInLoc):
+            if row['victim_' + str(vi) + '_in_FOV']:
+                return row['victim_'+str(vi)+'_color']
+    
+    def getDurationIfTriaging(self, row, originalDuration):        
+        # Quantize duration to 5, 8 or 15
+        if not row['triage_in_progress']:
+            return originalDuration
+        
+        fovColor = self.getFOVColor(row)
+        if originalDuration<=7:
+            duration = 5
+        elif (originalDuration > 7) and (originalDuration < 15):
+            if fovColor == 'Green':
+                duration = 8
+            else:
+                duration = 5
+        elif originalDuration >= 15:
+            if fovColor == 'Green':
+                duration = 8
+            else:
+                duration = 15
+        return duration
 
     def getActionsAndEvents(self, human, printTrace=False, maxEvents=-1):
         self.pData = self.data.loc[self.data['player_ID'] == human]
@@ -145,17 +169,7 @@ class DataParser:
             searchActs = []
             stamp = row['@timestamp']
             duration = row['duration']
-            triageAct = None
-                        
-            if row['triage_in_progress']:
-                triageAct = self.victimsObj.getTriageAction(human)
-                # Quantize duration to 5, 8 or 15
-                if duration<7:
-                    duration = 5
-                elif (duration > 7) and (duration < 15):
-                    duration = 8
-                elif duration >= 15:
-                    duration = 15
+            duration = self.getDurationIfTriaging(row, duration)
 
             if printTrace:
                 print('----', row['seconds'], 'dur', duration, 
@@ -171,9 +185,9 @@ class DataParser:
                     mv = Locations.getMoveAction(human, lastLoc, row['Room_in'])
                     if mv == []:
                         print('unreachable', lastLoc, row['Room_in'], row['@timestamp'])
-                        # Player may be floating in spectator mode.
-                        # Skip until you find a room connected to the last connected room
-                        continue
+#                        ## Transport player to new location by force
+#                        events.append(['loc', row['Room_in']])
+                        continue                        
                     for m in mv:
                         moveActs.append(m)
 
@@ -185,7 +199,8 @@ class DataParser:
                 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
-                    triageAct = self.victimsObj.getTriageAction(human)
+                    fovColor = self.getFOVColor(row)
+                    triageAct = self.victimsObj.getTriageAction(human, fovColor)
                     triageActs.append([triageAct, duration])
                     if printTrace:
                         print('triage started in new room')
@@ -198,7 +213,8 @@ class DataParser:
                 var = 'triage_in_progress'
                 if row[var] != prev[var]:
                     if row[var]:
-                        triageAct = self.victimsObj.getTriageAction(human)
+                        fovColor = self.getFOVColor(row)
+                        triageAct = self.victimsObj.getTriageAction(human, fovColor)
                         triageActs.append([triageAct, duration])
                         if printTrace:
                             print('triage started')
