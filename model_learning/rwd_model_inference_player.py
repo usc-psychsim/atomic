@@ -11,6 +11,7 @@ from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 from parser_no_pre import DataParser
 from victims_no_pre_instance import Victims
+from utils import get_participant_data_props as gpdp
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -24,9 +25,13 @@ __description__ = 'Perform reward model inference in the ASIST world based on hu
                   'A plot is show with the inference evolution.'
 
 try:
-    DATA_FILENAME = sys.argv[1]
+    # pass the index of the data file that you want. The index is over the list returned by the `get_participant_data_props` function, more files can be added to that list in `utils.py`
+    DATA_FILE_IDX = int(sys.argv[1])
 except IndexError:
-    DATA_FILENAME = 'data/processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'
+    DATA_FILE_IDX = 0
+
+TRAJ_START = 0
+TRAJ_STOP = -1
 
 OBSERVER_NAME = 'ATOMIC'
 YELLOW_VICTIM = 'Gold'
@@ -61,10 +66,18 @@ MAX_TRAJ_LENGTH = 100
 def _get_fancy_name(name):
     return name.title().replace('_', ' ')
 
-
 if __name__ == '__main__':
     # create output
     create_clear_dir(OUTPUT_DIR)
+
+    pdp = gpdp()
+    pdp_itm = DATA_FILE_IDX
+    # 5 -- prefer none
+    #
+
+    DATA_FILENAME = pdp[pdp_itm]['fname']
+    TRAJ_START = pdp[pdp_itm]['start']
+    TRAJ_STOP = pdp[pdp_itm]['stop']
 
     # sets up log to file
     logging.basicConfig(
@@ -123,7 +136,11 @@ if __name__ == '__main__':
     parser.victimsObj = victimsObj
     aes, _ = parser.getActionsAndEvents(agent.name, True, MAX_TRAJ_LENGTH)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
-    trajectory = parser.runTimeless(world, agent.name, aes, 0, len(aes), len(aes))
+
+    if TRAJ_STOP == -1:
+        TRAJ_STOP = len(aes)
+
+    trajectory = parser.runTimeless(world, agent.name, aes, TRAJ_START, TRAJ_STOP, len(aes))
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
 
     # gets evolution of inference over reward models of the agent
