@@ -5,7 +5,9 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
-    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow
+    Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow,\
+    differenceRow
+from psychsim.world import WORLD
 from helpers import anding, oring
 
 class Victims:
@@ -148,8 +150,6 @@ class Victims:
     def makeAllFOVDistrs(fovKey, numVicsInRoom):
         if numVicsInRoom == 0:
             d = {'none': 1}
-#            d = {c:0 for c in Victims.COLORS}
-#            d['none'] = 1
             return Victims.normalizeD(d, fovKey)
 
         if numVicsInRoom == 1:
@@ -261,7 +261,14 @@ class Victims:
         action = human.addAction({'verb': 'triage_'+color}, makeTree(legal))
         
         self.makeSavedColorDyn(human, action, color)
-        self.makeColorChangeDynamics(human, action,'White', locations, color)
+        self.makeFoVDynamics(human, action,'White', locations, color)
+        
+        clock = stateKey(WORLD,'seconds')
+        if color == 'Green':
+            threshold = 7
+        else:
+            threshold = 14
+        longEnough = differenceRow(makeFuture(clock), clock, threshold)
 
         for loc in self.victimsByLocAndColor.keys():
             if color not in self.victimsByLocAndColor[loc].keys():
@@ -274,7 +281,7 @@ class Victims:
             ## Color: if danger is down to 0, victim turns white
             tree = makeTree(anding([equalRow(fovKey, color),
                                     equalRow(locKey, loc),
-                                    equalRow(dangerKey, 1)],
+                                    longEnough],
                                     setToConstantMatrix(colorKey, 'White'),
                                     noChangeMatrix(colorKey)))
             self.world.setDynamics(colorKey,action,tree)
@@ -282,22 +289,22 @@ class Victims:
             ## Savior name: if danger is down to 0, set to human's name. Else none
             tree = makeTree(anding([equalRow(fovKey, color),
                                     equalRow(locKey, loc),
-                                    equalRow(dangerKey, 1)],
+                                    longEnough],
                                     setToConstantMatrix(saviorKey, human.name),
                                     noChangeMatrix(saviorKey)))
             self.world.setDynamics(saviorKey,action,tree)
 
-            ## Danger: dencrement danger by 1
-            tree = makeTree(anding([equalRow(fovKey, color),
-                                    equalRow(locKey, loc)],
-                                    incrementMatrix(dangerKey,-1),
-                                    noChangeMatrix(dangerKey)))
-            self.world.setDynamics(dangerKey,action,tree)
+#            ## Danger: dencrement danger by 1
+#            tree = makeTree(anding([equalRow(fovKey, color),
+#                                    equalRow(locKey, loc)],
+#                                    incrementMatrix(dangerKey,-1),
+#                                    noChangeMatrix(dangerKey)))
+#            self.world.setDynamics(dangerKey,action,tree)
 
 
         self.triageActs[human.name][color] = action
         
-    def makeColorChangeDynamics(self, human, action, newColor, locations, color):
+    def makeFoVDynamics(self, human, action, newColor, locations, color):
         ''' Setting color of victim in FOV 
             For a color: If player colocated with victim of this color and victim's future = new color
             and FOV is this color, set FOV to new color
