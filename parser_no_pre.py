@@ -168,6 +168,7 @@ class DataParser:
             moveActs = []
             searchActs = []
             stamp = row['@timestamp']
+            duration = row['duration']
             duration = self.getDurationIfTriaging(row, duration)
                         
             self.logger.debug('---- %s dur %s %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
