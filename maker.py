@@ -24,12 +24,12 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     agent = world.addAgent('ATOMIC')
 
     ################# Victims and triage actions
-    Victims.FULL_OBS = False
-    Victims.COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
-    # if the following prob's add up to 1, FOV will never be empty after a search
-    Victims.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
-
     victimsObj = Victims()
+    victimsObj.FULL_OBS = False
+    victimsObj.COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
+    # if the following prob's add up to 1, FOV will never be empty after a search
+    victimsObj.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
+
     victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
@@ -54,7 +54,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     incrementTime(world)
 
     ## Make victim expiration dynamics
-    makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, Victims.COLOR_EXPIRY)
+    makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, victimsObj.COLOR_EXPIRY)
 
     ## Create stochastic duration for triage actions
     triageDurationDistr = {}
@@ -70,12 +70,12 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
 
-    if not VictimsObj.FULL_OBS:
+    if not victimsObj.FULL_OBS:
         if use_unobserved:
             logger.debug('Start to make observable variables and priors')
-            VictimsObj.createObsVars4Victims(triageAgent, Locations.AllLocations)
+            victimsObj.createObsVars4Victims(triageAgent, Locations.AllLocations)
         logger.debug('Made observable variables and priors')
-        VictimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
+        victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
         logger.debug('Made search action')
 
     triageAgent.resetBelief()
