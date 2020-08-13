@@ -31,7 +31,7 @@ GREEN_VICTIM = 'Green'
 
 # models
 PREFER_NONE_MODEL = 'prefer_none'
-PREFER_YELLOW_MODEL = 'prefer_yellow'
+PREFER_YELLOW_MODEL = 'prefer_gold'
 PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # create output
     create_clear_dir(OUTPUT_DIR)
 
-    # sets up log to screen
+    # sets up log to file
     logging.basicConfig(
         handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
         format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)

@@ -7,6 +7,8 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
+from model_learning.trajectory import copy_world
+
 from victims_no_pre_instance import Victims
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
@@ -251,11 +253,15 @@ class DataParser:
         attemptRows = [ae for ae in actsAndEvents if ae[-1] == attemptID]
         return attemptRows
 
-
+    @staticmethod
     def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, logger=logging):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
+        Returns a trajectory that can be used for further processing.
         """
+        trajectory = []
+
+        logging.debug(actsAndEvents[start])
         if start == 0:
             [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
@@ -275,6 +281,7 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
+            act = None
             logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
             if t+start >= ffwdTo:
                 input('press any key.. ')
@@ -292,7 +299,6 @@ class DataParser:
                     print('Time now', curTime, 'triage until', newTime)
                     world.step(act, select=selDict)
                 else:
-                    
                     world.step(act)
                 
             elif actEvent[0] == DataParser.SET_FLG:
@@ -305,11 +311,16 @@ class DataParser:
                     world.agents[human].models[model]['beliefs'][key] = world.value2float(key,val)
                 
             elif actEvent[0] == DataParser.SEARCH:
-                sact, color = actEvent[1][0], actEvent[1][1]
+                act, color = actEvent[1][0], actEvent[1][1]
                 k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
                 world.step(sact, select=selDict)
             summarizeState(world,human,logger)
+
+            if act is not None:
+                trajectory.append((copy_world(world), act))
+
+        return trajectory
 
     def player_name(self):
         """

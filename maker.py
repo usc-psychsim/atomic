@@ -55,6 +55,9 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
 
     ## Make victim expiration dynamics
     makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, victimsObj.COLOR_EXPIRY)
+    ## Reflect victims turning to red on player's FOV
+    victimsObj.makeFoVDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
+    victimsObj.makeFoVDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
 
     ## Create stochastic duration for triage actions
     triageDurationDistr = {}
@@ -63,9 +66,6 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
     for color, durs in triageDurationDistr.items():
         stochasticTriageDur(victimsObj, durs, world, color)
 
-    ## Reflect victims turning to red on player's FOV  and CH
-    victimsObj.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
-    victimsObj.makeColorChangeDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
 
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
