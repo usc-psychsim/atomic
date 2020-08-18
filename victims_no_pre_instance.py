@@ -18,18 +18,18 @@ class Victims:
         COLOR_REQD_TIMES: Number of seconds of triage required to save a victim
         COLOR_EXPIRY: Number of seconds until victim dies
         COLOR_PRIOR_P_P: Probability of a victim of a given color being present in a room
-        COLOR_FOV_P: Probability that a player's FOV has a victim of a given color after a search action 
-        
+        COLOR_FOV_P: Probability that a player's FOV has a victim of a given color after a search action
+
         STR_TRIAGE_ACT: String label for triage action
         STR_FOV_VAR: String label for the data field that indicates color of victim in FOV
-        
+
         FULL_OBS: Observability of domain
 
         self.victimsByLocAndColor: A dict mapping a room to a dict mapping a color to the corresponding victim object
-        
+
         self.triageActs: A map from a player to her triage actions
         self.searchActs: A map from a player to her search actions
-        
+
         self.world: link to domain psychsim self.world
 
     """
@@ -46,15 +46,15 @@ class Victims:
 
     STR_TRIAGE_ACT = 'actTriage'
     STR_FOV_VAR = 'vicInFOV'
-    
+
     def __init__(self):
-    
+
         self.victimsByLocAndColor = {}
-        
+
         self.triageActs = {}
         self.searchActs = {}
         self.world = None
-    
+
     def makeVictims(self, vLocations, colors, humanNames, locationNames):
         """Method for creating victims in the self.world
 
@@ -92,7 +92,7 @@ class Victims:
 
         self.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
         victim.setState('savior', 'none')
-                
+
         if loc not in self.victimsByLocAndColor.keys():
             self.victimsByLocAndColor[loc] = {}
         self.victimsByLocAndColor[loc][color] = victim
@@ -102,8 +102,8 @@ class Victims:
         for color in Victims.COLOR_REQD_TIMES.keys():
             key = self.world.defineState(triageAgent.name, 'saved_' + color, bool)
             self.world.setFeature(key, False)
-            
-        # create and initialize fov/crosshair/approached vars 
+
+        # create and initialize fov/crosshair/approached vars
         self.world.defineState(triageAgent.name,Victims.STR_FOV_VAR,list, ['none'] + Victims.COLORS)
         triageAgent.setState(Victims.STR_FOV_VAR,'none')
 
@@ -111,7 +111,7 @@ class Victims:
         self.triageActs[triageAgent.name] = {}
         for color in Victims.COLOR_EXPIRY.keys():
             self.makeTriageAction(triageAgent, locations, color)
-        
+
         self.makeVictimReward(triageAgent)
         ## TODO: insert victim sensor creation here
 
@@ -213,7 +213,7 @@ class Victims:
                         else:
                             tree[il][ic0][ic1] = allDistributions[c0][c1][0][0]
         return tree
-    
+
     def makeSearchAction(self, human, allLocations):
         action = human.addAction({'verb': 'search'})
 
@@ -237,7 +237,7 @@ class Victims:
 
         self.searchActs[human.name] = action
         self.resetJustSavedFlags(human, action)
-        return 
+        return
 
     def resetJustSavedFlags(self, human, action):
         for color in Victims.COLOR_REQD_TIMES.keys():
@@ -247,7 +247,7 @@ class Victims:
 
     def makeTriageAction(self, human, locations, color):
         """
-        Legal action if victim in FOV is Gold 
+        Legal action if victim in FOV is Gold
 
         Action effects: For every loc, color, the corresponding victim's state is changed
         if player is in that location and FOV victim is that color
@@ -259,10 +259,10 @@ class Victims:
 
         legal = {'if':equalRow(fovKey, color), True:True, False:False}
         action = human.addAction({'verb': 'triage_'+color}, makeTree(legal))
-        
+
         self.makeSavedColorDyn(human, action, color)
         self.makeFoVDynamics(human, action,'White', locations, color)
-        
+
         clock = stateKey(WORLD,'seconds')
         if color == 'Green':
             threshold = 7
@@ -285,7 +285,7 @@ class Victims:
                                     setToConstantMatrix(colorKey, 'White'),
                                     noChangeMatrix(colorKey)))
             self.world.setDynamics(colorKey,action,tree)
-                            
+
             ## Savior name: if danger is down to 0, set to human's name. Else none
             tree = makeTree(anding([equalRow(fovKey, color),
                                     equalRow(locKey, loc),
@@ -303,30 +303,30 @@ class Victims:
 
 
         self.triageActs[human.name][color] = action
-        
+
     def makeFoVDynamics(self, human, action, newColor, locations, color):
-        ''' Setting color of victim in FOV 
+        ''' Setting color of victim in FOV
             For a color: If player colocated with victim of this color and victim's future = new color
             and FOV is this color, set FOV to new color
         '''
         humanLoc = stateKey(human.name, 'loc')
-        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)            
+        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
         ifTrue = setToConstantMatrix(fovKey, newColor)
         ifFalse = noChangeMatrix(fovKey)
-        
+
         ## This tree has a branch per location
         mainTree = {'if':equalRow(humanLoc, locations)}
         for ic, loc in enumerate(locations):
-            ## If location has no victims or none of this color, no change 
+            ## If location has no victims or none of this color, no change
             if (loc not in self.victimsByLocAndColor.keys()) or (color not in self.victimsByLocAndColor[loc].keys()):
                 mainTree[ic] = ifFalse
                 continue
-            
+
             vic = self.victimsByLocAndColor[loc][color]
             mainTree[ic] = anding([equalRow(fovKey, color),
                             equalRow(makeFuture(stateKey(vic.name, 'color')), newColor)],
-                            ifTrue,ifFalse)            
-            
+                            ifTrue,ifFalse)
+
         self.world.setDynamics(fovKey, action, makeTree(mainTree))
 
 
