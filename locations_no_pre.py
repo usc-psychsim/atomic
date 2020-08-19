@@ -56,7 +56,7 @@ class Locations:
                 Locations.Nbrs[d][room] = n
                 Locations.AllLocations.add(n)
 
-    def makePlayerLocation(human, victimsObj, initLoc=None):
+    def makePlayerLocation(human, initLoc=None):
         Locations.world.defineState(human,'loc',list, list(Locations.AllLocations))
         if initLoc != None:
             Locations.world.setState(human.name, 'loc', initLoc)
@@ -69,10 +69,10 @@ class Locations:
             Locations.world.setState(human.name, 'locvisits_' + str(initLoc), 1)
 
         ## Make move actions
-        Locations.__makeMoveActions(human, victimsObj)
+        Locations.__makeMoveActions(human)
         Locations.__makeExplorationBonus(human)
 
-    def __makeMoveActions(human, victimsObj):
+    def __makeMoveActions(human):
         """
         N/E/S/W actions
         Legality: if current location has a neighbor in the given direction
@@ -108,9 +108,6 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
                 
-            # A move resets the flags of whether I just saved someone
-            victimsObj.resetJustSavedFlags(human, action)
-
             fovKey  = stateKey(human.name, 'vicInFOV')
             ## If we're using search actions, a move resets the FOV
             tree = makeTree(setToConstantMatrix(fovKey, 'none'))

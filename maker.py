@@ -7,7 +7,7 @@ Created on Sat Jun 20 15:39:15 2020
 """
 from psychsim.world import World, WORLD
 from locations_no_pre import Locations
-from victims_no_pre_instance import Victims
+from multivic import Victims
 from psychsim.pwl import modelKey, rewardKey
 from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
 
@@ -27,6 +27,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     Victims.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 
     victimsObj = Victims()
+    victimsObj.countSaved = False
     victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
@@ -42,7 +43,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     Locations.EXPLORE_BONUS = 0
     Locations.world = world
     Locations.makeMapDict(SandRLocs)
-    Locations.makePlayerLocation(triageAgent, victimsObj, initLoc)
+    Locations.makePlayerLocation(triageAgent, initLoc)
     Locations.AllLocations = list(Locations.AllLocations)
     print('Made move actions')
 
@@ -53,8 +54,8 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True):
     ## Make victim expiration dynamics
     makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, Victims.COLOR_EXPIRY)
     ## Reflect victims turning to red on player's FOV
-    victimsObj.makeFoVDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
-    victimsObj.makeFoVDynamics(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
+    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
+    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
 
     ## Create stochastic duration for triage actions
     triageDurationDistr = {}
