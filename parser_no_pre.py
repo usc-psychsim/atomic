@@ -261,7 +261,7 @@ class DataParser:
         """
         trajectory = []
 
-        logging.debug(actsAndEvents[start])
+        logger.debug(actsAndEvents[start])
         if start == 0:
             [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
@@ -314,7 +314,7 @@ class DataParser:
                 act, color = actEvent[1][0], actEvent[1][1]
                 k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
-                world.step(sact, select=selDict)
+                world.step(act, select=selDict)
             summarizeState(world,human,logger)
 
             if act is not None:
