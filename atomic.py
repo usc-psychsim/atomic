@@ -9,7 +9,7 @@ import traceback
 from SandRMap import getSandRMap, getSandRVictims
 from parser_no_pre import DataParser
 from locations_no_pre import Locations
-from victims_no_pre import Victims
+from victims_no_pre_instance import Victims
 from maker import makeWorld
 
 maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         logger.debug('Full path: %s' % (fname))
         # Parse events from log file
         try:
-            parser = DataParser(fname)#,logger=logger.getChild(DataParser.__name__))
+            parser = DataParser(fname,logger=logger.getChild(DataParser.__name__))
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to parse log file')
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         logger.info('Creating world with "%s" map' % (map_name))
         Victims.logger = logger.getChild(Victims.__name__)
         try:
-            world, triageAgent, agent, debug = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
+            world, triageAgent, agent, victims = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
                 map_table['victims'],False, logger=logger.getChild('makeWorld'))
         except:
             logger.error(traceback.format_exc())
@@ -87,6 +87,7 @@ if __name__ == '__main__':
             else:
                 continue
         # Replay actions from log file
+        parser.victimsObj = victims
         try:
             aes,data = parser.getActionsAndEvents(triageAgent.name)
         except:
@@ -112,6 +113,6 @@ if __name__ == '__main__':
                 continue
         if args['1']:
             break
-        else:
+        elif len(files) > 1:
             Locations.clear()
             Victims.clear()
