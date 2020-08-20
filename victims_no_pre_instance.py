@@ -145,7 +145,7 @@ class Victims:
     def normalizeD(d, key):
         sammy = sum(d.values())
         nd = {c:p/sammy for c,p in d.items()}
-        return [(setToConstantMatrix(key, c), p) for c,p in nd.items()]
+        return [(setToConstantMatrix(key, c), p) for c,p in nd.items() if p > 0]
 
     def makeAllFOVDistrs(fovKey, numVicsInRoom):
         if numVicsInRoom == 0:
