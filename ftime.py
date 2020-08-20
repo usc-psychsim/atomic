@@ -18,16 +18,17 @@ def incrementTime(world):
 def makeExpiryDynamics(victimsByLocAndColor, world, COLOR_EXPIRY):
     clock = stateKey(WORLD,'seconds')
     for colorsToVics in victimsByLocAndColor.values():
-        for color, victim in colorsToVics.items():
+        for color, victims in colorsToVics.items():
             expire = COLOR_EXPIRY[color]
-            clrKey = stateKey(victim.name, 'color')
-            deathTree = anding([equalRow(clrKey, color),
-                                thresholdRow(clock, expire)], 
-                                setToConstantMatrix(clrKey, 'Red'), noChangeMatrix(clrKey))
-            world.setDynamics(clrKey, True, makeTree(deathTree))
+            for victim in victims:
+                clrKey = stateKey(victim.name, 'color')
+                deathTree = anding([equalRow(clrKey, color),
+                                    thresholdRow(clock, expire)], 
+                                    setToConstantMatrix(clrKey, 'Red'), noChangeMatrix(clrKey))
+                world.setDynamics(clrKey, True, makeTree(deathTree))
         
 def stochasticTriageDur(victimsObj, triageDurationDistr, world, color):
-    clock = stateKey(WORLD,'seconds')    
+    clock = stateKey(WORLD,'seconds')
     stochTree = {'distribution': [(incrementMatrix(clock, c), p) for c,p in triageDurationDistr.items()]}
     for actions in victimsObj.triageActs.values():
         triageActColor = actions[color]

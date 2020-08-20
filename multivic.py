@@ -8,7 +8,7 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow,\
     differenceRow
 from psychsim.world import WORLD
-from helpers import anding, oring
+from helpers import anding
 
 class Victims:
     """ Methods for modeling victims within a psychsim self.world.
@@ -18,18 +18,18 @@ class Victims:
         COLOR_REQD_TIMES: Number of seconds of triage required to save a victim
         COLOR_EXPIRY: Number of seconds until victim dies
         COLOR_PRIOR_P_P: Probability of a victim of a given color being present in a room
-        COLOR_FOV_P: Probability that a player's FOV has a victim of a given color after a search action
-
+        COLOR_FOV_P: Probability that a player's FOV has a victim of a given color after a search action 
+        
         STR_TRIAGE_ACT: String label for triage action
         STR_FOV_VAR: String label for the data field that indicates color of victim in FOV
-
+        
         FULL_OBS: Observability of domain
 
         self.victimsByLocAndColor: A dict mapping a room to a dict mapping a color to the corresponding victim object
-
+        
         self.triageActs: A map from a player to her triage actions
         self.searchActs: A map from a player to her search actions
-
+        
         self.world: link to domain psychsim self.world
 
     """
@@ -46,15 +46,16 @@ class Victims:
 
     STR_TRIAGE_ACT = 'actTriage'
     STR_FOV_VAR = 'vicInFOV'
-
+    
     def __init__(self):
-
+    
         self.victimsByLocAndColor = {}
-
+        
         self.triageActs = {}
         self.searchActs = {}
         self.world = None
-
+        self.countSaved = False
+    
     def makeVictims(self, vLocations, colors, humanNames, locationNames):
         """Method for creating victims in the self.world
 
@@ -73,6 +74,18 @@ class Victims:
             loc = vLocations[vi]
             color = colors[vi]
             self._makeVictim(vi, loc, color, humanNames, locationNames)
+            
+        ## Create location-centric counters for victims of each of the 2 colors
+        victimClrCounts = {loc:{clr:0 for clr in Victims.COLOR_EXPIRY} for loc in locationNames}
+        for loc,clr in zip(vLocations, colors):
+            victimClrCounts[loc][clr] = victimClrCounts[loc][clr] + 1
+            
+        ## Create the psychsim version of these counters
+        for loc in victimClrCounts.keys():
+            for clr in victimClrCounts[loc].keys():
+                ctr = self.world.defineState(WORLD, 'ctr_'+loc+'_'+clr, int)
+                self.world.setFeature(ctr, victimClrCounts[loc][clr])
+
 
     def _makeVictim(self, vi, loc, color, humanNames, locationNames):
         victim = self.world.addAgent('victim' + str(vi))
@@ -92,29 +105,35 @@ class Victims:
 
         self.world.defineState(victim.name,'savior',list, ['none'] + humanNames, description='Name of agent who saved me, if any')
         victim.setState('savior', 'none')
-
+                
         if loc not in self.victimsByLocAndColor.keys():
             self.victimsByLocAndColor[loc] = {}
-        self.victimsByLocAndColor[loc][color] = victim
+        if color not in self.victimsByLocAndColor[loc].keys():
+            self.victimsByLocAndColor[loc][color] = []
+        self.victimsByLocAndColor[loc][color].append(victim)
 
     def setupTriager(self, VICTIMS_LOCS, VICTIM_TYPES, triageAgent, locations):
-        ## Create booleans for whether I just saved a green/gold victim
+        ## Create counter of victims I saved of each color
         for color in Victims.COLOR_REQD_TIMES.keys():
-            key = self.world.defineState(triageAgent.name, 'saved_' + color, bool)
-            self.world.setFeature(key, False)
-
-        # create and initialize fov/crosshair/approached vars
+            if self.countSaved:
+                key = self.world.defineState(triageAgent.name, 'numsaved_' + color, int)
+                self.world.setFeature(key, 0)
+            else:
+                key = self.world.defineState(triageAgent.name, 'numsaved_' + color, bool)
+                self.world.setFeature(key, False)
+            
+        # create and initialize fov
         self.world.defineState(triageAgent.name,Victims.STR_FOV_VAR,list, ['none'] + Victims.COLORS)
         triageAgent.setState(Victims.STR_FOV_VAR,'none')
 
         self.makeVictims(VICTIMS_LOCS, VICTIM_TYPES, [triageAgent.name], locations)
+        
+        ## Create a triage action per victim color
         self.triageActs[triageAgent.name] = {}
         for color in Victims.COLOR_EXPIRY.keys():
             self.makeTriageAction(triageAgent, locations, color)
-
+        
         self.makeVictimReward(triageAgent)
-        ## TODO: insert victim sensor creation here
-
         return []
 
     def getUnObsName(loc,color):
@@ -143,83 +162,42 @@ class Victims:
             	self.world.setFeature(key, dist)
 
     def normalizeD(d, key):
+        if len(d) == 1:
+            return setToConstantMatrix(key, list(d.keys())[0])
+        
         sammy = sum(d.values())
         nd = {c:p/sammy for c,p in d.items()}
-        return [(setToConstantMatrix(key, c), p) for c,p in nd.items() if p > 0]
+        return {'distribution': [(setToConstantMatrix(key, c), p) for c,p in nd.items()]}
 
-    def makeAllFOVDistrs(fovKey, numVicsInRoom):
-        if numVicsInRoom == 0:
-            d = {'none': 1}
-            return Victims.normalizeD(d, fovKey)
-
-        if numVicsInRoom == 1:
-            allDs = dict()
-            for c1 in Victims.COLORS:
-                d = {c1: Victims.COLOR_FOV_P[c1], 'none': 1-Victims.COLOR_FOV_P[c1]}
-#                d = {c:0 for c in Victims.COLORS}
-#                d[c1] = Victims.COLOR_FOV_P[c1]
-#                d['none'] = 1 - sum(Victims.COLOR_FOV_P.values())
-                allDs[c1] = Victims.normalizeD(d, fovKey)
-            return allDs
-
-        if numVicsInRoom == 2:
-            allDs = dict()
-            for c1 in Victims.COLORS:
-                allDs[c1] = dict()
-                for c2 in Victims.COLORS:
-                    d = {}
-#                    d = {c:0 for c in Victims.COLORS}
-                    if c1 == c2:
-                        d[c1] = 2 * Victims.COLOR_FOV_P[c1]
-                    else:
-                        d[c1] = Victims.COLOR_FOV_P[c1]
-                        d[c2] = Victims.COLOR_FOV_P[c2]
-                    d['none'] = 1 - sum(d.values())
-                    allDs[c1][c2] = Victims.normalizeD(d, fovKey)
-            return allDs
-
-    def randomVicInRoom(self, human, humanKey, allLocations):
+    def makeRandomFOVDistr(self, human, humanKey, allLocations):
         tree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations)}
         for il, loc in enumerate(allLocations):
             if loc not in self.victimsByLocAndColor.keys():
-                dist = Victims.makeAllFOVDistrs(humanKey, 0)
-                if len(dist) > 1:
-                    tree[il] = {'distribution': dist}
-                else:
-                    tree[il] = dist[0][0]
+                tree[il] = Victims.normalizeD({'none':1}, humanKey)
                 continue
-            # Get IDs of victims in this room
-            vicsHere = self.victimsByLocAndColor[loc].values()
-            vicsHereNames = [v.name for v in vicsHere]
-            numVicsInLoc = len(vicsHereNames)
-            allDistributions = Victims.makeAllFOVDistrs(humanKey, numVicsInLoc)
-            if numVicsInLoc == 1:
-                v0Color = stateKey(vicsHereNames[0], 'color')
-                tree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
-                for ic,c0 in enumerate(Victims.COLORS):
-                    if len(allDistributions[c0]) > 1:
-                        tree[il][ic] = {'distribution': allDistributions[c0]}
-                    else:
-                        tree[il][ic] = allDistributions[c0][0][0]
-            elif numVicsInLoc == 2:
-                v0Color = stateKey(vicsHereNames[0], 'color')
-                v1Color = stateKey(vicsHereNames[1], 'color')
-                tree[il] = {'if':equalRow(v0Color, Victims.COLORS)}
-                for ic0,c0 in enumerate(Victims.COLORS):
-                    tree[il][ic0] = {'if': equalRow(v1Color, Victims.COLORS)}
-                    for ic1,c1 in enumerate(Victims.COLORS):
-                        if len(allDistributions[c0][c1]) > 1:
-                            tree[il][ic0][ic1] = {'distribution': allDistributions[c0][c1]}
-                        else:
-                            tree[il][ic0][ic1] = allDistributions[c0][c1][0][0]
+            
+            [c1, c2,_,_] = Victims.COLORS
+            allDistribs = {True:{True:Victims.normalizeD({c1:2, c2:2, 'none':1}, humanKey), 
+                                 False:Victims.normalizeD({c1:2,'none':1}, humanKey)},
+                           False:{True:Victims.normalizeD({c2:2, 'none':1}, humanKey), 
+                                  False:Victims.normalizeD({'none':1}, humanKey)}}
+            c1Counter = stateKey(WORLD, 'ctr_'+loc+'_'+c1)
+            c2Counter = stateKey(WORLD, 'ctr_'+loc+'_'+c2)
+            cond1 = thresholdRow(c1Counter, 0)
+            cond2 = thresholdRow(c2Counter, 0)
+            
+            tree[il] = {'if':cond1,
+                        True:  {'if': cond2, True: allDistribs[True][True],  False: allDistribs[True][False]},
+                        False: {'if': cond2, True: allDistribs[False][True], False: allDistribs[False][False]}}
+                        
         return tree
-
+    
     def makeSearchAction(self, human, allLocations):
         action = human.addAction({'verb': 'search'})
 
         ## A victim can randomly appear in FOV
         fovKey  = stateKey(human.name, Victims.STR_FOV_VAR)
-        fovTree = self.randomVicInRoom(human, fovKey, allLocations)
+        fovTree = self.makeRandomFOVDistr(human, fovKey, allLocations)
         self.world.setDynamics(fovKey,action,makeTree(fovTree))
 
         ## For every location and victim color, if this color is in (future) FOV and player in loc,
@@ -236,111 +214,99 @@ class Victims:
                     self.world.setDynamics(obsVicColorKey,action,makeTree(tree))
 
         self.searchActs[human.name] = action
-        self.resetJustSavedFlags(human, action)
-        return
-
-    def resetJustSavedFlags(self, human, action):
-        for color in Victims.COLOR_REQD_TIMES.keys():
-            key = stateKey(human.name, 'saved_' + color)
-            tree = makeTree(setToConstantMatrix(key, False))
-            self.world.setDynamics(key, action, tree)
-
+        
     def makeTriageAction(self, human, locations, color):
-        """
-        Legal action if victim in FOV is Gold
-
-        Action effects: For every loc, color, the corresponding victim's state is changed
-        if player is in that location and FOV victim is that color
-        a) if danger is down to 0: 1) victim is saved, 2) victim remembers savior's name
-        b) Always decrement victim's danger
-        """
         fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
         locKey = stateKey(human.name, 'loc')
 
         legal = {'if':equalRow(fovKey, color), True:True, False:False}
         action = human.addAction({'verb': 'triage_'+color}, makeTree(legal))
-
-        self.makeSavedColorDyn(human, action, color)
-        self.makeFoVDynamics(human, action,'White', locations, color)
-
+        
+        self.setFOVToNewClr(human, action, 'White', locations, color)
+        
         clock = stateKey(WORLD,'seconds')
         if color == 'Green':
             threshold = 7
         else:
             threshold = 14
         longEnough = differenceRow(makeFuture(clock), clock, threshold)
-
+        
         for loc in self.victimsByLocAndColor.keys():
             if color not in self.victimsByLocAndColor[loc].keys():
                 continue
-            victim = self.victimsByLocAndColor[loc][color]
-            colorKey = stateKey(victim.name,'color')
-            dangerKey = stateKey(victim.name,'danger')
+            ## TODO: multiple 
+            victim = self.victimsByLocAndColor[loc][color][0]
+            vcolorKey = stateKey(victim.name,'color')
             saviorKey = stateKey(victim.name,'savior')
+            
+            ## Successful triage conditions
+            conds = [equalRow(fovKey, color),
+                     equalRow(locKey, loc),
+                     longEnough]
 
-            ## Color: if danger is down to 0, victim turns white
-            tree = makeTree(anding([equalRow(fovKey, color),
-                                    equalRow(locKey, loc),
-                                    longEnough],
-                                    setToConstantMatrix(colorKey, 'White'),
-                                    noChangeMatrix(colorKey)))
-            self.world.setDynamics(colorKey,action,tree)
-
-            ## Savior name: if danger is down to 0, set to human's name. Else none
-            tree = makeTree(anding([equalRow(fovKey, color),
-                                    equalRow(locKey, loc),
-                                    longEnough],
-                                    setToConstantMatrix(saviorKey, human.name),
-                                    noChangeMatrix(saviorKey)))
+            ## Color: if successful, victim turns white
+            tree = makeTree(anding(conds,
+                                   setToConstantMatrix(vcolorKey, 'White'),
+                                   noChangeMatrix(vcolorKey)))
+            self.world.setDynamics(vcolorKey,action,tree)
+                            
+            ## Savior:  if successful, set to human's name.
+            tree = makeTree(anding(conds,
+                                   setToConstantMatrix(saviorKey, human.name),
+                                   noChangeMatrix(saviorKey)))
             self.world.setDynamics(saviorKey,action,tree)
 
-#            ## Danger: dencrement danger by 1
-#            tree = makeTree(anding([equalRow(fovKey, color),
-#                                    equalRow(locKey, loc)],
-#                                    incrementMatrix(dangerKey,-1),
-#                                    noChangeMatrix(dangerKey)))
-#            self.world.setDynamics(dangerKey,action,tree)
+            ## location-specific counter of vics of this color: if successful, decrement
+            vicsInLocOfClrKey = stateKey(WORLD, 'ctr_'+loc+'_'+color)
+            tree = makeTree(anding(conds,
+                                   incrementMatrix(vicsInLocOfClrKey, -1),
+                                   noChangeMatrix(vicsInLocOfClrKey)))
+            self.world.setDynamics(vicsInLocOfClrKey,action, tree)  
+            
 
-
+        ## Color saved counter: if successful, increment
+        self.makeSavedCtrDyn(human, action, color)
         self.triageActs[human.name][color] = action
-
-    def makeFoVDynamics(self, human, action, newColor, locations, color):
-        ''' Setting color of victim in FOV
+        
+    def setFOVToNewClr(self, human, action, newColor, locations, color):
+        ''' Setting color of victim in FOV 
             For a color: If player colocated with victim of this color and victim's future = new color
             and FOV is this color, set FOV to new color
         '''
         humanLoc = stateKey(human.name, 'loc')
-        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
+        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)            
         ifTrue = setToConstantMatrix(fovKey, newColor)
         ifFalse = noChangeMatrix(fovKey)
-
+        
         ## This tree has a branch per location
         mainTree = {'if':equalRow(humanLoc, locations)}
         for ic, loc in enumerate(locations):
-            ## If location has no victims or none of this color, no change
+            ## If location has no victims or none of this color, no change 
             if (loc not in self.victimsByLocAndColor.keys()) or (color not in self.victimsByLocAndColor[loc].keys()):
                 mainTree[ic] = ifFalse
                 continue
-
-            vic = self.victimsByLocAndColor[loc][color]
+            
+            ## TODO: multiple vics
+            vic = self.victimsByLocAndColor[loc][color][0]
             mainTree[ic] = anding([equalRow(fovKey, color),
                             equalRow(makeFuture(stateKey(vic.name, 'color')), newColor)],
-                            ifTrue,ifFalse)
-
+                            ifTrue,ifFalse)            
+            
         self.world.setDynamics(fovKey, action, makeTree(mainTree))
 
-
-    def makeSavedColorDyn(self, human, action, color):
+    def makeSavedCtrDyn(self, human, action, color):
         ''' For each color, specify the dynamics for the flag that indicates whether
         player has just saved a victim of this color
         '''
-        savedKey = stateKey(human.name, 'saved_'+color)
+        
+        savedKey = stateKey(human.name, 'numsaved_'+color)
         ifTrue = setToConstantMatrix(savedKey, True)
         ifFalse = noChangeMatrix(savedKey)
         colorVics = []
         for vDict in self.victimsByLocAndColor.values():
             if color in vDict.keys():
-                colorVics.append(vDict[color])
+                for v in vDict[color]:
+                    colorVics.append(v)
 
         if len(colorVics) == 0:
             print('No vics of color', color)
@@ -355,26 +321,63 @@ class Victims:
                              thisAnd)
 
         tree = makeTree(thisAnd)
+        print('made tree')
         self.world.setDynamics(savedKey,action, tree)
+        print('did dynamics of saved ctr/flag')
+
+#
+#        ## Collect all victims of this color
+#        colorVics = []
+#        for vDict in self.victimsByLocAndColor.values():
+#            if color in vDict.keys():
+#                for v in vDict[color]:
+#                    colorVics.append(v)
+#
+#        if len(colorVics) == 0:
+#            print('No vics of this color in the world', color)
+#            return
+#        
+#        savedKey = stateKey(human.name, 'numsaved_'+color)
+#        if self.countSaved:
+#            ifTrue = incrementMatrix(savedKey, 1)
+#            ifFalse = noChangeMatrix(savedKey)
+#        else:
+#            ifTrue = setToConstantMatrix(savedKey, True)
+#            ifFalse = noChangeMatrix(savedKey)
+#            
+#        thisAnd = anding([equalRow(stateKey(colorVics[0].name, 'savior'), 'none'),
+#                        equalRow(makeFuture(stateKey(colorVics[0].name, 'savior')), human.name)],
+#                        ifTrue, ifFalse)
+#        for iv, vic in enumerate( colorVics[1:]):
+#            thisAnd = anding([equalRow(stateKey(vic.name, 'savior'), 'none'),
+#                              equalRow(makeFuture(stateKey(vic.name, 'savior')), human.name)],
+#                             ifTrue,
+#                             thisAnd)
+#        tree = makeTree(thisAnd)
+#        print('made tree')
+#        self.world.setDynamics(savedKey,action, tree)
+#        print('did dynamics of saved ctr/flag')
 
     def makeVictimReward(self, agent, model=None, rwd_dict=None):
         """ Human gets reward if flag is set
         """
-        rKey = rewardKey(agent.name)
-        rtree = nested_tree = {}
-        for color in Victims.COLOR_REQD_TIMES.keys():
-            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
-            key = stateKey(agent.name, 'saved_' + color)
-            if len(nested_tree) > 0 and False not in nested_tree:
-                nested_tree[False] = {}
-                nested_tree = nested_tree[False]
-            nested_tree['if'] = trueRow(key)
-            nested_tree[True] = setToConstantMatrix(rKey, rwd)
-
-        if len(rtree) > 0:
-            nested_tree[False] = noChangeMatrix(rKey)
-
-        agent.setReward(makeTree(rtree), 1., model)
+#        rKey = rewardKey(agent.name)
+#        rtree = nested_tree = {}
+#        for color in Victims.COLOR_REQD_TIMES.keys():
+#            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
+#            if len(nested_tree) > 0 and False not in nested_tree:
+#                nested_tree[False] = {}
+#                nested_tree = nested_tree[False]
+#                
+#            ## If number of saved victims of this color increased by 1
+#            key = stateKey(agent.name, 'numsaved_' + color)
+#            nested_tree['if'] = differenceRow(makeFuture(key), key, 1)
+#            nested_tree[True] = setToConstantMatrix(rKey, rwd)
+#
+#        if len(rtree) > 0:
+#            nested_tree[False] = noChangeMatrix(rKey)
+#
+#        agent.setReward(makeTree(rtree), 1., model)
 
     def getTriageAction(self, human, color):
         if type(human) == str:

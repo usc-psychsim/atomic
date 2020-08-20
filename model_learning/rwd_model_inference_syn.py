@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
 from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
@@ -9,7 +10,7 @@ from model_learning.util.io import create_clear_dir, save_object
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
-from victims_clr import Victims
+from victims_no_pre_instance import Victims
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -22,7 +23,9 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
                   'of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-NUM_STEPS = 100
+EXPT = 'sparky'
+isSmall = True
+NUM_STEPS = 20
 
 OBSERVER_NAME = 'ATOMIC'
 AGENT_NAME = 'Player'
@@ -36,7 +39,7 @@ PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
 # agents properties
-HORIZON = 2
+HORIZON = 3
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
 MODEL_RATIONALITY = .5
 AGENT_SELECTION = 'random'
@@ -69,8 +72,22 @@ if __name__ == '__main__':
     # MDP or POMDP
     Victims.FULL_OBS = FULL_OBS
 
+    if EXPT == 'falcon':
+        adj_fname = 'falcon_adjacency_v1.1_OCN'
+        vics_fname = 'falcon_vic_locs_v1.1_OCN'
+        start_room = 'el'
+        isSmall = False
+    elif EXPT == 'sparky':
+        adj_fname = 'sparky_adjacency'
+        vics_fname = 'sparky_vic_locs'
+        start_room = 'CH4'
+    else:
+        raise NameError(f'Experiment "{EXPT}" is not implemented yet')
+
+    sr_map = getSandRMap(small=isSmall,fldr='data',fname=adj_fname)
+    sr_vics = getSandRVictims(small=isSmall,fldr='data',fname=vics_fname)
     # create world, agent and observer
-    world, agent, observer, _ = makeWorld(AGENT_NAME, 'BH2', getSandRMap(), getSandRVictims(), False)
+    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
@@ -83,14 +100,14 @@ if __name__ == '__main__':
 
     # reward models (as linear combinations of victim color)
     mm_list = {
-        PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
+        #  PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
         PREFER_GREEN_MODEL: {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
         PREFER_YELLOW_MODEL: {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL}  # should be the most likely at the end
     }
     for name, rwd_dict in mm_list.items():
         if name != true_model:
             agent.addModel(name, parent=true_model, rationality=MODEL_RATIONALITY, selection=MODEL_SELECTION)
-        Victims.makeVictimReward(agent, name, rwd_dict)
+        victimsObj.makeVictimReward(agent, name, rwd_dict)
 
     if INCLUDE_RANDOM_MODEL:
         agent.addModel(RANDOM_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
@@ -115,7 +132,7 @@ if __name__ == '__main__':
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent
-    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')])
+    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')],verbose=False)
 
     # create and save inference evolution plot
     plot_evolution(probs.T, [_get_fancy_name(name) for name in model_names],

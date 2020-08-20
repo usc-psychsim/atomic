@@ -7,9 +7,8 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
-from model_learning.trajectory import copy_world
+#from model_learning.trajectory import copy_world
 
-from victims_no_pre_instance import Victims
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -28,22 +27,23 @@ class DataParser:
             self.data = pd.read_excel(filename)
         elif filename.endswith('csv'):
             self.data = pd.read_csv(filename)
+        self.maxVicsInLoc = self.data['num_victims'].max()
+
         self.cols = [
                     'Room_in',
                     'num_victims',
-                    'victim_0_id',
-                    'victim_1_id',
-                    'victim_0_color',
-                    'victim_1_color',
-                    'victim_0_in_FOV',
-                    'victim_1_in_FOV',
                     'isAVicInFOV',
                     'event_triage_victim_id',
                     'triage_in_progress',
                     'triage_result']
         
-        self.maxVicsInLoc = 2
         self.logger = logger
+
+        for iv in range(self.maxVicsInLoc):
+            self.cols = self.cols + [
+                    'victim_'+str(iv)+'_id',
+                    'victim_'+str(iv)+'_color',
+                    'victim_'+str(iv)+'_in_FOV']
 
         # Remove rows w/o locations
         self.logger.info('Number of rows %d' % (len(self.data)))
@@ -74,11 +74,15 @@ class DataParser:
         self.data['Room_in'].replace(newRooms, inplace=True)
 
         ## Create flag for whether any victim is in FOV
-        self.data['isAVicInFOV'] = self.data['victim_0_in_FOV'] | self.data['victim_1_in_FOV']
+        self.data['isAVicInFOV'] = self.data['victim_0_in_FOV']
+        for iv in range(1, self.maxVicsInLoc):
+            self.data['isAVicInFOV'] = self.data['isAVicInFOV'] | self.data['victim_'+str(iv)+'_in_FOV']
         
-        manyInFov = self.data[self.data['victim_0_in_FOV'] & self.data['victim_1_in_FOV']]
-        if len(manyInFov) > 0:
-            self.logger.warning('%d rows with multiple victims in FOV' % (len(manyInFov)))
+        manyInFov = self.data['victim_0_in_FOV'] 
+        for iv in range(1, self.maxVicsInLoc):
+            manyInFov = manyInFov & self.data['victim_'+str(iv)+'_in_FOV']
+        if sum(manyInFov) > 0:
+            self.logger.warning('%d rows with multiple victims in FOV' % (sum(manyInFov)))
 
         # Collect names of locations
         self.locations = [str(loc) for loc in self.data['Room_in'].unique()]
@@ -152,6 +156,8 @@ class DataParser:
         ## Sort by time
         self.pData = self.pData.loc[:, ['@timestamp', 'seconds'] + self.cols].sort_values('@timestamp', axis = 0)
 
+        self.pData.to_csv('debug.csv')
+
         ## Drop consecutive duplicate entries (ignoring the timestamp)
         self.pData = self.pData.loc[(self.pData[self.cols].shift() != self.pData[self.cols]).any(axis=1)]
         self.logger.info('Dropped duplicates. Down to %d' % (len(self.pData)))
@@ -198,6 +204,7 @@ class DataParser:
                 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
+                    ## event_triage_victim_id
                     fovColor = self.getFOVColor(row)
                     triageAct = self.victimsObj.getTriageAction(human, fovColor)
                     triageActs.append([triageAct, duration])
@@ -317,8 +324,8 @@ class DataParser:
                 world.step(act, select=selDict)
             summarizeState(world,human,logger)
 
-            if act is not None:
-                trajectory.append((copy_world(world), act))
+#            if act is not None:
+#                trajectory.append((copy_world(world), act))
 
         return trajectory
 
@@ -345,5 +352,5 @@ def summarizeState(world,human,logger=logging):
             logger.debug('%s color: %s' % (name,world.getState(name,'color',unique=True)))
     logger.debug('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
     logger.debug('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
-    logger.debug('JustSavedGr: %s' % (world.getState(human,'saved_Green',unique=True)))
-    logger.debug('JustSavedGd: %s' % (world.getState(human,'saved_Gold',unique=True)))
+    logger.debug('JustSavedGr: %s' % (world.getState(human,'numsaved_Green',unique=True)))
+    logger.debug('JustSavedGd: %s' % (world.getState(human,'numsaved_Gold',unique=True)))
