@@ -361,23 +361,16 @@ class Victims:
     def makeVictimReward(self, agent, model=None, rwd_dict=None):
         """ Human gets reward if flag is set
         """
-#        rKey = rewardKey(agent.name)
-#        rtree = nested_tree = {}
-#        for color in Victims.COLOR_REQD_TIMES.keys():
-#            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
-#            if len(nested_tree) > 0 and False not in nested_tree:
-#                nested_tree[False] = {}
-#                nested_tree = nested_tree[False]
-#                
-#            ## If number of saved victims of this color increased by 1
-#            key = stateKey(agent.name, 'numsaved_' + color)
-#            nested_tree['if'] = differenceRow(makeFuture(key), key, 1)
-#            nested_tree[True] = setToConstantMatrix(rKey, rwd)
-#
-#        if len(rtree) > 0:
-#            nested_tree[False] = noChangeMatrix(rKey)
-#
-#        agent.setReward(makeTree(rtree), 1., model)
+        rwd_key = rewardKey(agent.name)
+        colors = [color for color in Victims.COLOR_REQD_TIMES.keys()]
+        triage_actions = [self.getTriageAction(agent, color) for color in colors]
+        rwd_tree = {'if': equalRow(actionKey(agent.name), triage_actions),
+                    None: noChangeMatrix(rwd_key)}
+        for i, color in enumerate(colors):
+            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
+            rwd_tree[i] = setToConstantMatrix(rwd_key, rwd)
+
+        agent.setReward(makeTree(rwd_tree), 1., model)
 
     def getTriageAction(self, human, color):
         if type(human) == str:
