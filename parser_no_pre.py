@@ -6,8 +6,7 @@ Created on Thu Apr  2 20:35:23 2020
 @author: mostafh
 """
 import pandas as pd
-#from model_learning.trajectory import copy_world
-
+from model_learning.trajectory import copy_world
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -327,8 +326,8 @@ class DataParser:
                 world.step(act, select=selDict)
             summarizeState(world,human)
 
-#            if act is not None:
-#                trajectory.append((copy_world(world), act))
+            if act is not None:
+                trajectory.append((copy_world(world), act))
 
         return trajectory
 

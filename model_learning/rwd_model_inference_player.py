@@ -59,12 +59,13 @@ OUTPUT_DIR = 'output/reward-model-inference-data'
 DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
-FULL_OBS = False
+FULL_OBS = True  # False
 MAX_TRAJ_LENGTH = 100
 
 
 def _get_fancy_name(name):
     return name.title().replace('_', ' ')
+
 
 if __name__ == '__main__':
     # create output
@@ -92,7 +93,8 @@ if __name__ == '__main__':
     Victims.FULL_OBS = FULL_OBS
 
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(player_name, 'BH2', getSandRMap(), getSandRVictims(), False)
+    world, agent, observer, victimsObj = makeWorld(
+        player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS, True)
 
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
