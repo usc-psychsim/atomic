@@ -20,7 +20,7 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     triageAgent = world.addAgent(playerName)
     agent = world.addAgent('ATOMIC')
 
-    ################# Victims and triage actions
+    ################# Victims
     Victims.FULL_OBS = full_obs
     Victims.COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
     # if the following prob's add up to 1, FOV will never be empty after a search
@@ -47,15 +47,18 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     Locations.AllLocations = list(Locations.AllLocations)
     print('Made move actions')
 
+    ### Triage action (has to come after FOV and locations)
+    victimsObj.createTriageActions(triageAgent, list(SandRLocs.keys()))
+
     ################# T I M E
     ## Increment time by default
     incrementTime(world)
 
     ## Make victim expiration dynamics
-    makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, Victims.COLOR_EXPIRY)
-    ## Reflect victims turning to red on player's FOV
-    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
-    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
+    makeExpiryDynamics([triageAgent.name], list(SandRLocs.keys()), world, Victims.COLOR_EXPIRY)
+    # ## Reflect victims turning to red on player's FOV
+    # victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
+    # victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
 
     ## Create stochastic duration for triage actions
     triageDurationDistr = {}
@@ -72,9 +75,9 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
         if use_unobserved:
             print('Start to make observable variables and priors')
             victimsObj.createObsVars4Victims(triageAgent, Locations.AllLocations)
-        print('Made observable variables and priors')
-        victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
-        print('Made search action')
+        # print('Made observable variables and priors')
+    victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
+    print('Made search action')
 
     # agents do not model themselves and see everything except true models and their reward
     triageAgent.resetBelief(ignore={modelKey(agent.name)})

@@ -9,7 +9,6 @@ from model_learning.util.io import create_clear_dir, save_object
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
-from victims_no_pre_instance import Victims
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -38,7 +37,7 @@ PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
 # agents properties
-HORIZON = 3
+HORIZON = 2
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
 MODEL_RATIONALITY = .5
 AGENT_SELECTION = 'random'
@@ -52,7 +51,7 @@ OUTPUT_DIR = 'output/reward-model-inference'
 DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
-FULL_OBS = False
+FULL_OBS = True
 
 
 def _get_fancy_name(name):
@@ -84,7 +83,7 @@ if __name__ == '__main__':
     sr_vics = getSandRVictims(small=isSmall, fldr='data', fname=vics_fname)
 
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, True, FULL_OBS, True)
+    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False, FULL_OBS, True)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
