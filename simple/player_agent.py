@@ -1,8 +1,8 @@
+from locations_no_pre import Directions
 from psychsim.agent import Agent
 from psychsim.pwl import equalRow, thresholdRow, makeTree, noChangeMatrix, setToConstantMatrix, rewardKey, \
     dynamicsMatrix, actionKey, setToFeatureMatrix, modelKey
 from psychsim.reward import achieveFeatureValue
-from new_locations import Directions
 from model_learning.trajectory import generate_trajectories
 from simple.sar_world import SearchAndRescueWorld, INIT_LOC, VIC_COLORS, TRIAGE_COLORS
 
