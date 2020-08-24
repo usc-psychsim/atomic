@@ -6,7 +6,7 @@ The module contains classes and methods for dealing with victims in the ASIST S&
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow, \
-    differenceRow
+    differenceRow, dynamicsMatrix, greaterThanRow, setTrueMatrix
 from psychsim.world import WORLD
 from helpers import anding
 
@@ -55,7 +55,7 @@ class Victims:
         self.triageActs = {}
         self.searchActs = {}
         self.world = None
-        self.countSaved = False
+        # self.countSaved = False
 
     def makeVictims(self, vLocations, colors, humanNames, locationNames):
         """Method for creating victims in the self.world
@@ -116,12 +116,17 @@ class Victims:
     def setupTriager(self, VICTIMS_LOCS, VICTIM_TYPES, triageAgent, locations):
         ## Create counter of victims I saved of each color
         for color in Victims.COLOR_REQD_TIMES.keys():
-            if self.countSaved:
-                key = self.world.defineState(triageAgent.name, 'numsaved_' + color, int)
-                self.world.setFeature(key, 0)
-            else:
-                key = self.world.defineState(triageAgent.name, 'numsaved_' + color, bool)
-                self.world.setFeature(key, False)
+            # if self.countSaved:
+            #     key = self.world.defineState(triageAgent.name, 'numsaved_' + color, int)
+            #     self.world.setFeature(key, 0)
+            # else:
+            #     key = self.world.defineState(triageAgent.name, 'numsaved_' + color, bool)
+            #     self.world.setFeature(key, False)
+
+            key = self.world.defineState(triageAgent.name, 'numsaved_' + color, int)
+            self.world.setFeature(key, 0)
+            key = self.world.defineState(triageAgent.name, 'saved_' + color, bool)
+            self.world.setFeature(key, False)
 
         # create and initialize fov
         self.world.defineState(triageAgent.name, Victims.STR_FOV_VAR, list, ['none'] + Victims.COLORS)
@@ -227,6 +232,7 @@ class Victims:
         fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
         fovTree = self.makeRandomFOVDistr(human, fovKey, allLocations, Victims.FULL_OBS)
         self.world.setDynamics(fovKey, action, makeTree(fovTree))
+        self.world.setDynamics(fovKey, True, makeTree(setToConstantMatrix(fovKey, 'none')))  # default: FOV is none
 
         # ## For every location and victim color, if this color is in (future) FOV and player in loc,
         # ## set the corresponding observed variable to True
@@ -278,13 +284,25 @@ class Victims:
                                    noChangeMatrix(vicsInLocOfClrKey)))
             self.world.setDynamics(vicsInLocOfClrKey, action, tree)
 
-        ## Fov update to white
-        fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
-        self.world.setDynamics(fovKey, action, makeTree(setToConstantMatrix(fovKey, 'White')))
+        # Fov update to white
+        tree = {'if': longEnough,
+                True: setToConstantMatrix(fovKey, 'White'),
+                False: noChangeMatrix(fovKey)}
+        self.world.setDynamics(fovKey, action, makeTree(tree))
 
-        ## Color saved counter: increment
+        # Color saved counter: increment
         saved_key = stateKey(human.name, 'numsaved_' + color)
-        self.world.setDynamics(saved_key, action, makeTree(incrementMatrix(saved_key, 1)))
+        tree = {'if': longEnough,
+                True: incrementMatrix(saved_key, 1),
+                False: noChangeMatrix(saved_key)}
+        self.world.setDynamics(saved_key, action, makeTree(tree))
+
+        # Color saved: according to difference
+        diff = {makeFuture(saved_key): 1, saved_key: -1}
+        saved_key = stateKey(human.name, 'saved_' + color)
+        self.world.setDynamics(saved_key, action, makeTree(dynamicsMatrix(saved_key, diff)))
+        self.world.setDynamics(saved_key, True, makeTree(setFalseMatrix(saved_key)))  # default: set to False
+
         self.triageActs[human.name][color] = action
 
         # fovKey = stateKey(human.name, Victims.STR_FOV_VAR)
@@ -432,16 +450,19 @@ class Victims:
     def makeVictimReward(self, agent, model=None, rwd_dict=None):
         """ Human gets reward if flag is set
         """
-        rwd_key = rewardKey(agent.name)
-        colors = [color for color in Victims.COLOR_REQD_TIMES.keys()]
-        triage_actions = [self.getTriageAction(agent, color) for color in colors]
-        rwd_tree = {'if': equalRow(actionKey(agent.name), triage_actions),
-                    None: noChangeMatrix(rwd_key)}
-        for i, color in enumerate(colors):
-            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
-            rwd_tree[i] = setToConstantMatrix(rwd_key, rwd)
 
-        agent.setReward(makeTree(rwd_tree), 1., model)
+        # collects victims saved of each color
+        colors = list(Victims.COLOR_REQD_TIMES.keys())
+        weights = {}
+        for color in colors:
+            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else Victims.COLOR_REWARDS[color]
+            if rwd == 0:
+                continue
+            saved_key = stateKey(agent.name, 'saved_' + color)
+            weights[saved_key] = rwd
+
+        rwd_key = rewardKey(agent.name)
+        agent.setReward(makeTree(dynamicsMatrix(rwd_key, weights)), 1., model)
 
     def getTriageAction(self, human, color):
         if type(human) == str:

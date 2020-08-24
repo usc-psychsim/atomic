@@ -83,7 +83,7 @@ if __name__ == '__main__':
     sr_vics = getSandRVictims(small=isSmall, fldr='data', fname=vics_fname)
 
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False, FULL_OBS, True)
+    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False, FULL_OBS)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})

@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     # create world, agent and observer
     world, agent, observer, victimsObj = makeWorld(
-        player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS, True)
+        player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS)
 
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)

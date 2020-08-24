@@ -12,7 +12,7 @@ from psychsim.pwl import modelKey, rewardKey
 from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
 
 
-def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False, count_saved=False):
+def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False):
     world = World()
     time = world.defineState(WORLD, 'seconds', int)
     world.setFeature(time, 0)
@@ -27,7 +27,6 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     Victims.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 
     victimsObj = Victims()
-    victimsObj.countSaved = count_saved
     victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
