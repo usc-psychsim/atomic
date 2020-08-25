@@ -9,13 +9,16 @@ from psychsim.world import World, WORLD
 from locations_no_pre import Locations
 from multivic import Victims
 from psychsim.pwl import modelKey, rewardKey
-from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
+from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur, PHASE_FEATURE, MISSION_PHASES, START_STR
 
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False):
     world = World()
-    time = world.defineState(WORLD, 'seconds', int)
+    time = world.defineState(WORLD, 'seconds', int, description='The mission clock time')
     world.setFeature(time, 0)
+
+    phase_feat = world.defineState(WORLD, PHASE_FEATURE, list, MISSION_PHASES, description='The mission phase')
+    world.setFeature(phase_feat, START_STR)
 
     triageAgent = world.addAgent(playerName)
     agent = world.addAgent('ATOMIC')

@@ -7,14 +7,31 @@ Created on Mon May 25 14:33:33 2020
 """
 from helpers import anding
 from multivic import Victims
-
 from psychsim.pwl import makeTree, incrementMatrix, \
     equalRow, setToConstantMatrix, stateKey, noChangeMatrix, thresholdRow, addFeatureMatrix
 from psychsim.world import WORLD
 
+# mission phases
+PHASE_FEATURE = 'phase'
+END_STR = 'end'
+NEAR_END_STR = 'near_end'
+MIDDLE_STR = 'middle'
+NEAR_MIDDLE_STR = 'near_middle'
+START_STR = 'start'
+MISSION_PHASES = [START_STR, NEAR_MIDDLE_STR, MIDDLE_STR, NEAR_END_STR, END_STR]
+MISSION_PHASE_END_TIMES = [210, 420, 630, 840]
+
 def incrementTime(world):
     clock = stateKey(WORLD,'seconds')
     world.setDynamics(clock, True, makeTree(incrementMatrix(clock, 1)))
+
+    # updates mission phase
+    phase = stateKey(WORLD, PHASE_FEATURE)
+    tree = {'if': thresholdRow(clock, MISSION_PHASE_END_TIMES),
+            len(MISSION_PHASE_END_TIMES): setToConstantMatrix(phase, MISSION_PHASES[-1])}
+    for i, phase_time in enumerate(MISSION_PHASE_END_TIMES):
+        tree[i] = setToConstantMatrix(phase, MISSION_PHASES[i])
+    world.setDynamics(phase, True, makeTree(tree))
 
 
 def makeExpiryDynamics(humanNames, locationNames, world, color_expiry):
