@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
 from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
@@ -24,7 +23,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
                   'A plot is show with the inference evolution.'
 
 EXPT = 'sparky'
-isSmall = True
+isSmall = False
 NUM_STEPS = 20
 
 OBSERVER_NAME = 'ATOMIC'
@@ -69,9 +68,6 @@ if __name__ == '__main__':
         handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
         format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
-    # MDP or POMDP
-    Victims.FULL_OBS = FULL_OBS
-
     if EXPT == 'falcon':
         adj_fname = 'falcon_adjacency_v1.1_OCN'
         vics_fname = 'falcon_vic_locs_v1.1_OCN'
@@ -84,10 +80,11 @@ if __name__ == '__main__':
     else:
         raise NameError(f'Experiment "{EXPT}" is not implemented yet')
 
-    sr_map = getSandRMap(small=isSmall,fldr='data',fname=adj_fname)
-    sr_vics = getSandRVictims(small=isSmall,fldr='data',fname=vics_fname)
+    sr_map = getSandRMap(small=isSmall, fldr='data', fname=adj_fname)
+    sr_vics = getSandRVictims(small=isSmall, fldr='data', fname=vics_fname)
+
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False)
+    world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, True, FULL_OBS, True)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
@@ -100,7 +97,7 @@ if __name__ == '__main__':
 
     # reward models (as linear combinations of victim color)
     mm_list = {
-        #  PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
+        PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
         PREFER_GREEN_MODEL: {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
         PREFER_YELLOW_MODEL: {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL}  # should be the most likely at the end
     }
@@ -132,7 +129,8 @@ if __name__ == '__main__':
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent
-    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')],verbose=False)
+    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')],
+                                         verbose=False)
 
     # create and save inference evolution plot
     plot_evolution(probs.T, [_get_fancy_name(name) for name in model_names],

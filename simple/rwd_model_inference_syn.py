@@ -1,7 +1,7 @@
 import logging
 import os
 from SandRMap import getSandRMap, getSandRVictims, getSandRCoords
-from new_locations import Directions
+from locations_no_pre import Directions
 from psychsim.helper_functions import get_true_model_name
 from psychsim.pwl import stateKey, makeTree, setToConstantMatrix, rewardKey
 from model_learning.inference import track_reward_model_inference

@@ -5,7 +5,7 @@ from psychsim.probability import Distribution
 from psychsim.pwl import VectorDistributionSet, makeTree, noChangeMatrix, equalRow, incrementMatrix, WORLD, actionKey, \
     makeFuture, dynamicsMatrix, thresholdRow, setToConstantMatrix, modelKey, rewardKey
 from psychsim.world import World
-from new_locations import Directions
+from locations_no_pre import Directions
 from model_learning.trajectory import TOP_LEVEL_STR
 
 __author__ = 'Pedro Sequeira'

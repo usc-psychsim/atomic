@@ -15,7 +15,7 @@ from psychsim.pwl import modelKey, rewardKey
 from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
 
 
-def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, logger=logging):
+def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False, count_saved=False, logger=logging):
     world = World()
     time = world.defineState(WORLD, 'seconds', int)
     world.setFeature(time, 0)
@@ -25,12 +25,12 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, lo
 
     ################# Victims and triage actions
     victimsObj = Victims()
-    victimsObj.FULL_OBS = False
+    victimsObj.FULL_OBS = full_obs
     victimsObj.COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
     # if the following prob's add up to 1, FOV will never be empty after a search
     victimsObj.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 
-    victimsObj.countSaved = False
+    victimsObj.countSaved = count_saved
     victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
