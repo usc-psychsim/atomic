@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import sys
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
@@ -56,7 +57,8 @@ DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
 FULL_OBS = True  # False
-MAX_TRAJ_LENGTH = 100
+MAX_TRAJ_LENGTH = -1
+SEED = 0
 
 
 def _get_fancy_name(name):
@@ -64,6 +66,10 @@ def _get_fancy_name(name):
 
 
 if __name__ == '__main__':
+
+    # initialize random seed
+    random.seed(SEED)
+
     # create output
     create_clear_dir(OUTPUT_DIR)
 

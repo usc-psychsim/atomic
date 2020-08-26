@@ -2,7 +2,6 @@
 """
 The module contains classes and methods for dealing with victims in the ASIST S&R problem. ``fewacts`` refers to the fact that this implementation has "few actions".
 """
-
 from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFeatureMatrix, \
     equalRow, equalFeatureRow, andRow, stateKey, rewardKey, actionKey, isStateKey, state2agent, \
     Distribution, setFalseMatrix, noChangeMatrix, addFeatureMatrix, makeFuture, trueRow, thresholdRow, \
@@ -177,6 +176,29 @@ class Victims:
         nd = {c: p / (sammy if sammy != 0 else 1) for c, p in d.items()}
         return {'distribution': [(setToConstantMatrix(key, c), p) for c, p in nd.items()]}
 
+    def _make_fov_color_dist(self, loc, cur_idx):
+        if cur_idx == len(Victims.COLORS):
+            dist = {'none': 1}
+            return dist, [dist]
+
+        color = Victims.COLORS[cur_idx]
+        clr_counter = stateKey(WORLD, 'ctr_' + loc + '_' + color)
+        tree = {'if': equalRow(clr_counter, 0)}
+
+        branch, branch_leaves = self._make_fov_color_dist(loc, cur_idx + 1)
+        for dist in branch_leaves:
+            dist[color] = 0
+        tree[True] = branch
+        tree_leaves = branch_leaves
+
+        branch, branch_leaves = self._make_fov_color_dist(loc, cur_idx + 1)
+        for dist in branch_leaves:
+            dist[color] = 2
+        tree[False] = branch
+        tree_leaves.extend(branch_leaves)
+
+        return tree, tree_leaves
+
     def makeRandomFOVDistr(self, human, humanKey, allLocations, full_obs):
         tree = {'if': equalRow(stateKey(human.name, 'loc'), allLocations),
                 None: noChangeMatrix(humanKey)}
@@ -186,23 +208,16 @@ class Victims:
                 tree[il] = setToConstantMatrix(humanKey, 'none')
                 continue
 
-            [c1, c2, _, _] = Victims.COLORS
-            num_c1 = self.victimClrCounts[loc][c1] if c1 in self.victimClrCounts[loc] else 0
-            num_c2 = self.victimClrCounts[loc][c2] if c2 in self.victimClrCounts[loc] else 0
-            allDistribs = {True: {True: Victims.normalizeD({c1: num_c1 if full_obs else 2,
-                                                            c2: num_c2 if full_obs else 2,
-                                                            'none': 1}, humanKey),
-                                  False: Victims.normalizeD({c1: num_c1 if full_obs else 2, 'none': 1}, humanKey)},
-                           False: {True: Victims.normalizeD({c2: num_c2 if full_obs else 2, 'none': 1}, humanKey),
-                                   False: Victims.normalizeD({'none': 1}, humanKey)}}
-            c1Counter = stateKey(WORLD, 'ctr_' + loc + '_' + c1)
-            c2Counter = stateKey(WORLD, 'ctr_' + loc + '_' + c2)
-            cond1 = thresholdRow(c1Counter, 0)
-            cond2 = thresholdRow(c2Counter, 0)
-
-            tree[il] = {'if': cond1,
-                        True: {'if': cond2, True: allDistribs[True][True], False: allDistribs[True][False]},
-                        False: {'if': cond2, True: allDistribs[False][True], False: allDistribs[False][False]}}
+            sub_tree, leaves = self._make_fov_color_dist(loc, 0)
+            for dist in leaves:
+                prob_dist = Distribution(dist)
+                prob_dist.normalize()
+                dist.clear()
+                weights = [(setToConstantMatrix(humanKey, c), p) for c, p in prob_dist.items() if p > 0]
+                if len(weights) == 1:
+                    weights.append((noChangeMatrix(humanKey), 0))
+                dist['distribution'] = weights
+            tree[il] = sub_tree
 
         # for il, loc in enumerate(allLocations):
         #     if loc not in self.victimsByLocAndColor.keys():
