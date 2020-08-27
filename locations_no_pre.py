@@ -108,10 +108,10 @@ class Locations:
                                  False: noChangeMatrix(destKey)})
                 Locations.world.setDynamics(destKey,action,tree)
                 
-            fovKey  = stateKey(human.name, 'vicInFOV')
-            ## If we're using search actions, a move resets the FOV
-            tree = makeTree(setToConstantMatrix(fovKey, 'none'))
-            Locations.world.setDynamics(fovKey,action,tree)
+            # fovKey  = stateKey(human.name, 'vicInFOV')
+            # ## If we're using search actions, a move resets the FOV
+            # tree = makeTree(setToConstantMatrix(fovKey, 'none'))
+            # Locations.world.setDynamics(fovKey,action,tree)
 
     def __makeExplorationBonus(human):
         if Locations.EXPLORE_BONUS <= 0:

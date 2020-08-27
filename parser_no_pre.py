@@ -7,8 +7,7 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
-#from model_learning.trajectory import copy_world
-
+from model_learning.trajectory import copy_world
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -93,7 +92,7 @@ class DataParser:
         self.data['dtime'] = pd.to_datetime(self.data['@timestamp'], infer_datetime_format=True, exact=False)
         startTime = self.data['dtime'].iloc[0]
         
-        self.data['seconds'] = round((self.data['dtime'] - startTime) / np.timedelta64(1, 's'))
+        self.data['seconds'] = np.ceil((self.data['dtime'] - startTime) / np.timedelta64(1, 's'))
     
     def parseFOV(self, row, newRoom, prevRow, printTrace, human, searchActs):
         ''' For each victim, if in distance range, add approach action        
@@ -324,8 +323,8 @@ class DataParser:
                 world.step(act, select=selDict)
             summarizeState(world,human,logger)
 
-#            if act is not None:
-#                trajectory.append((copy_world(world), act))
+            if act is not None:
+                trajectory.append((copy_world(world), act))
 
         return trajectory
 
@@ -347,9 +346,9 @@ def summarizeState(world,human,logger=logging):
     logger.debug('Time: %d' % (time))
     
     logger.debug('Player location: %s' % (loc))
-    for name in sorted(world.agents):
-        if name[:6] == 'victim' and world.getState(name,'loc',unique=True) == loc:
-            logger.debug('%s color: %s' % (name,world.getState(name,'color',unique=True)))
+    clrs = ['Green', 'Gold', 'Red', 'White']
+    for clr in clrs:
+        logger.debug('%s count: %s' % (clr,world.getState(WORLD, 'ctr_' + loc + '_' + clr,unique=True)))
     logger.debug('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
     logger.debug('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
     logger.debug('JustSavedGr: %s' % (world.getState(human,'numsaved_Green',unique=True)))

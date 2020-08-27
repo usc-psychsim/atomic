@@ -12,13 +12,16 @@ from psychsim.pwl import makeTree, incrementMatrix, modelKey, rewardKey
 from locations_no_pre import Locations
 from multivic import Victims
 from psychsim.pwl import modelKey, rewardKey
-from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur
+from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur, PHASE_FEATURE, MISSION_PHASES, START_STR
 
 
-def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False, count_saved=False, logger=logging):
+def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False, logger=logging):
     world = World()
-    time = world.defineState(WORLD, 'seconds', int)
+    time = world.defineState(WORLD, 'seconds', int, description='The mission clock time')
     world.setFeature(time, 0)
+
+    phase_feat = world.defineState(WORLD, PHASE_FEATURE, list, MISSION_PHASES, description='The mission phase')
+    world.setFeature(phase_feat, START_STR)
 
     triageAgent = world.addAgent(playerName)
     agent = world.addAgent('ATOMIC')
@@ -30,7 +33,6 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     # if the following prob's add up to 1, FOV will never be empty after a search
     victimsObj.COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 
-    victimsObj.countSaved = count_saved
     victimsObj.world = world
     VICTIMS_LOCS = []
     VICTIM_TYPES = []
@@ -50,15 +52,19 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     Locations.AllLocations = list(Locations.AllLocations)
     logger.debug('Made move actions')
     
+
+    ### Triage action (has to come after FOV and locations)
+    victimsObj.createTriageActions(triageAgent, list(SandRLocs.keys()))
+
     ################# T I M E
     ## Increment time by default
     incrementTime(world)
 
     ## Make victim expiration dynamics
-    makeExpiryDynamics(victimsObj.victimsByLocAndColor, world, victimsObj.COLOR_EXPIRY)
-    ## Reflect victims turning to red on player's FOV
-    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
-    victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
+    makeExpiryDynamics([triageAgent.name], list(SandRLocs.keys()), world, victimsObj.COLOR_EXPIRY)
+    # ## Reflect victims turning to red on player's FOV
+    # victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Gold')
+    # victimsObj.setFOVToNewClr(triageAgent, True, 'Red', Locations.AllLocations, 'Green')
 
     ## Create stochastic duration for triage actions
     triageDurationDistr = {}
@@ -76,8 +82,8 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
             logger.debug('Start to make observable variables and priors')
             victimsObj.createObsVars4Victims(triageAgent, Locations.AllLocations)
         logger.debug('Made observable variables and priors')
-        victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
-        logger.debug('Made search action')
+    victimsObj.makeSearchAction(triageAgent, Locations.AllLocations)
+    logger.debug('Made search action')
 
     triageAgent.resetBelief()
     triageAgent.omega = [key for key in world.state.keys()

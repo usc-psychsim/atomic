@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import sys
 from psychsim.helper_functions import get_true_model_name
 from psychsim.probability import Distribution
@@ -10,7 +11,6 @@ from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 from parser_no_pre import DataParser
-from victims_no_pre_instance import Victims
 from utils import get_participant_data_props as gpdp
 
 __author__ = 'Pedro Sequeira'
@@ -33,7 +33,6 @@ except IndexError:
 TRAJ_START = 0
 TRAJ_STOP = -1
 
-OBSERVER_NAME = 'ATOMIC'
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
 
@@ -45,10 +44,8 @@ PREFER_GREEN_MODEL = 'prefer_green'
 RANDOM_MODEL = 'zero_rwd'
 
 # agents properties
-HORIZON = 1
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
 MODEL_RATIONALITY = .5
-AGENT_SELECTION = 'random'
 
 # victim reward values
 HIGH_VAL = 200
@@ -59,21 +56,25 @@ OUTPUT_DIR = 'output/reward-model-inference-data'
 DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
-FULL_OBS = False
-MAX_TRAJ_LENGTH = 100
+FULL_OBS = True  # False
+MAX_TRAJ_LENGTH = -1
+SEED = 0
 
 
 def _get_fancy_name(name):
     return name.title().replace('_', ' ')
 
+
 if __name__ == '__main__':
+
+    # initialize random seed
+    random.seed(SEED)
+
     # create output
     create_clear_dir(OUTPUT_DIR)
 
     pdp = gpdp()
     pdp_itm = DATA_FILE_IDX
-    # 5 -- prefer none
-    #
 
     DATA_FILENAME = pdp[pdp_itm]['fname']
     TRAJ_START = pdp[pdp_itm]['start']
@@ -87,16 +88,11 @@ if __name__ == '__main__':
     logging.info('Parsing data file {}...'.format(DATA_FILENAME))
     parser = DataParser(DATA_FILENAME)
     player_name = parser.data['player_ID'].iloc[0]
-
-    # MDP or POMDP
-    Victims.FULL_OBS = FULL_OBS
+    logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
     # create world, agent and observer
-    world, agent, observer, victimsObj = makeWorld(player_name, 'BH2', getSandRMap(), getSandRVictims(), False)
-
-    agent.setAttribute('horizon', HORIZON)
-    agent.setAttribute('selection', AGENT_SELECTION)
-    agent.resetBelief(ignore={modelKey(observer.name)})
+    world, agent, observer, victimsObj = makeWorld(
+        player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS)
 
     # observer does not model itself
     observer.resetBelief(ignore={modelKey(observer.name)})
