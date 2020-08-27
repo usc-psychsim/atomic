@@ -116,7 +116,8 @@ if __name__ == '__main__':
     if TRAJ_STOP == -1:
         TRAJ_STOP = len(aes)
 
-    trajectory = parser.runTimeless(world, agent.name, aes, TRAJ_START, TRAJ_STOP, len(aes))
+    trajectory = []
+    parser.runTimeless(world, agent.name, aes, TRAJ_START, TRAJ_STOP, len(aes),trajectory)
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
 
     # gets evolution of inference over reward models of the agent

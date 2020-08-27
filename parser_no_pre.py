@@ -260,12 +260,13 @@ class DataParser:
         return attemptRows
 
     @staticmethod
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, logger=logging):
+    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, trajectory=None, logger=logging):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
-        Returns a trajectory that can be used for further processing.
+        :param trajectory: optional list in which to store history of simulation states for further processing.
+        :return: trajectory if provided; otherwise, None
+        :rtype: list
         """
-        trajectory = []
 
         logger.debug(actsAndEvents[start])
         if start == 0:
@@ -323,7 +324,7 @@ class DataParser:
                 world.step(act, select=selDict)
             summarizeState(world,human,logger)
 
-            if act is not None:
+            if trajectory is not None and act is not None:
                 trajectory.append((copy_world(world), act))
 
         return trajectory
