@@ -10,7 +10,8 @@ def get_participant_data_props():
     auto_named_data = {'file_prefix' : 'processed_ASIST_data_study_id_XXX_condition_id_YYY_trial_id_ZZZ_messages.csv',
              'studies':[1],'trials':{1:[1,5,8], 2:[2,3,10], 3:[6,13]},
              'start_t':{1:[0,0,0], 2:[0,0,0], 3:[0,0]},
-             'end_t':{1:[36,12,-1], 2:[-1,-1,13], 3:[30,62]},
+             #  'end_t':{1:[36,12,-1], 2:[-1,-1,13], 3:[30,62]},
+             'end_t':{1:[-1,-1,-1], 2:[-1,-1,-1], 3:[-1,-1]},
              }
     data_list = []
     for cond in auto_named_data['trials']:
