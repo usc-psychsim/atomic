@@ -39,7 +39,7 @@ class Victims:
     COLORS = ['Green', 'Gold', 'Red', 'White']
     COLOR_REWARDS = {'Green': 10, 'Gold': 200}
     COLOR_REQD_TIMES = {'Green': 1, 'Gold': 1}
-    COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(7 * 60)}
+    COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(5 * 60)}
     #    COLOR_EXPIRY = {'Green':15, 'Gold':7}
     COLOR_PRIOR_P = {'Green': 0, 'Gold': 0}
     COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}
