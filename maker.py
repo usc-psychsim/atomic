@@ -13,6 +13,7 @@ from locations_no_pre import Locations
 from multivic import Victims
 from psychsim.pwl import modelKey, rewardKey
 from ftime import makeExpiryDynamics, incrementTime, stochasticTriageDur, PHASE_FEATURE, MISSION_PHASES, START_STR
+import atomic
 
 
 def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, full_obs=False, logger=logging):
@@ -24,7 +25,6 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     world.setFeature(phase_feat, START_STR)
 
     triageAgent = world.addAgent(playerName)
-    agent = world.addAgent('ATOMIC')
 
     ################# Victims and triage actions
     victimsObj = Victims()
@@ -77,6 +77,8 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
     ## These must come before setting triager's beliefs
     world.setOrder([{triageAgent.name}])
 
+    agent = atomic.make_observer(world, [triageAgent.name], 'ATOMIC')
+
     if not victimsObj.FULL_OBS:
         if use_unobserved:
             logger.debug('Start to make observable variables and priors')
@@ -90,4 +92,5 @@ def makeWorld(playerName, initLoc, SandRLocs, SandRVics, use_unobserved=True, fu
                          if not ((key in {modelKey(agent.name), rewardKey(triageAgent.name)})
                                  or key.startswith('victim')
                                  or (key.find('unobs') > -1))]
+
     return world, triageAgent, agent, victimsObj

@@ -9,6 +9,7 @@ from model_learning.util.io import create_clear_dir, save_object
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
+from atomic import set_player_models
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -25,7 +26,6 @@ EXPT = 'sparky'
 isSmall = False
 NUM_STEPS = 20
 
-OBSERVER_NAME = 'ATOMIC'
 AGENT_NAME = 'Player'
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
@@ -57,6 +57,19 @@ FULL_OBS = True
 def _get_fancy_name(name):
     return name.title().replace('_', ' ')
 
+def create_mental_models(world,agent,observer,victimsObj):
+    model_list = [{'name': PREFER_NONE_MODEL, 'reward': {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
+            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
+        {'name': PREFER_GREEN_MODEL, 'reward': {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
+            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
+        {'name': PREFER_YELLOW_MODEL, 'reward': {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL},
+            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}]
+
+    if INCLUDE_RANDOM_MODEL:
+        model_list.append({'name': RANDOM_MODEL, 'reward': {GREEN_VICTIM: 0, YELLOW_VICTIM: 0,
+            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}})
+
+    set_player_models(world, observer.name, agent.name, victimsObj, model_list)
 
 if __name__ == '__main__':
     # create output
@@ -88,40 +101,8 @@ if __name__ == '__main__':
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
 
-    # observer does not model itself
-    observer.resetBelief(ignore={modelKey(observer.name)})
-
-    # get the canonical name of the "true" agent model
-    true_model = get_true_model_name(agent)
-
-    # reward models (as linear combinations of victim color)
-    mm_list = {
-        PREFER_NONE_MODEL: {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
-        PREFER_GREEN_MODEL: {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
-        PREFER_YELLOW_MODEL: {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL}  # should be the most likely at the end
-    }
-    for name, rwd_dict in mm_list.items():
-        if name != true_model:
-            agent.addModel(name, parent=true_model, rationality=MODEL_RATIONALITY, selection=MODEL_SELECTION)
-        victimsObj.makeVictimReward(agent, name, rwd_dict)
-
-    if INCLUDE_RANDOM_MODEL:
-        agent.addModel(RANDOM_MODEL, parent=true_model, rationality=.5, selection=MODEL_SELECTION)
-        agent.setReward(makeTree(setToConstantMatrix(rewardKey(agent.name), 0)), model=RANDOM_MODEL)
-
-    model_names = [name for name in agent.models.keys() if name != true_model]
-
-    for name in model_names:
-        agent.resetBelief(model=name, ignore={modelKey(observer.name)})
-
-    # observer has uniform prior distribution over possible agent models
-    world.setMentalModel(observer.name, agent.name,
-                         Distribution({name: 1. / (len(agent.models) - 1) for name in model_names}))
-
-    # observer sees everything except true models
-    observer.omega = [key for key in world.state.keys()
-                      if key not in {modelKey(agent.name), modelKey(observer.name)}]  # rewardKey(agent.name),
-
+    create_mental_models(world, agent, observer, victimsObj)
+    
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
     trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
