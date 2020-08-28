@@ -19,7 +19,7 @@ MIDDLE_STR = 'middle'
 NEAR_MIDDLE_STR = 'near_middle'
 START_STR = 'start'
 MISSION_PHASES = [START_STR, NEAR_MIDDLE_STR, MIDDLE_STR, NEAR_END_STR, END_STR]
-MISSION_PHASE_END_TIMES = [210, 420, 630, 840]
+MISSION_PHASE_END_TIMES = [150, 300, 420, 540]
 
 def incrementTime(world):
     clock = stateKey(WORLD,'seconds')

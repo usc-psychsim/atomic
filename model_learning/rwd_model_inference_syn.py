@@ -24,7 +24,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
 
 EXPT = 'sparky'
 isSmall = False
-NUM_STEPS = 20
+NUM_STEPS = 5
 
 AGENT_NAME = 'Player'
 YELLOW_VICTIM = 'Gold'
@@ -39,7 +39,7 @@ RANDOM_MODEL = 'zero_rwd'
 # agents properties
 HORIZON = 2
 MODEL_SELECTION = 'distribution'  # TODO 'consistent' or 'random' gives an error
-MODEL_RATIONALITY = .5
+MODEL_RATIONALITY = 10
 AGENT_SELECTION = 'random'
 
 # victim reward values
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     agent.resetBelief(ignore={modelKey(observer.name)})
 
     create_mental_models(world, agent, observer, victimsObj)
-    
+
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
     trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
