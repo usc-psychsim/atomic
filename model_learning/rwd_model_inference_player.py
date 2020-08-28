@@ -88,7 +88,7 @@ if __name__ == '__main__':
 
     logging.info('Parsing data file {}...'.format(DATA_FILENAME))
     parser = DataParser(DATA_FILENAME)
-    player_name = parser.data['player_ID'].iloc[0]
+    player_name = parser.player_name()
     logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
     # create world, agent and observer
