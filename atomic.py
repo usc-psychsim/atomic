@@ -44,7 +44,8 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
     for param_dict in param_list:
         model_name = param_dict['name']
         if model_name != true_model:
-            player.addModel(model_name, parent=true_model, rationality=param_dict['rationality'], selection=param_dict['selection'])
+            player.addModel(model_name, parent=true_model, horizon=param_dict.get('horizon',2),
+                rationality=param_dict['rationality'], selection=param_dict['selection'])
         victims.makeVictimReward(player, model_name, param_dict['reward'])
         player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
 
