@@ -303,7 +303,7 @@ class DataParser:
                     curTime = world.getState(WORLD,'seconds',unique=True)
                     newTime = curTime + dur
                     selDict = {clock:newTime}
-                    print('Time now', curTime, 'triage until', newTime)
+                    logger.debug('Time now %d triage until %d' % (curTime,newTime))
                     world.step(act, select=selDict)
                 else:
                     world.step(act)
