@@ -5,9 +5,10 @@ from model_learning.inference import track_reward_model_inference
 from model_learning.trajectory import generate_trajectory
 from model_learning.util.io import create_clear_dir, save_object
 from model_learning.util.plot import plot_evolution
-from SandRMap import getSandRMap, getSandRVictims
-from maker import makeWorld
-from atomic import set_player_models
+from atomic_domain_definitions.parser_no_pre import summarizeState
+from atomic_domain_definitions.SandRMap import getSandRMap, getSandRVictims
+from atomic_domain_definitions.maker import makeWorld
+from atomic_domain_definitions.atomic import set_player_models
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
-    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=True)
+    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=lambda: summarizeState(world, agent.name))
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent

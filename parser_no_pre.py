@@ -344,13 +344,13 @@ def printAEs(aes,logger=logging):
 def summarizeState(world,human,logger=logging):
     loc = world.getState(human,'loc',unique=True)
     time = world.getState(WORLD,'seconds',unique=True)
-    logger.debug('Time: %d' % (time))
+    logger.info('Time: %d' % (time))
     
-    logger.debug('Player location: %s' % (loc))
+    logger.info('Player location: %s' % (loc))
     clrs = ['Green', 'Gold', 'Red', 'White']
     for clr in clrs:
         logger.debug('%s count: %s' % (clr,world.getState(WORLD, 'ctr_' + loc + '_' + clr,unique=True)))
-    logger.debug('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
-    logger.debug('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
-    logger.debug('JustSavedGr: %s' % (world.getState(human,'numsaved_Green',unique=True)))
-    logger.debug('JustSavedGd: %s' % (world.getState(human,'numsaved_Gold',unique=True)))
+    logger.info('FOV: %s' % (world.getState(human,'vicInFOV',unique=True)))
+    logger.info('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
+    logger.info('JustSavedGr: %s' % (world.getState(human,'numsaved_Green',unique=True)))
+    logger.info('JustSavedGd: %s' % (world.getState(human,'numsaved_Gold',unique=True)))
