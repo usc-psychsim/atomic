@@ -45,7 +45,7 @@ def checkSRMap(SRMap,logger=logging):
     logger.info("Check complete")
     return True
 
-def getSandRMap(small=False,fldr="data",fname="sparky_adjacency",logger=logging):
+def getSandRMap(small=False,fldr="maps",fname="sparky_adjacency",logger=logging):
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
@@ -75,7 +75,7 @@ def getSandRMap(small=False,fldr="data",fname="sparky_adjacency",logger=logging)
     else:
         logger.error("map contains errors")
 
-def getSandRVictims(small=False,fldr="data",fname="sparky_vic_locs"):
+def getSandRVictims(small=False,fldr="maps",fname="sparky_vic_locs"):
     # Victims and triage actions
     if small:
         file = os.path.join(os.path.dirname(__file__),fldr,fname+"_small.csv")

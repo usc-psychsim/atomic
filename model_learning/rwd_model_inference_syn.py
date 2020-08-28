@@ -92,8 +92,8 @@ if __name__ == '__main__':
     else:
         raise NameError(f'Experiment "{EXPT}" is not implemented yet')
 
-    sr_map = getSandRMap(small=isSmall, fldr='data', fname=adj_fname)
-    sr_vics = getSandRVictims(small=isSmall, fldr='data', fname=vics_fname)
+    sr_map = getSandRMap(small=isSmall, fldr='maps', fname=adj_fname)
+    sr_vics = getSandRVictims(small=isSmall, fldr='maps', fname=vics_fname)
 
     # create world, agent and observer
     world, agent, observer, victimsObj = makeWorld(AGENT_NAME, start_room, sr_map, sr_vics, False, FULL_OBS)
