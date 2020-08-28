@@ -104,7 +104,6 @@ if __name__ == '__main__':
                 break
             else:
                 continue
-        triageAgent.setAttribute('horizon',4,'%s0' % (triageAgent.name))
         try:
             parser.runTimeless(world, triageAgent.name, aes, 0, len(aes), len(aes),logger=logger.getChild('runTimeless'))
         except:
@@ -112,9 +111,4 @@ if __name__ == '__main__':
             logger.error('Unable to complete re-simulation')
             if args['1']:
                 break
-            else:
-                continue
-        if args['1']:
-            break
-        elif len(files) > 1:
-            Locations.clear()
+        Locations.clear()
