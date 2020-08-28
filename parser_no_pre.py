@@ -7,7 +7,7 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
-from model_learning.trajectory import copy_world
+from model_learning.trajectory import copy_world, get_agent_action
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -260,7 +260,8 @@ class DataParser:
         return attemptRows
 
     @staticmethod
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0, trajectory=None, logger=logging):
+    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0,
+                    trajectory=None, prune_threshold = None, logger=logging):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         :param trajectory: optional list in which to store history of simulation states for further processing.
@@ -288,6 +289,7 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
+            prev_world = copy_world(world)
             act = None
             logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
             if t+start >= ffwdTo:
@@ -304,9 +306,9 @@ class DataParser:
                     newTime = curTime + dur
                     selDict = {clock:newTime}
                     logger.debug('Time now %d triage until %d' % (curTime,newTime))
-                    world.step(act, select=selDict)
+                    world.step(act, select=selDict, threshold=prune_threshold)
                 else:
-                    world.step(act)
+                    world.step(act, threshold=prune_threshold)
                 
             elif actEvent[0] == DataParser.SET_FLG:
                 [var, val] = actEvent[1]
@@ -321,13 +323,11 @@ class DataParser:
                 act, color = actEvent[1][0], actEvent[1][1]
                 k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
-                world.step(act, select=selDict)
+                world.step(act, select=selDict, threshold=prune_threshold)
             summarizeState(world,human,logger)
 
             if trajectory is not None and act is not None:
-                trajectory.append((copy_world(world), act))
-
-        return trajectory
+                trajectory.append((prev_world, get_agent_action(world.agents[human], world.state)))
 
     def player_name(self):
         """

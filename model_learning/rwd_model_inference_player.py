@@ -2,17 +2,15 @@ import logging
 import os
 import random
 import sys
-from psychsim.helper_functions import get_true_model_name
-from psychsim.probability import Distribution
-from psychsim.pwl import modelKey, rewardKey, stateKey, makeTree, setToConstantMatrix
+from psychsim.pwl import stateKey
 from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 from parser_no_pre import DataParser
-from utils import get_participant_data_props as gpdp
-from atomic import set_player_models
+from atomic_domain_definitions.atomic import set_player_models
+from atomic_domain_definitions.model_learning.utils import get_participant_data_props as gpdp
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -30,9 +28,6 @@ try:
     DATA_FILE_IDX = int(sys.argv[1])
 except IndexError:
     DATA_FILE_IDX = 0
-
-TRAJ_START = 0
-TRAJ_STOP = -1
 
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
@@ -58,6 +53,8 @@ DEBUG = False
 SHOW = True
 INCLUDE_RANDOM_MODEL = False
 FULL_OBS = True  # False
+
+PRUNE_THRESHOLD = 1e-3
 MAX_TRAJ_LENGTH = -1
 SEED = 0
 
@@ -77,17 +74,17 @@ if __name__ == '__main__':
     pdp = gpdp()
     pdp_itm = DATA_FILE_IDX
 
-    DATA_FILENAME = pdp[pdp_itm]['fname']
-    TRAJ_START = pdp[pdp_itm]['start']
-    TRAJ_STOP = pdp[pdp_itm]['stop']
+    data_filename = pdp[pdp_itm]['fname']
+    traj_start = pdp[pdp_itm]['start']
+    traj_stop = pdp[pdp_itm]['stop']
 
     # sets up log to file
     logging.basicConfig(
         handlers=[logging.StreamHandler(), logging.FileHandler(os.path.join(OUTPUT_DIR, 'inference.log'), 'w')],
         format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
-    logging.info('Parsing data file {}...'.format(DATA_FILENAME))
-    parser = DataParser(DATA_FILENAME)
+    logging.info('Parsing data file {}...'.format(data_filename))
+    parser = DataParser(data_filename)
     player_name = parser.player_name()
     logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
@@ -96,15 +93,16 @@ if __name__ == '__main__':
         player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS)
 
     model_list = [{'name': PREFER_NONE_MODEL, 'reward': {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
-            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
-        {'name': PREFER_GREEN_MODEL, 'reward': {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
-            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
-        {'name': PREFER_YELLOW_MODEL, 'reward': {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL},
-            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}]
+                   'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
+                  {'name': PREFER_GREEN_MODEL, 'reward': {GREEN_VICTIM: HIGH_VAL, YELLOW_VICTIM: LOW_VAL},
+                   'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
+                  {'name': PREFER_YELLOW_MODEL, 'reward': {GREEN_VICTIM: LOW_VAL, YELLOW_VICTIM: HIGH_VAL},
+                   'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}]
 
     if INCLUDE_RANDOM_MODEL:
         model_list.append({'name': RANDOM_MODEL, 'reward': {GREEN_VICTIM: 0, YELLOW_VICTIM: 0,
-            'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}})
+                                                            'rationality': MODEL_RATIONALITY,
+                                                            'selection': MODEL_SELECTION}})
 
     set_player_models(world, observer.name, agent.name, victimsObj, model_list)
 
@@ -113,11 +111,11 @@ if __name__ == '__main__':
     aes, _ = parser.getActionsAndEvents(agent.name, True, MAX_TRAJ_LENGTH)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
 
-    if TRAJ_STOP == -1:
-        TRAJ_STOP = len(aes)
+    if traj_stop == -1:
+        traj_stop = len(aes)
 
     trajectory = []
-    parser.runTimeless(world, agent.name, aes, TRAJ_START, TRAJ_STOP, len(aes),trajectory)
+    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), trajectory, PRUNE_THRESHOLD)
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
 
     # gets evolution of inference over reward models of the agent
