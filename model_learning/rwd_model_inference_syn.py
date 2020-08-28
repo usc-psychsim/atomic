@@ -70,6 +70,8 @@ def create_mental_models(world,agent,observer,victimsObj):
             'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION}})
 
     set_player_models(world, observer.name, agent.name, victimsObj, model_list)
+    return [m['name'] for m in model_list]
+
 
 if __name__ == '__main__':
     # create output
@@ -101,7 +103,7 @@ if __name__ == '__main__':
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
 
-    create_mental_models(world, agent, observer, victimsObj)
+    model_names = create_mental_models(world, agent, observer, victimsObj)
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
