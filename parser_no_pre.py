@@ -289,7 +289,8 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            prev_world = copy_world(world)
+            if trajectory:
+                prev_world = copy_world(world)
             act = None
             logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
             if t+start >= ffwdTo:
