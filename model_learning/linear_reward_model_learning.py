@@ -1,7 +1,6 @@
 import logging
 import os
 import numpy as np
-from psychsim.probability import Distribution
 from model_learning.metrics import policy_mismatch_prob, policy_divergence
 from model_learning.planning import get_policy
 from model_learning.trajectory import sample_sub_trajectories
@@ -22,8 +21,10 @@ __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 __description__ = ''
 
+LEARNED_BEST_THETA = np.array([0.01, 0.03, -0.29, -0.07, 0.07, 0.05, -0.01, 0.16, -0.02, -0.22, 0.02])
+
 # trajectory params
-NUM_TRAJECTORIES = 12#8  # 20
+NUM_TRAJECTORIES = 12  # 8  # 20
 TRAJ_LENGTH = 10  # 15
 PRUNE_THRESHOLD = 1e-2
 SEED = 0
@@ -33,17 +34,20 @@ HORIZON = 2
 NORM_THETA = True
 LEARNING_RATE = 1e-2  # 1e-2
 MAX_EPOCHS = 100  # 200
-THRESHOLD = 5e-3  # 1e-3
+DIFF_THRESHOLD = 1e-2  # 5e-3  # 1e-3
 LEARNING_SEED = 1
 
-# common params
+# data params
 DATA_FILE_IDX = 0
 FULL_OBS = False
+
 OUTPUT_DIR = 'output/linear-reward-learning'
 PARALLEL = True
 DEBUG = False
 CLEAR = True
 IMG_FORMAT = 'pdf'  # 'png'
+
+AGENT_RATIONALITY = 1 / 0.1  # inverse temperature
 
 
 def _get_feature_vector(state):
@@ -128,13 +132,14 @@ if __name__ == '__main__':
     rwd_vector = create_reward_vector(agent, Locations.AllLocations, Locations.moveActions[agent.name])
     alg = MaxEntRewardLearning(
         'max-ent', agent, len(rwd_vector), _get_feature_vector, _set_reward_function,
-        None if PARALLEL else 1, NORM_THETA, LEARNING_RATE, MAX_EPOCHS, THRESHOLD, LEARNING_SEED)
+        None if PARALLEL else 1, NORM_THETA, LEARNING_RATE, MAX_EPOCHS, DIFF_THRESHOLD, PRUNE_THRESHOLD, LEARNING_SEED)
     trajectories = [[(w.state, a) for w, a in t] for t in trajectories]
     stats = alg.learn(trajectories, True)
     logging.info('Finished, total time: {:.2f} secs.'.format(stats[TIME_STR].sum()))
 
     _set_reward_function(stats[THETA_STR], agent)
-    learner_r = agent.getReward()
+    # _set_reward_function(LEARNED_BEST_THETA, agent)
+    learner_r = next(iter(agent.getReward().values()))
     logging.info('Optimized reward function:\n\n{}'.format(learner_r))
 
     # saves results/stats
@@ -151,11 +156,12 @@ if __name__ == '__main__':
     logging.info('Computing evaluation metrics...')
 
     # player's observed "policy"
-    all_states = [w.state for w, _ in trajectory]
-    player_pi = [Distribution({a: 1.}) for _, a in trajectory]
+    player_states = [w.state for w, _ in trajectory]
+    player_pi = [a for _, a in trajectory]
 
     # compute learner's policy
-    learner_pi = get_policy(agent, all_states, selection='Distribution', threshold=PRUNE_THRESHOLD)
+    agent.setAttribute('rationality', AGENT_RATIONALITY)
+    learner_pi = get_policy(agent, player_states, selection='distribution', threshold=PRUNE_THRESHOLD)
 
     logging.info('Policy mismatch: {:.3f}'.format(policy_mismatch_prob(player_pi, learner_pi)))
     logging.info('Policy divergence: {:.3f}'.format(policy_divergence(player_pi, learner_pi)))
