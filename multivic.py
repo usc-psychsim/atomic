@@ -9,6 +9,10 @@ from psychsim.pwl import makeTree, setToConstantMatrix, incrementMatrix, setToFe
 from psychsim.world import WORLD
 from helpers import anding
 
+GREEN_STR = 'Green'
+GOLD_STR = 'Gold'
+WHITE_STR = 'White'
+RED_STR = 'Red'
 
 class Victims:
     """ Methods for modeling victims within a psychsim self.world.
@@ -36,13 +40,13 @@ class Victims:
 
     FULL_OBS = None
 
-    COLORS = ['Green', 'Gold', 'Red', 'White']
-    COLOR_REWARDS = {'Green': 10, 'Gold': 200}
-    COLOR_REQD_TIMES = {'Green': 1, 'Gold': 1}
-    COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(5 * 60)}
-    #    COLOR_EXPIRY = {'Green':15, 'Gold':7}
-    COLOR_PRIOR_P = {'Green': 0, 'Gold': 0}
-    COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}
+    COLORS = [GREEN_STR, GOLD_STR, RED_STR, WHITE_STR]
+    COLOR_REWARDS = {GREEN_STR: 10, GOLD_STR: 200}
+    COLOR_REQD_TIMES = {GREEN_STR: 1, GOLD_STR: 1}
+    COLOR_EXPIRY = {GREEN_STR: int(10 * 60), GOLD_STR: int(5 * 60)}
+    #    COLOR_EXPIRY = {GREEN_STR:15, GOLD_STR:7}
+    COLOR_PRIOR_P = {GREEN_STR: 0, GOLD_STR: 0}
+    COLOR_FOV_P = {GREEN_STR: 0, GOLD_STR: 0, RED_STR: 0, WHITE_STR: 0}
 
     STR_TRIAGE_ACT = 'actTriage'
     STR_FOV_VAR = 'vicInFOV'
@@ -89,7 +93,7 @@ class Victims:
     # def _makeVictim(self, vi, loc, color, humanNames, locationNames):
     #     victim = self.world.addAgent('victim' + str(vi))
     #
-    #     self.world.defineState(victim.name, 'color', list, ['Gold', 'Green', 'Red', 'White'])
+    #     self.world.defineState(victim.name, 'color', list, [GOLD_STR, GREEN_STR, RED_STR, WHITE_STR])
     #     victim.setState('color', color)
     #
     #     self.world.defineState(victim.name, 'danger', float, description='How far victim is from health')
@@ -254,7 +258,7 @@ class Victims:
         # locKey = stateKey(human.name, 'loc')
         # newFov = makeFuture(fovKey)
         # for loc in allLocations:
-        #     for color in ['Gold', 'Green']:
+        #     for color in [GOLD_STR, GREEN_STR]:
         #         obsVicColorKey = stateKey(human.name, Victims.getUnObsName(loc,color))
         #         if obsVicColorKey in self.world.variables:
         #             tree = anding([equalRow(locKey, loc), equalRow(newFov, color)],
@@ -273,7 +277,7 @@ class Victims:
         action = human.addAction({'verb': 'triage_' + color}, makeTree(legal))
 
         clock = stateKey(WORLD, 'seconds')
-        if color == 'Green':
+        if color == GREEN_STR:
             threshold = 7
         else:
             threshold = 14
@@ -293,7 +297,7 @@ class Victims:
             self.world.setDynamics(vicsInLocOfClrKey, action, tree)
 
             # white: increment
-            vicsInLocOfClrKey = stateKey(WORLD, 'ctr_' + loc + '_' + 'White')
+            vicsInLocOfClrKey = stateKey(WORLD, 'ctr_' + loc + '_' + WHITE_STR)
             tree = makeTree(anding(conds,
                                    incrementMatrix(vicsInLocOfClrKey, 1),
                                    noChangeMatrix(vicsInLocOfClrKey)))
@@ -301,7 +305,7 @@ class Victims:
 
         # Fov update to white
         tree = {'if': longEnough,
-                True: setToConstantMatrix(fovKey, 'White'),
+                True: setToConstantMatrix(fovKey, WHITE_STR),
                 False: noChangeMatrix(fovKey)}
         self.world.setDynamics(fovKey, action, makeTree(tree))
 
@@ -326,10 +330,10 @@ class Victims:
         # legal = {'if':equalRow(fovKey, color), True:True, False:False}
         # action = human.addAction({'verb': 'triage_'+color}, makeTree(legal))
         #
-        # self.setFOVToNewClr(human, action, 'White', locations, color)
+        # self.setFOVToNewClr(human, action, WHITE_STR, locations, color)
         #
         # clock = stateKey(WORLD,'seconds')
-        # if color == 'Green':
+        # if color == GREEN_STR:
         #     threshold = 7
         # else:
         #     threshold = 14
@@ -350,7 +354,7 @@ class Victims:
         #
         #     ## Color: if successful, victim turns white
         #     tree = makeTree(anding(conds,
-        #                            setToConstantMatrix(vcolorKey, 'White'),
+        #                            setToConstantMatrix(vcolorKey, WHITE_STR),
         #                            noChangeMatrix(vcolorKey)))
         #     self.world.setDynamics(vcolorKey,action,tree)
         #
