@@ -214,14 +214,15 @@ class DataParser:
                 self.parseFOV(row, False, prev, printTrace, human, searchActs)
                                 
                 # If TIP changed
-                var = 'triage_in_progress'
-                if row[var] != prev[var]:
-                    if row[var]:
+                tip = 'triage_in_progress'
+                tstatus = 'triage_result'
+                if (row[tip] != prev[tip]) or (row[tstatus] != prev[tstatus]):
+                    if row[tip]:
                         fovColor = self.getFOVColor(row)
                         triageAct = self.victimsObj.getTriageAction(human, fovColor)
                         triageActs.append([triageAct, duration])
                         self.logger.debug('triage started')
-                    if prev[var]:
+                    if prev[tip]:
                         attemptID = attemptID  + 1
 
             ## Inject move action(s), then events, then crosshair/approach actions
