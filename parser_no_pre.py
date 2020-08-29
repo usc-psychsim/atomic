@@ -7,7 +7,7 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 import pandas as pd
-from model_learning.trajectory import copy_world, get_agent_action
+from model_learning.trajectory import copy_world
 from locations_no_pre import Locations
 from psychsim.action import ActionSet
 from psychsim.pwl import stateKey
@@ -327,7 +327,7 @@ class DataParser:
             summarizeState(world,human,logger)
 
             if trajectory is not None and act is not None:
-                trajectory.append((prev_world, get_agent_action(world.agents[human], world.state)))
+                trajectory.append((prev_world, world.getAction(human)))
 
     def player_name(self):
         """
