@@ -77,12 +77,6 @@ class DataParser:
         for iv in range(1, self.maxVicsInLoc):
             self.data['isAVicInFOV'] = self.data['isAVicInFOV'] | self.data['victim_'+str(iv)+'_in_FOV']
         
-        manyInFov = self.data['victim_0_in_FOV'] 
-        for iv in range(1, self.maxVicsInLoc):
-            manyInFov = manyInFov & self.data['victim_'+str(iv)+'_in_FOV']
-        if sum(manyInFov) > 0:
-            self.logger.warning('%d rows with multiple victims in FOV' % (sum(manyInFov)))
-
         # Collect names of locations
         self.locations = [str(loc) for loc in self.data['Room_in'].unique()]
         
@@ -90,9 +84,32 @@ class DataParser:
 #        fstr2 = '%Y-%m-%dT%H:%M:%SZ'
 #            self.data['dtime'] = pd.to_datetime(self.data['@timestamp'], format=fstr1, exact=False)
         self.data['dtime'] = pd.to_datetime(self.data['@timestamp'], infer_datetime_format=True, exact=False)
-        startTime = self.data['dtime'].iloc[0]
         
-        self.data['seconds'] = np.ceil((self.data['dtime'] - startTime) / np.timedelta64(1, 's'))
+        self.chkCHAndFOV()
+    
+    def chkCHAndFOV(self):        
+        ## Warn if multiple vics in FOV
+        numInFov = self.data.loc[:, 'victim_0_in_FOV']
+        for iv in range(1, self.maxVicsInLoc):
+            numInFov = numInFov + self.data['victim_'+str(iv)+'_in_FOV'].astype(int)
+        numManyFOV = np.count_nonzero(numInFov > 1)
+        if numManyFOV > 0:
+            self.logger.warning('%d rows with multiple victims in FOV' % (numManyFOV))
+
+        ## Can't have vic in CH but none in FOV
+        chNotFOV = self.data.loc[self.data['triage_in_progress'] &\
+                                (self.data['victim_in_crosshair_id'] != 'None') &\
+                                (self.data['isAVicInFOV']==False)]
+        if len(chNotFOV) > 0:
+            self.logger.warn('Triage and victim in CH but none in FOV ' + str(len(chNotFOV)))
+        
+        ## If multiple in FOV, set FOV flag of all but the CH victim to False
+        manyFOV = numInFov[numInFov>1]
+        for idx in manyFOV.index:
+            vicInCH = self.data.loc[idx, 'victim_in_crosshair_id']
+            for vi in range(self.maxVicsInLoc):
+                self.data.loc[idx, 'victim_'+str(vi)+'_in_FOV'] = (vicInCH == self.data.loc[idx, 'victim_'+str(vi)+'_id'])
+                   
     
     def parseFOV(self, row, newRoom, prevRow, printTrace, human, searchActs):
         ''' For each victim, if in distance range, add approach action        
@@ -150,10 +167,12 @@ class DataParser:
     def getActionsAndEvents(self, human, printTrace=False, maxEvents=-1):
         self.pData = self.data.loc[self.data['player_ID'] == human]
         
-        self.logger.warning('Locations in player data but not map %s' % (','.join(sorted([l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations]))))
+        locs = sorted([l for l in self.data['Room_in'].unique() if not l in Locations.AllLocations])
+        if len(locs) > 0:
+            self.logger.warning('Locations in player data but not map %s' % (','.join(locs)))
         
         ## Sort by time
-        self.pData = self.pData.loc[:, ['@timestamp', 'seconds'] + self.cols].sort_values('@timestamp', axis = 0)
+        self.pData = self.pData.loc[:, ['dtime'] + self.cols].sort_values('dtime', axis = 0)
 
         self.pData.to_csv('debug.csv')
 
@@ -161,7 +180,7 @@ class DataParser:
         self.pData = self.pData.loc[(self.pData[self.cols].shift() != self.pData[self.cols]).any(axis=1)]
         self.logger.info('Dropped duplicates. Down to %d' % (len(self.pData)))
         
-        self.pData['duration'] = - self.pData['seconds'].diff(periods=-1)
+        self.pData['duration'] = np.ceil(-self.pData['dtime'].diff(periods=-1) / np.timedelta64(1, 's'))
 
         prev = pd.Series()
         lastLoc = None
@@ -174,11 +193,9 @@ class DataParser:
             events = []
             moveActs = []
             searchActs = []
-            stamp = row['@timestamp']
+            stamp = row['dtime']
             duration = row['duration']
-            duration = self.getDurationIfTriaging(row, duration)
-                        
-            self.logger.debug('---- %s dur %s %s' % (row['seconds'], duration, np.sum([a[3] for a in actsAndEvents[:]])))
+            duration = self.getDurationIfTriaging(row, duration)                      
                 
             # Entered a new room.
             if row['Room_in'] != lastLoc:
@@ -189,7 +206,7 @@ class DataParser:
                     # Add a move action
                     mv = Locations.getMoveAction(human, lastLoc, row['Room_in'])
                     if mv == []:
-                        self.logger.warning('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['@timestamp']))
+                        self.logger.warning('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['dtime']))
 #                        ## Transport player to new location by force
 #                        events.append(['loc', row['Room_in']])
                         continue                        
