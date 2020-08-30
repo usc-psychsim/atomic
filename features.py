@@ -64,7 +64,7 @@ def get_location_key(agent):
     return stateKey(agent.name, 'loc')
 
 
-def get_num_visits_location_ley(agent, location):
+def get_num_visits_location_key(agent, location):
     """
     Gets the named key of the feature corresponding to the number of visits to a location made by an agent.
     :param Agent agent: the agent for which to get the feature.

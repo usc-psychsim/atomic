@@ -95,7 +95,7 @@ class PlayerAgent(Agent):
         world.setDynamics(self.location_feature, self.no_op, makeTree(noChangeMatrix(self.location_feature)))
 
     def generate_trajectories(self, n_trajectories, trajectory_length, init_locs=None,
-                              model=None, horizon=None, selection=None, processes=-1, seed=0, verbose=False):
+                              model=None, horizon=None, selection=None, processes=-1, seed=0, verbose=None):
         """
         Generates a number of fixed-length trajectories (state-action pairs) for this agent.
         :param int n_trajectories: the number of trajectories to be generated.
@@ -106,7 +106,7 @@ class PlayerAgent(Agent):
         :param str selection: the action selection criterion, to untie equal-valued actions.
         :param int processes: number of processes to use. `<=0` indicates all cores available, `1` uses single process.
         :param int seed: the seed used to initialize the random number generator.
-        :param bool verbose: whether to show information at each timestep during trajectory generation.
+        :param bool or Callable verbose: whether to show information at each timestep during trajectory generation.
         :rtype: list[list[tuple[SearchAndRescueWorld, ActionSet]]]
         :return: the generated agent trajectories.
         """
