@@ -310,7 +310,7 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            if trajectory:
+            if trajectory is not None:
                 prev_world = copy_world(world)
             act = None
             logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
