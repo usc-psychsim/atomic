@@ -282,7 +282,7 @@ class DataParser:
 
     @staticmethod
     def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0,
-                    trajectory=None, prune_threshold = None, logger=logging):
+                    trajectory=None, prune_threshold = None, logger=logging, permissive=False):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         :param trajectory: optional list in which to store history of simulation states for further processing.
@@ -345,7 +345,13 @@ class DataParser:
                 act, color = actEvent[1][0], actEvent[1][1]
                 k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
-                world.step(act, select=selDict, threshold=prune_threshold)
+                loc = world.getState(human,'loc',unique=True)
+                if permissive and color != 'none' and world.getState(WORLD,'ctr_{}_{}'.format(loc,color),unique=True) == 0:
+                    # Observed a victim who should not be here
+                    logger.warning('In {}, a nonexistent {} victim entered the FOV'.format(loc,color))
+                    continue
+                else:
+                    world.step(act, select=selDict, threshold=prune_threshold)
             summarizeState(world,human,logger)
 
             if trajectory is not None and act is not None:

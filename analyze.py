@@ -105,7 +105,8 @@ if __name__ == '__main__':
             else:
                 continue
         try:
-            parser.runTimeless(world, triageAgent.name, aes, 0, len(aes), len(aes),logger=logger.getChild('runTimeless'))
+            parser.runTimeless(world, triageAgent.name, aes, 0, len(aes), len(aes),logger=logger.getChild('runTimeless'),
+                permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')
