@@ -108,7 +108,10 @@ class DataParser:
         for idx in manyFOV.index:
             vicInCH = self.data.loc[idx, 'victim_in_crosshair_id']
             for vi in range(self.maxVicsInLoc):
-                self.data.loc[idx, 'victim_'+str(vi)+'_in_FOV'] = (vicInCH == self.data.loc[idx, 'victim_'+str(vi)+'_id'])
+                thisID = self.data.loc[idx, 'victim_'+str(vi)+'_id']
+                if thisID == 'None':
+                    break
+                self.data.loc[idx, 'victim_'+str(vi)+'_in_FOV'] = (vicInCH == thisID)
                    
     
     def parseFOV(self, row, newRoom, prevRow, printTrace, human, searchActs):
