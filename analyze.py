@@ -6,11 +6,16 @@ import os.path
 import sys
 import traceback
 
+import numpy
+import plotly.express as px
+
 from SandRMap import getSandRMap, getSandRVictims
 from parser_no_pre import DataParser
 from locations_no_pre import Locations
 from maker import makeWorld
 from atomic import set_player_models
+
+from psychsim.pwl import WORLD
 
 maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
     'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN', 'victim_file': 'falcon_vic_locs_v1.1_OCN'}}
@@ -22,18 +27,36 @@ models = collections.OrderedDict({'horizon': [2],
     'rationality': [0.5], 
     'selection': ['distribution']})
 
+class AnalysisParser(DataParser):
+    def __init__(self, filename, maxDist=5, logger=logging):
+        super().__init__(filename, maxDist, logger)
+        self.name = os.path.splitext(os.path.basename(filename))[0]
+        self.plot_data = []
+
+    def draw_plot(self):
+        self.fig = px.line(self.plot_data,x='Timestep',y='Saved',title=self.name)
+        self.fig.show()
+
+    def post_step(self,world, act):
+        t = world.getState(WORLD,'seconds',unique=True)
+        human = self.player_name()
+        saved = world.getState(human,'numsaved_Green',unique=True) + world.getState(human,'numsaved_Gold',unique=True)
+        self.plot_data.append({'Timestep': t, 'Saved': saved})
+
+
 if __name__ == '__main__':
     # Process command-line arguments
     parser = ArgumentParser()
     parser.add_argument('fname',nargs='+',
         help='Log file(s) (or directory of CSV files) to process')
     parser.add_argument('-1','--1',action='store_true',help='Exit after the first run-through')
+    parser.add_argument('-n','--number',type=int,default=0,help='Number of steps to replay (default is 0, meaning all)')
     parser.add_argument('-d','--debug',default='WARNING',help='Level of logging detail')
     args = vars(parser.parse_args())
     # Extract logging level from command-line argument
     level = getattr(logging, args['debug'].upper(), None)
     if not isinstance(level, int):
-        raise ValueError('Invalid debug level: %s' % args['debug'])
+        raise ValueError('Invalid debug level: {}'.format(args['debug']))
     logging.basicConfig(level=level)
     # Extract files to process
     files = []
@@ -56,10 +79,10 @@ if __name__ == '__main__':
     # Get to work
     for fname in files:
         logger = logging.getLogger(os.path.splitext(os.path.basename(fname))[0])
-        logger.debug('Full path: %s' % (fname))
+        logger.debug('Full path: {}'.format(fname))
         # Parse events from log file
         try:
-            parser = DataParser(fname,logger=logger.getChild(DataParser.__name__))
+            parser = AnalysisParser(fname,logger=logger.getChild(DataParser.__name__))
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to parse log file')
@@ -70,13 +93,13 @@ if __name__ == '__main__':
                 # This map contains all of the rooms from this log
                 break
             else:
-                logger.debug('Map "%s" missing rooms %s' % (map_name,','.join(sorted(set(parser.locations)-map_table['rooms']))))
+                logger.debug('Map "{}" missing rooms {}'.format(map_name,','.join(sorted(set(parser.locations)-map_table['rooms']))))
         else:
-            logger.error('Unable to find matching map for rooms: %s' % (','.join(sorted(set(parser.locations)))))
+            logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
             continue
 
         # Create PsychSim model
-        logger.info('Creating world with "%s" map' % (map_name))
+        logger.info('Creating world with "{}" map'.format(map_name))
         try:
             world, triageAgent, observer, victims = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
                 map_table['victims'],False, True, logger.getChild('makeWorld'))
@@ -91,7 +114,7 @@ if __name__ == '__main__':
         model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
             for value in itertools.product(*models.values())]
         for index,model in enumerate(model_list):
-            model['name'] = '%s_belief_%d' % (triageAgent.name,index)
+            model['name'] = '{}_belief_{}'.format(triageAgent.name,index)
         set_player_models(world, observer.name, triageAgent.name, victims, model_list)
         # Replay actions from log file
         parser.victimsObj = victims
@@ -104,11 +127,16 @@ if __name__ == '__main__':
                 break
             else:
                 continue
+        if args['number'] == 0:
+            last = len(aes)
+        else:
+            last = args['number']
         try:
-            parser.runTimeless(world, triageAgent.name, aes, 0, len(aes), len(aes),logger=logger.getChild('runTimeless'))
+            parser.runTimeless(world, triageAgent.name, aes, 0, last, len(aes), permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')
-            if args['1']:
-                break
+        parser.draw_plot()
+        if args['1']:
+            break
         Locations.clear()
