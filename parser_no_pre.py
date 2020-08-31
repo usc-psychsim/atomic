@@ -6,6 +6,7 @@ Created on Thu Apr  2 20:35:23 2020
 @author: mostafh
 """
 import logging
+import time
 import pandas as pd
 from model_learning.trajectory import copy_world
 from locations_no_pre import Locations
@@ -280,9 +281,14 @@ class DataParser:
         attemptRows = [ae for ae in actsAndEvents if ae[-1] == attemptID]
         return attemptRows
 
-    @staticmethod
-    def runTimeless(world, human, actsAndEvents, start, end, ffwdTo=0,
-                    trajectory=None, prune_threshold = None, logger=logging):
+    def pre_step(self,world):
+        pass
+
+    def post_step(self,world,act):
+        pass
+
+    def runTimeless(self,world, human, actsAndEvents, start, end, ffwdTo=0,
+                    trajectory=None, prune_threshold = None, permissive=False):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         :param trajectory: optional list in which to store history of simulation states for further processing.
@@ -290,7 +296,7 @@ class DataParser:
         :rtype: list
         """
 
-        logger.debug(actsAndEvents[start])
+        self.logger.debug(actsAndEvents[start])
         if start == 0:
             [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
             if actOrEvFlag == DataParser.SET_FLG:
@@ -310,10 +316,9 @@ class DataParser:
             start = 1                
 
         for t,actEvent in enumerate(actsAndEvents[start:end]):
-            if trajectory:
-                prev_world = copy_world(world)
+            self.pre_step(world)
             act = None
-            logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
+            self.logger.info('%d) Running: %s' % (t+start, ','.join(map(str,actEvent[1]))))
             if t+start >= ffwdTo:
                 input('press any key.. ')
             if actEvent[0] == DataParser.ACTION:
@@ -327,7 +332,7 @@ class DataParser:
                     curTime = world.getState(WORLD,'seconds',unique=True)
                     newTime = curTime + dur
                     selDict = {clock:newTime}
-                    logger.debug('Time now %d triage until %d' % (curTime,newTime))
+                    self.logger.debug('Time now %d triage until %d' % (curTime,newTime))
                     world.step(act, select=selDict, threshold=prune_threshold)
                 else:
                     world.step(act, threshold=prune_threshold)
@@ -343,13 +348,18 @@ class DataParser:
                 
             elif actEvent[0] == DataParser.SEARCH:
                 act, color = actEvent[1][0], actEvent[1][1]
+                loc = world.getState(human,'loc',unique=True)
                 k = stateKey(human, 'vicInFOV')
                 selDict = {k:world.value2float(k, color)}
-                world.step(act, select=selDict, threshold=prune_threshold)
-            summarizeState(world,human,logger)
+                if permissive and color != 'none' and world.getState(WORLD,'ctr_{}_{}'.format(loc,color),unique=True) == 0:
+                    # Observed a victim who should not be here
+                    self.logger.warning('In {}, a nonexistent {} victim entered the FOV'.format(loc,color))
+                    continue
+                else:
+                    world.step(act, select=selDict, threshold=prune_threshold)
+            summarizeState(world,human,self.logger)
 
-            if trajectory is not None and act is not None:
-                trajectory.append((prev_world, world.getAction(human)))
+            self.post_step(world, None if act is None else world.getAction(human))
 
     def player_name(self):
         """
@@ -357,6 +367,18 @@ class DataParser:
         :rtype: str
         """
         return self.data['player_ID'].iloc[0]
+
+class TrajectoryParser(DataParser):
+    def __init__(self, filename, maxDist=5, logger=logging):
+        super().__init__(filename, maxDist, logger)
+        self.trajectory = []
+
+    def pre_step(self,world):
+        self.prev_world = copy_world(world)
+
+    def post_step(self,world,act):
+        if act is not None:
+            self.trajectory.append((self.prev_world,act))
 
 def printAEs(aes,logger=logging):
     for ae in aes:
@@ -376,3 +398,4 @@ def summarizeState(world,human,logger=logging):
     logger.info('Visits: %d' % (world.getState(human,'locvisits_'+loc,unique=True)))
     logger.info('JustSavedGr: %s' % (world.getState(human,'numsaved_Green',unique=True)))
     logger.info('JustSavedGd: %s' % (world.getState(human,'numsaved_Gold',unique=True)))
+
