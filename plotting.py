@@ -7,6 +7,8 @@ from collections import OrderedDict
 from igraph import Layout
 from igraph.drawing.colors import color_to_html_format
 from igraph.drawing.text import TextDrawer
+from model_learning.util.io import get_file_changed_extension
+
 from psychsim.agent import Agent
 from psychsim.probability import Distribution
 from psychsim.pwl import VectorDistributionSet
@@ -143,6 +145,10 @@ def plot_location_frequencies(agent, locations, output_img, trajectories, title=
         data += traj_data
     num_locs = len(data)
 
+    # save to csv
+    np.savetxt(get_file_changed_extension(output_img, 'csv'), data.reshape((1, -1)),
+               '%s', ',', header=','.join(locations), comments='')
+
     plt.figure(figsize=(0.4 * num_locs, 6))
     ax = plt.gca()
 
@@ -165,19 +171,24 @@ def plot_action_frequencies(agent, output_img, trajectories, title='Action Execu
     :return:
     """
     # gets action execution frequencies
-    data = OrderedDict({a: 0 for a in agent.actions})
+    actions = sorted(agent.actions, key=lambda a: str(a))
+    action_names = [str(a).replace('{}-'.format(agent.name), '').replace('_', ' ') for a in actions]
+    data = OrderedDict({a: 0 for a in actions})
     for trajectory in trajectories:
         for _, dist in trajectory:
             for a, p in dist.items():
                 data[a] += p
     num_acts = len(data)
 
+    # save to csv
+    np.savetxt(get_file_changed_extension(output_img, 'csv'), np.array([list(data.values())]), '%s', ',',
+               header=','.join(action_names), comments='')
+
     plt.figure()
     ax = plt.gca()
 
     colors = distinct_colors(num_acts)
     ax.bar(np.arange(num_acts), data.values(), color=colors, edgecolor='black', linewidth=0.7, zorder=100)
-    action_names = [str(a).replace('{}-'.format(agent.name), '') for a in data.keys()]
     plt.xticks(np.arange(num_acts), action_names, rotation=45, horizontalalignment='right')
 
     format_and_save_plot(ax, '{}\'s {}'.format(agent.name, title), output_img, '', 'Frequency', False)
