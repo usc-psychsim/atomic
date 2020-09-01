@@ -20,26 +20,41 @@ maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_l
     'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN', 'victim_file': 'falcon_vic_locs_v1.1_OCN'}}
 
 # Possible player model parameterizations
-models = {'horizon': {'myopic': 2},
+models = {'horizon': {'myopic': 2, 'strategic': 4},
     'reward': {'preferyellow': {'Green': 1,'Gold': 3}, 'nopreference': {'Green': 1,'Gold': 1}},
-    'rationality': {'unskilled': 0.5}}
+    'rationality': {'unskilled': 0.5, 'skilled': 1}}
 
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)
         self.name = os.path.splitext(os.path.basename(filename))[0]
-        self.plot_data = []
+        self.inference_data = []
+        self.prediction_data = []
         self.models = set()
+        self.expectation = None
 
     def draw_plot(self):
-        fig = px.line(self.plot_data,x='Timestep',y='Belief',color='Model',title=self.name,range_y=[0,1])
+        fig = px.line(self.inference_data,x='Timestep',y='Belief',color='Model',range_y=[0,1],
+            title='Inference {}'.format(self.name))
         fig.show()
+        fig = px.line(self.prediction_data,x='Timestep',y='Accuracy',range_y=[0,1],
+            title='Prediction {}'.format(self.name))
+        fig.show()
+
+    def pre_step(self,world):
+        player_name = self.player_name()
+        agent = world.agents['ATOMIC']
+        expectations = agent.expectation(player_name)
+        if len(expectations) > 1:
+            raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name,len(beliefs)))
+        self.expectation = next(iter(expectations.values()))
 
     def post_step(self,world, act):
         t = world.getState(WORLD,'seconds',unique=True)
         player_name = self.player_name()
         player = world.agents[player_name]
         agent = world.agents['ATOMIC']
+        # Store beliefs over player models
         beliefs = agent.getBelief()
         if len(beliefs) > 1:
             raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name,len(beliefs)))
@@ -51,7 +66,16 @@ class AnalysisParser(DataParser):
             while player.models[player.models[model]['parent']]['parent'] is not None:
                 model = player.models[model]['parent']
             entry['Model'] = model
-            self.plot_data.append(entry)
+            self.inference_data.append(entry)
+        # Store prediction probability
+        if act is not None:
+            if len(act) > 1:
+                raise ValueError('Unable to evaluate accuracy of predicted action over actual action: {}'.format(act.domain()))
+            act = act.first()
+            value = 0
+            for model,entry in self.expectation.items():
+                value += entry['decision']['action'].get(act)*entry['probability']
+            self.prediction_data.append({'Timestep': t, 'Accuracy': value})
 
 
 if __name__ == '__main__':
@@ -62,6 +86,10 @@ if __name__ == '__main__':
     parser.add_argument('-1','--1',action='store_true',help='Exit after the first run-through')
     parser.add_argument('-n','--number',type=int,default=0,help='Number of steps to replay (default is 0, meaning all)')
     parser.add_argument('-d','--debug',default='WARNING',help='Level of logging detail')
+    parser.add_argument('-s','--save',help='Filename to save PsychSim simulation under')
+    parser.add_argument('--ignore_reward',action='store_true',help='Do not consider alternate reward functions')
+    parser.add_argument('--ignore_rationality',action='store_true',help='Do not consider alternate skill levels')
+    parser.add_argument('--ignore_horizon',action='store_true',help='Do not consider alternate horizons')
     args = vars(parser.parse_args())
     # Extract logging level from command-line argument
     level = getattr(logging, args['debug'].upper(), None)
@@ -112,7 +140,7 @@ if __name__ == '__main__':
         logger.info('Creating world with "{}" map'.format(map_name))
         try:
             world, triageAgent, observer, victims = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
-                map_table['victims'],False, True, logger.getChild('makeWorld'))
+                map_table['victims'],False, True, logger=logger.getChild('makeWorld'))
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to create world')
@@ -121,6 +149,14 @@ if __name__ == '__main__':
             else:
                 continue
         # Set player models for observer agent
+        for dimension, entries in models.items():
+            if args['ignore_{}'.format(dimension)]:
+                first = True
+                for key in list(entries.keys()):
+                    if first:
+                        first = False
+                    else:
+                        del entries[key]
         model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
             for value in itertools.product(*models.values())]
         for index,model in enumerate(model_list):
@@ -128,6 +164,8 @@ if __name__ == '__main__':
             for dimension in models:
                 model[dimension] = models[dimension][model[dimension]]
         set_player_models(world, observer.name, triageAgent.name, victims, model_list)
+        if args['save']:
+            world.save(args['save'])
         # Replay actions from log file
         parser.victimsObj = victims
         try:
