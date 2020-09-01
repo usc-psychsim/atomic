@@ -44,8 +44,10 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
     for param_dict in param_list:
         model_name = param_dict['name']
         if model_name != true_model:
-            player.addModel(model_name, parent=true_model, horizon=param_dict.get('horizon',2),
-                rationality=param_dict['rationality'], selection=param_dict['selection'])
+            player.addModel(model_name, parent=true_model, 
+                horizon=param_dict.get('horizon',2),
+                rationality=param_dict.get('rationality',0.5), 
+                selection=param_dict.get('selection','distribution'))
         victims.makeVictimReward(player, model_name, param_dict['reward'])
         player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
 
@@ -56,4 +58,3 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
     # observer sees everything except true models
     observer.omega = [key for key in world.state.keys()
                       if key not in {modelKey(player.name), modelKey(observer.name)}]  # rewardKey(player.name),
-
