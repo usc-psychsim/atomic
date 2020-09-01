@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-import collections
 import itertools
 import logging
 import os.path
@@ -15,33 +14,44 @@ from locations_no_pre import Locations
 from maker import makeWorld
 from atomic import set_player_models
 
-from psychsim.pwl import WORLD
+from psychsim.pwl import WORLD, modelKey
 
 maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
     'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN', 'victim_file': 'falcon_vic_locs_v1.1_OCN'}}
 
 # Possible player model parameterizations
-models = collections.OrderedDict({'horizon': [2],
-    'reward': [{'Green': 1,'Gold': 3}, {'Green': 1,'Gold': 1}],
-    'training': [False], 
-    'rationality': [0.5], 
-    'selection': ['distribution']})
+models = {'horizon': {'myopic': 2},
+    'reward': {'preferyellow': {'Green': 1,'Gold': 3}, 'nopreference': {'Green': 1,'Gold': 1}},
+    'rationality': {'unskilled': 0.5}}
 
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)
         self.name = os.path.splitext(os.path.basename(filename))[0]
         self.plot_data = []
+        self.models = set()
 
     def draw_plot(self):
-        self.fig = px.line(self.plot_data,x='Timestep',y='Saved',title=self.name)
-        self.fig.show()
+        fig = px.line(self.plot_data,x='Timestep',y='Belief',color='Model',title=self.name,range_y=[0,1])
+        fig.show()
 
     def post_step(self,world, act):
         t = world.getState(WORLD,'seconds',unique=True)
-        human = self.player_name()
-        saved = world.getState(human,'numsaved_Green',unique=True) + world.getState(human,'numsaved_Gold',unique=True)
-        self.plot_data.append({'Timestep': t, 'Saved': saved})
+        player_name = self.player_name()
+        player = world.agents[player_name]
+        agent = world.agents['ATOMIC']
+        beliefs = agent.getBelief()
+        if len(beliefs) > 1:
+            raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name,len(beliefs)))
+        beliefs = next(iter(beliefs.values()))
+        player_model = world.getFeature(modelKey(player_name),beliefs)
+        for model in player_model.domain():
+            entry = {'Timestep': t, 'Belief': player_model[model]}
+            # Find root model (i.e., remove the auto-generated numbers from the name)
+            while player.models[player.models[model]['parent']]['parent'] is not None:
+                model = player.models[model]['parent']
+            entry['Model'] = model
+            self.plot_data.append(entry)
 
 
 if __name__ == '__main__':
@@ -114,7 +124,9 @@ if __name__ == '__main__':
         model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
             for value in itertools.product(*models.values())]
         for index,model in enumerate(model_list):
-            model['name'] = '{}_belief_{}'.format(triageAgent.name,index)
+            model['name'] = '{}_{}'.format(triageAgent.name,'_'.join([model[dimension] for dimension in models]))
+            for dimension in models:
+                model[dimension] = models[dimension][model[dimension]]
         set_player_models(world, observer.name, triageAgent.name, victims, model_list)
         # Replay actions from log file
         parser.victimsObj = victims
@@ -130,7 +142,7 @@ if __name__ == '__main__':
         if args['number'] == 0:
             last = len(aes)
         else:
-            last = args['number']
+            last = args['number']+1
         try:
             parser.runTimeless(world, triageAgent.name, aes, 0, last, len(aes), permissive=True)
         except:
