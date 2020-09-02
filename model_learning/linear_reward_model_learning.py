@@ -13,7 +13,7 @@ from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_ST
 from atomic_domain_definitions.SandRMap import getSandRMap, getSandRVictims, getSandRCoords
 from atomic_domain_definitions.maker import makeWorld
 from locations_no_pre import Locations
-from atomic_domain_definitions.parser_no_pre import DataParser
+from atomic_domain_definitions.parser_no_pre import TrajectoryParser
 from atomic_domain_definitions.model_learning.utils import get_participant_data_props as gpdp
 from atomic_domain_definitions.model_learning.rewards import create_reward_vector
 from atomic_domain_definitions.plotting import plot, plot_trajectories, plot_location_frequencies, \
@@ -39,7 +39,7 @@ MAX_EPOCHS = 50  # 100  # 200
 DIFF_THRESHOLD = 1e-2  # 5e-3  # 1e-3
 
 # data params
-DATA_FILE_IDX = 0
+DATA_FILE_IDX = 5
 FULL_OBS = False
 
 OUTPUT_DIR = 'output/linear-reward-learning'
@@ -104,7 +104,7 @@ if __name__ == '__main__':
 
     # parse data
     logging.info('Parsing data file {} from {} to {}...'.format(data_filename, traj_start, traj_stop))
-    parser = DataParser(data_filename)
+    parser = TrajectoryParser(data_filename)
     player_name = parser.data['player_ID'].iloc[0]
     logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
@@ -122,9 +122,8 @@ if __name__ == '__main__':
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
     if traj_stop == -1:
         traj_stop = len(aes)
-    trajectory = []
-    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), trajectory, args.prune,
-                       permissive=True)
+    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), args.prune, True)
+    trajectory = parser.trajectory
     logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
     save_object(trajectory, os.path.join(output_dir, 'trajectory.pkl.gz'))
     plot_trajectories(agent, locations, neighbors, [trajectory],

@@ -287,13 +287,9 @@ class DataParser:
     def post_step(self,world,act):
         pass
 
-    def runTimeless(self,world, human, actsAndEvents, start, end, ffwdTo=0,
-                    trajectory=None, prune_threshold = None, permissive=False):
+    def runTimeless(self,world, human, actsAndEvents, start, end, ffwdTo=0, prune_threshold = None, permissive=False):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
-        :param trajectory: optional list in which to store history of simulation states for further processing.
-        :return: trajectory if provided; otherwise, None
-        :rtype: list
         """
 
         self.logger.debug(actsAndEvents[start])
