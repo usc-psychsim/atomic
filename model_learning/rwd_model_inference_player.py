@@ -8,7 +8,7 @@ from model_learning.util.io import create_clear_dir
 from model_learning.util.plot import plot_evolution
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
-from parser_no_pre import DataParser
+from parser_no_pre import TrajectoryParser
 from atomic_domain_definitions.atomic import set_player_models
 from atomic_domain_definitions.model_learning.utils import get_participant_data_props as gpdp
 
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         format='%(message)s', level=logging.DEBUG if DEBUG else logging.INFO)
 
     logging.info('Parsing data file {}...'.format(data_filename))
-    parser = DataParser(data_filename)
+    parser = TrajectoryParser(data_filename)
     player_name = parser.player_name()
     logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
@@ -114,13 +114,12 @@ if __name__ == '__main__':
     if traj_stop == -1:
         traj_stop = len(aes)
 
-    trajectory = []
-    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), trajectory, PRUNE_THRESHOLD)
-    logging.info('Recorded {} state-action pairs'.format(len(trajectory)))
+    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), prune_threshold=PRUNE_THRESHOLD)
+    logging.info('Recorded {} state-action pairs'.format(len(parser.trajectory)))
 
     # gets evolution of inference over reward models of the agent
     model_names = [m['name'] for m in model_list]
-    probs = track_reward_model_inference(trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')])
+    probs = track_reward_model_inference(parser.trajectory, model_names, agent, observer, [stateKey(agent.name, 'loc')])
 
     # create and save inference evolution plot
     plot_evolution(probs.T, [_get_fancy_name(name) for name in model_names],
