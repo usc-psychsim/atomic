@@ -16,13 +16,15 @@ from atomic import set_player_models
 
 from psychsim.pwl import WORLD, modelKey
 
-maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
+default_maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
     'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN', 'victim_file': 'falcon_vic_locs_v1.1_OCN'}}
 
 # Possible player model parameterizations
-models = {'horizon': {'myopic': 2, 'strategic': 4},
+default_models = {'horizon': {'myopic': 2, 'strategic': 4},
     'reward': {'preferyellow': {'Green': 1,'Gold': 3}, 'nopreference': {'Green': 1,'Gold': 1}},
     'rationality': {'unskilled': 0.5, 'skilled': 1}}
+
+default_ignore = ['horizon','rationality']
 
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
@@ -89,7 +91,7 @@ class Replayer:
 
     parser_class = DataParser
 
-    def __init__(self,files=[],maps={},models={},ignore_models=[],logger=logging):
+    def __init__(self,files=[],maps=None,models=None,ignore_models=None,logger=logging):
         # Extract files to process
         self.files = []
         for fname in files:
@@ -103,6 +105,8 @@ class Replayer:
         self.logger = logger
 
         # Extract maps
+        if maps is None:
+            maps = default_maps
         for map_name,map_table in maps.items():
             logger = self.logger.getLogger(map_name)
             map_table['adjacency'] = getSandRMap(fname=map_table['room_file'],logger=logger)
@@ -112,8 +116,12 @@ class Replayer:
         self.maps = maps
 
         # Set player models for observer agent
+        if models is None:
+            models = default_models
+        if ignore_models is None:
+            ignore_models = default_ignore
         for dimension, entries in models.items():
-            if dimension in ignore:
+            if dimension in ignore_models:
                 first = True
                 for key in list(entries.keys()):
                     if first:
@@ -147,7 +155,7 @@ class Replayer:
                 logger.error('Unable to parse log file')
                 continue
             # Determine which map we're using
-            for map_name,map_table in maps.items():
+            for map_name,map_table in self.maps.items():
                 if set(parser.locations) <= map_table['rooms']:
                     # This map contains all of the rooms from this log
                     break
@@ -222,8 +230,8 @@ if __name__ == '__main__':
     if not isinstance(level, int):
         raise ValueError('Invalid debug level: {}'.format(args['debug']))
     logging.basicConfig(level=level)
-    ignore = [dimension for dimension in models if args['ignore_{}'.format(dimension)]]
-    replayer = Analyzer(args['fname'],maps,models,ignore,logging)
+    ignore = [dimension for dimension in default_models if args['ignore_{}'.format(dimension)]]
+    replayer = Analyzer(args['fname'],default_maps,default_models,ignore,logging)
     if args['1']:
         replayer.process_files(args['number'],replayer.files[0])
     else:
