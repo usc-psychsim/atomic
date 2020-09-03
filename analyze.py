@@ -34,12 +34,14 @@ class AnalysisParser(DataParser):
         self.expectation = None
 
     def draw_plot(self):
-        fig = px.line(self.inference_data,x='Timestep',y='Belief',color='Model',range_y=[0,1],
-            title='Inference {}'.format(self.name))
-        fig.show()
-        fig = px.line(self.prediction_data,x='Timestep',y='Accuracy',range_y=[0,1],
-            title='Prediction {}'.format(self.name))
-        fig.show()
+        if self.inference_data:
+            fig = px.line(self.inference_data,x='Timestep',y='Belief',color='Model',range_y=[0,1],
+                title='Inference {}'.format(self.name))
+            fig.show()
+        if self.prediction_data:
+            fig = px.line(self.prediction_data,x='Timestep',y='Accuracy',range_y=[0,1],
+                title='Prediction {}'.format(self.name))
+            fig.show()
 
     def pre_step(self,world):
         player_name = self.player_name()
@@ -65,7 +67,7 @@ class AnalysisParser(DataParser):
             # Find root model (i.e., remove the auto-generated numbers from the name)
             while player.models[player.models[model]['parent']]['parent'] is not None:
                 model = player.models[model]['parent']
-            entry['Model'] = model
+            entry['Model'] = model[len(player_name)+1:]
             self.inference_data.append(entry)
         # Store prediction probability
         if act is not None:
@@ -77,6 +79,131 @@ class AnalysisParser(DataParser):
                 value += entry['decision']['action'].get(act)*entry['probability']
             self.prediction_data.append({'Timestep': t, 'Accuracy': value})
 
+class Replayer:
+    """
+    Base class for replaying log files
+    :cvar parser_class: Class of parser to instantiate for each file (default is DataParser)
+    :ivar files: List of names of the log files to process
+    :type files: List(str)
+    """
+
+    parser_class = DataParser
+
+    def __init__(self,files=[],maps={},models={},ignore_models=[],logger=logging):
+        # Extract files to process
+        self.files = []
+        for fname in files:
+            if os.path.isdir(fname):
+                # We have a directory full of log files to process
+                self.files += [os.path.join(fname,name) for name in os.listdir(fname) 
+                    if os.path.splitext(name)[1] == '.csv' and os.path.join(fname,name) not in self.files]
+            elif fname not in self.files:
+                # We have a lonely single log file (that is not already in the list)
+                self.files.append(fname)
+        self.logger = logger
+
+        # Extract maps
+        for map_name,map_table in maps.items():
+            logger = self.logger.getLogger(map_name)
+            map_table['adjacency'] = getSandRMap(fname=map_table['room_file'],logger=logger)
+            map_table['rooms'] = set(map_table['adjacency'].keys())
+            map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
+            map_table['start'] = next(iter(map_table['adjacency'].keys()))
+        self.maps = maps
+
+        # Set player models for observer agent
+        for dimension, entries in models.items():
+            if dimension in ignore:
+                first = True
+                for key in list(entries.keys()):
+                    if first:
+                        first = False
+                    else:
+                        del entries[key]
+        self.model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
+            for value in itertools.product(*models.values())]
+        self.models = models
+
+    def process_files(self, num_steps=0, fname=None):
+        """
+        :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
+        :type num_steps: int
+        :param fname: Name of log file to process (default is all of them)
+        :type fname: str
+        """
+        if fname is None:
+            files = self.files
+        else:
+            files = [fname]
+        # Get to work
+        for fname in files:
+            logger = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
+            logger.debug('Full path: {}'.format(fname))
+            # Parse events from log file
+            try:
+                parser = self.parser_class(fname,logger=logger.getChild(DataParser.__name__))
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to parse log file')
+                continue
+            # Determine which map we're using
+            for map_name,map_table in maps.items():
+                if set(parser.locations) <= map_table['rooms']:
+                    # This map contains all of the rooms from this log
+                    break
+                else:
+                    logger.debug('Map "{}" missing rooms {}'.format(map_name,','.join(sorted(set(parser.locations)-map_table['rooms']))))
+            else:
+                logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
+                continue
+
+            # Create PsychSim model
+            logger.info('Creating world with "{}" map'.format(map_name))
+            try:
+                world, triageAgent, observer, victims = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
+                    map_table['victims'],False, True, logger=logger.getChild('makeWorld'))
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to create world')
+                if args['1']:
+                    break
+                else:
+                    continue
+            # Last-minute filling in of models. Would do it earlier if we extracted triageAgent's name
+            for index,model in enumerate(self.model_list):
+                if 'name' not in model:
+                    model['name'] = '{}_{}'.format(triageAgent.name,'_'.join([model[dimension] for dimension in self.models]))
+                    for dimension in self.models:
+                        model[dimension] = self.models[dimension][model[dimension]]
+            set_player_models(world, observer.name, triageAgent.name, victims, self.model_list)
+            # Replay actions from log file
+            parser.victimsObj = victims
+            try:
+                aes, _ = parser.getActionsAndEvents(triageAgent.name)
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to extract actions/events')
+                continue
+            if num_steps == 0:
+                last = len(aes)
+            else:
+                last = num_steps+1
+            try:
+                parser.runTimeless(world, triageAgent.name, aes, 0, last, len(aes), permissive=True)
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to complete re-simulation')
+            self.post_replay(parser)
+            Locations.clear()
+
+    def post_replay(self,parser):
+        pass
+
+class Analyzer(Replayer):
+    parser_class = AnalysisParser
+
+    def post_replay(self,parser):
+        parser.draw_plot()
 
 if __name__ == '__main__':
     # Process command-line arguments
@@ -86,7 +213,6 @@ if __name__ == '__main__':
     parser.add_argument('-1','--1',action='store_true',help='Exit after the first run-through')
     parser.add_argument('-n','--number',type=int,default=0,help='Number of steps to replay (default is 0, meaning all)')
     parser.add_argument('-d','--debug',default='WARNING',help='Level of logging detail')
-    parser.add_argument('-s','--save',help='Filename to save PsychSim simulation under')
     parser.add_argument('--ignore_reward',action='store_true',help='Do not consider alternate reward functions')
     parser.add_argument('--ignore_rationality',action='store_true',help='Do not consider alternate skill levels')
     parser.add_argument('--ignore_horizon',action='store_true',help='Do not consider alternate horizons')
@@ -96,97 +222,9 @@ if __name__ == '__main__':
     if not isinstance(level, int):
         raise ValueError('Invalid debug level: {}'.format(args['debug']))
     logging.basicConfig(level=level)
-    # Extract files to process
-    files = []
-    for fname in args['fname']:
-        if os.path.isdir(fname):
-            # We have a directory full of log files to process
-            files += [os.path.join(fname,name) for name in os.listdir(fname) 
-                if os.path.splitext(name)[1] == '.csv' and os.path.join(fname,name) not in files]
-        elif fname not in files:
-            # We have a lonely single log file (that is not already in the list)
-            files.append(fname)
-
-    # Extract maps
-    for map_name,map_table in maps.items():
-        logger = logging.getLogger(map_name)
-        map_table['adjacency'] = getSandRMap(fname=map_table['room_file'],logger=logger)
-        map_table['rooms'] = set(map_table['adjacency'].keys())
-        map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
-        map_table['start'] = next(iter(map_table['adjacency'].keys()))
-    # Get to work
-    for fname in files:
-        logger = logging.getLogger(os.path.splitext(os.path.basename(fname))[0])
-        logger.debug('Full path: {}'.format(fname))
-        # Parse events from log file
-        try:
-            parser = AnalysisParser(fname,logger=logger.getChild(DataParser.__name__))
-        except:
-            logger.error(traceback.format_exc())
-            logger.error('Unable to parse log file')
-            continue
-        # Determine which map we're using
-        for map_name,map_table in maps.items():
-            if set(parser.locations) <= map_table['rooms']:
-                # This map contains all of the rooms from this log
-                break
-            else:
-                logger.debug('Map "{}" missing rooms {}'.format(map_name,','.join(sorted(set(parser.locations)-map_table['rooms']))))
-        else:
-            logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
-            continue
-
-        # Create PsychSim model
-        logger.info('Creating world with "{}" map'.format(map_name))
-        try:
-            world, triageAgent, observer, victims = makeWorld(parser.player_name(), map_table['start'], map_table['adjacency'], 
-                map_table['victims'],False, True, logger=logger.getChild('makeWorld'))
-        except:
-            logger.error(traceback.format_exc())
-            logger.error('Unable to create world')
-            if args['1']:
-                break
-            else:
-                continue
-        # Set player models for observer agent
-        for dimension, entries in models.items():
-            if args['ignore_{}'.format(dimension)]:
-                first = True
-                for key in list(entries.keys()):
-                    if first:
-                        first = False
-                    else:
-                        del entries[key]
-        model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
-            for value in itertools.product(*models.values())]
-        for index,model in enumerate(model_list):
-            model['name'] = '{}_{}'.format(triageAgent.name,'_'.join([model[dimension] for dimension in models]))
-            for dimension in models:
-                model[dimension] = models[dimension][model[dimension]]
-        set_player_models(world, observer.name, triageAgent.name, victims, model_list)
-        if args['save']:
-            world.save(args['save'])
-        # Replay actions from log file
-        parser.victimsObj = victims
-        try:
-            aes, _ = parser.getActionsAndEvents(triageAgent.name)
-        except:
-            logger.error(traceback.format_exc())
-            logger.error('Unable to extract actions/events')
-            if args['1']:
-                break
-            else:
-                continue
-        if args['number'] == 0:
-            last = len(aes)
-        else:
-            last = args['number']+1
-        try:
-            parser.runTimeless(world, triageAgent.name, aes, 0, last, len(aes), permissive=True)
-        except:
-            logger.error(traceback.format_exc())
-            logger.error('Unable to complete re-simulation')
-        parser.draw_plot()
-        if args['1']:
-            break
-        Locations.clear()
+    ignore = [dimension for dimension in models if args['ignore_{}'.format(dimension)]]
+    replayer = Analyzer(args['fname'],maps,models,ignore,logging)
+    if args['1']:
+        replayer.process_files(args['number'],replayer.files[0])
+    else:
+        replayer.process_files(args['number'])
