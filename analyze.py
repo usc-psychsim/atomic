@@ -149,7 +149,7 @@ class Replayer:
             logger.debug('Full path: {}'.format(fname))
             # Parse events from log file
             try:
-                parser = self.parser_class(fname,logger=logger.getChild(DataParser.__name__))
+                parser = self.parser_class(fname,logger=logger.getChild(self.parser_class.__name__))
             except:
                 logger.error(traceback.format_exc())
                 logger.error('Unable to parse log file')
