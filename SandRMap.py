@@ -92,8 +92,13 @@ def getSandRVictims(small=False,fldr="maps",fname="sparky_vic_locs"):
 
     return SandRVics
 
-def getSandRCoords():
-    file = os.path.join(os.path.dirname(__file__), "data", "sparky_coords.csv")
+def getSandRCoords(small=False,fldr="maps",fname="sparky_coords"):
+    if fname is None:
+        return None
+    if small:
+        file = os.path.join(os.path.dirname(__file__), fldr, fname + "_small.csv")
+    else:
+        file = os.path.join(os.path.dirname(__file__), fldr, fname + ".csv")
     coords = {}
     with open(file, 'r') as f:
         lines = f.readlines()

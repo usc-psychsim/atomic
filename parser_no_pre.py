@@ -23,6 +23,7 @@ class DataParser:
 
     def __init__(self, filename, maxDist=5, logger=logging):
         self.maxDist = maxDist
+        self.filename = filename
         if filename.endswith('xlsx'):
             self.data = pd.read_excel(filename)
         elif filename.endswith('csv'):

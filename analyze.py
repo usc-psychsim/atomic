@@ -8,7 +8,7 @@ import traceback
 import numpy
 import plotly.express as px
 
-from SandRMap import getSandRMap, getSandRVictims
+from SandRMap import getSandRMap, getSandRVictims, getSandRCoords
 from parser_no_pre import DataParser
 from locations_no_pre import Locations
 from maker import makeWorld
@@ -16,8 +16,12 @@ from atomic import set_player_models
 
 from psychsim.pwl import WORLD, modelKey
 
-default_maps = {'sparky': {'room_file': 'sparky_adjacency', 'victim_file': 'sparky_vic_locs'},
-    'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN', 'victim_file': 'falcon_vic_locs_v1.1_OCN'}}
+default_maps = {'sparky': {'room_file': 'sparky_adjacency',
+                           'victim_file': 'sparky_vic_locs',
+                           'coords_file': 'sparky_coords'},
+                'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
+                           'victim_file': 'falcon_vic_locs_v1.1_OCN',
+                           'coords_file': None}}
 
 # Possible player model parameterizations
 default_models = {'horizon': {'myopic': 2, 'strategic': 4},
@@ -112,6 +116,7 @@ class Replayer:
             map_table['adjacency'] = getSandRMap(fname=map_table['room_file'],logger=logger)
             map_table['rooms'] = set(map_table['adjacency'].keys())
             map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
+            map_table['coordinates'] = getSandRCoords(fname=map_table['coords_file'])
             map_table['start'] = next(iter(map_table['adjacency'].keys()))
         self.maps = maps
 
