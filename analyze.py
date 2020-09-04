@@ -206,16 +206,16 @@ class Replayer:
             except:
                 logger.error(traceback.format_exc())
                 logger.error('Unable to complete re-simulation')
-            self.post_replay(parser)
+            self.post_replay(parser, world, triageAgent, observer, map_table)
             Locations.clear()
 
-    def post_replay(self,parser):
+    def post_replay(self, parser, world, agent, observer, map_table):
         pass
 
 class Analyzer(Replayer):
     parser_class = AnalysisParser
 
-    def post_replay(self,parser):
+    def post_replay(self, parser, map_table, world, agent, observer):
         parser.draw_plot()
 
 if __name__ == '__main__':
