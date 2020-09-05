@@ -134,7 +134,7 @@ class Replayer:
                     else:
                         del entries[key]
         self.model_list = [{dimension: value[index] for index,dimension in enumerate(models)} 
-            for value in itertools.product(*models.values())]
+            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
 
     def process_files(self, num_steps=0, fname=None):
@@ -188,7 +188,8 @@ class Replayer:
                     model['name'] = '{}_{}'.format(triageAgent.name,'_'.join([model[dimension] for dimension in self.models]))
                     for dimension in self.models:
                         model[dimension] = self.models[dimension][model[dimension]]
-            set_player_models(world, observer.name, triageAgent.name, victims, self.model_list)
+            if len(self.model_list) > 0:
+                set_player_models(world, observer.name, triageAgent.name, victims, self.model_list)
             # Replay actions from log file
             parser.victimsObj = victims
             try:
