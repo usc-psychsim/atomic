@@ -118,6 +118,7 @@ class Replayer:
             map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
             map_table['coordinates'] = getSandRCoords(fname=map_table['coords_file'])
             map_table['start'] = next(iter(map_table['adjacency'].keys()))
+            map_table['name'] = map_name
         self.maps = maps
 
         # Set player models for observer agent
