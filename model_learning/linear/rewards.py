@@ -3,8 +3,8 @@ from psychsim.agent import Agent
 from psychsim.pwl import equalRow, rewardKey, makeTree, setToFeatureMatrix, dynamicsMatrix, noChangeMatrix
 from model_learning.features.linear import ValueComparisonLinearRewardFeature, LinearRewardVector, \
     NumericLinearRewardFeature, LinearRewardFeature, ActionLinearRewardFeature
-from features import get_mission_phase_key, get_triaged_key, get_mission_seconds_key, get_num_visits_location_key, \
-    get_location_key, get_fov_key
+from atomic_domain_definitions.features import get_mission_phase_key, get_triaged_key, get_mission_seconds_key, \
+    get_num_visits_location_key, get_location_key, get_fov_key
 from ftime import MISSION_PHASES, MISSION_PHASE_END_TIMES, MIDDLE_STR
 
 __author__ = 'Pedro Sequeira'

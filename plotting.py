@@ -8,15 +8,13 @@ from igraph import Layout
 from igraph.drawing.colors import color_to_html_format
 from igraph.drawing.text import TextDrawer
 from model_learning.util.io import get_file_changed_extension
-
 from psychsim.agent import Agent
 from psychsim.probability import Distribution
 from psychsim.pwl import VectorDistributionSet
 from psychsim.world import World
-from model_learning.util.plot import format_and_save_plot, distinct_colors
+from model_learning.util.plot import format_and_save_plot, distinct_colors, plot_bar
 from atomic_domain_definitions.features import get_num_victims_location_key, get_num_visits_location_key, \
     get_location_key
-from atomic_domain_definitions.locations_no_pre import Directions
 from atomic_domain_definitions.multivic import GOLD_STR, GREEN_STR, RED_STR, WHITE_STR
 
 __author__ = 'Pedro Sequeira'
@@ -120,7 +118,8 @@ def plot_trajectories(agent, locations, neighbors, trajectories, output_img, coo
         g_plot.show()
 
 
-def plot_location_frequencies(agent, locations, output_img, trajectories, title='Location Visitation Frequencies'):
+def plot_agent_location_frequencies(
+        agent, locations, output_img, trajectories, title='Location Visitation Frequencies'):
     """
     Generates a plot with the agent's visitation frequency for each location in the environment.
     :param Agent agent: the agent whose visitation frequency we want to plot.
@@ -129,7 +128,8 @@ def plot_location_frequencies(agent, locations, output_img, trajectories, title=
     :param list[list[tuple[World, Distribution]]] trajectories: the set of trajectories containing sequences of
     state-action pairs.
     :param str title: the plot's title.
-    :return:
+    :rtype: np.ndarray
+    :return: the visitation frequencies for each location according to the trajectories.
     """
     # gets agent's visitation frequency for all locations
     world = agent.world
@@ -143,6 +143,21 @@ def plot_location_frequencies(agent, locations, output_img, trajectories, title=
             freq = world.getFeature(freq_feat, state, True)
             traj_data.append(freq)
         data += traj_data
+
+    plot_location_frequencies(data, locations, output_img, '{}\'s {}'.format(agent.name, title))
+
+    return data
+
+
+def plot_location_frequencies(data, locations, output_img, title):
+    """
+    Generates a plot with the visitation frequency for each location in the environment.
+    :param np.ndarray data: the visitation frequencies for each location.
+    :param list[str] locations: the list of possible world locations.
+    :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
+    :param str title: the plot's title.
+    :return:
+    """
     num_locs = len(data)
 
     # save to csv
@@ -151,16 +166,15 @@ def plot_location_frequencies(agent, locations, output_img, trajectories, title=
 
     plt.figure(figsize=(0.4 * num_locs, 6))
     ax = plt.gca()
-
     colors = distinct_colors(num_locs)
     ax.bar(np.arange(num_locs), data, color=colors, edgecolor='black', linewidth=0.7, zorder=100)
     plt.xticks(np.arange(num_locs), locations, rotation=45, horizontalalignment='right')
 
-    format_and_save_plot(ax, '{}\'s {}'.format(agent.name, title), output_img, '', 'Frequency', False)
+    format_and_save_plot(ax, title, output_img, '', 'Frequency', False)
     plt.close()
 
 
-def plot_action_frequencies(agent, output_img, trajectories, title='Action Execution Frequencies'):
+def plot_agent_action_frequencies(agent, output_img, trajectories, title='Action Execution Frequencies'):
     """
     Generates a plot with the agent's action execution frequency for each action in the given trajectories.
     :param Agent agent: the agent whose visitation frequency we want to plot.
@@ -168,31 +182,32 @@ def plot_action_frequencies(agent, output_img, trajectories, title='Action Execu
     :param list[list[tuple[World, Distribution]]] trajectories: the set of trajectories containing sequences of
     state-action pairs.
     :param str title: the plot's title.
-    :return:
+    :rtype: dict[str, float]
+    :return: a dictionary containing the number of executions for each action according to the trajectories.
     """
     # gets action execution frequencies
     actions = sorted(agent.actions, key=lambda a: str(a))
-    action_names = [str(a).replace('{}-'.format(agent.name), '').replace('_', ' ') for a in actions]
     data = OrderedDict({a: 0 for a in actions})
     for trajectory in trajectories:
         for _, dist in trajectory:
             for a, p in dist.items():
                 data[a] += p
-    num_acts = len(data)
 
-    # save to csv
-    np.savetxt(get_file_changed_extension(output_img, 'csv'), np.array([list(data.values())]), '%s', ',',
-               header=','.join(action_names), comments='')
+    data = OrderedDict({str(a).replace('{}-'.format(agent.name), '').replace('_', ' '): val for a, val in data.items()})
+    plot_action_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title))
 
-    plt.figure()
-    ax = plt.gca()
+    return data
 
-    colors = distinct_colors(num_acts)
-    ax.bar(np.arange(num_acts), data.values(), color=colors, edgecolor='black', linewidth=0.7, zorder=100)
-    plt.xticks(np.arange(num_acts), action_names, rotation=45, horizontalalignment='right')
 
-    format_and_save_plot(ax, '{}\'s {}'.format(agent.name, title), output_img, '', 'Frequency', False)
-    plt.close()
+def plot_action_frequencies(data, output_img, title):
+    """
+    Generates a plot with the agent's action execution frequency for each action.
+    :param dict[str, float] data: a dictionary containing the number of executions for each action.
+    :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
+    :param str title: the plot's title.
+    :return:
+    """
+    plot_bar(data, title, None, output_img, True, '', 'Frequency', False)
 
 
 def _plot(world, locations, neighbors, output_img, coordinates,
