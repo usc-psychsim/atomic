@@ -8,14 +8,14 @@ from model_learning.metrics import evaluate_internal
 from model_learning.planning import get_policy
 from model_learning.util.plot import plot_bar
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
-from model_learning.trajectory import sample_sub_trajectories
+from model_learning.trajectory import sample_sub_trajectories, copy_world
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
+from atomic.parsing.parser import DataParser
+from atomic.parsing.replayer import Replayer
 from atomic.definitions.victims import Victims
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.map_utils import DEFAULT_MAPS
-from atomic.parsing.replayer import Replayer
-from atomic.parsing.parser import TrajectoryParser
 from atomic.definitions.plotting import plot, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies, plot_location_frequencies, plot_action_frequencies
 from atomic.model_learning.linear.rewards import create_reward_vector
@@ -67,6 +67,20 @@ class _Result(object):
         self.map_table = map_table
         self.loc_freqs = loc_freqs
         self.action_freqs = action_freqs
+
+
+class TrajectoryParser(DataParser):
+    def __init__(self, filename, maxDist=5, logger=logging):
+        super().__init__(filename, maxDist, logger)
+        self.trajectory = []
+        self.prev_world = None
+
+    def pre_step(self, world):
+        self.prev_world = copy_world(world)
+
+    def post_step(self, world, act):
+        if act is not None:
+            self.trajectory.append((self.prev_world, act))
 
 
 class RewardModelAnalyzer(Replayer):
@@ -149,7 +163,7 @@ class RewardModelAnalyzer(Replayer):
             except:
                 return False
 
-    def post_replay(self, parser, world, agent, observer, map_table,victims, world_map):
+    def post_replay(self, parser, world, agent, observer, map_table, victims, world_map):
         """
         Performs linear reward model learning using the Maximum Entropy IRL algorithm.
         :param TrajectoryParser parser: the trajectory parser with the collected player trajectory.

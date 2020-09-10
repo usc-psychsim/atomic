@@ -8,7 +8,7 @@ from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir, change_log_handler
 from model_learning.util.plot import plot_evolution
 from atomic.definitions.map_utils import getSandRMap, getSandRVictims
-from atomic.parsing.parser import TrajectoryParser
+from atomic.model_learning.linear.analyzer import TrajectoryParser
 from atomic.parsing.utils import get_participant_data_props as gpdp
 
 __author__ = 'Pedro Sequeira'

@@ -12,7 +12,6 @@ from psychsim.action import ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
-from model_learning.trajectory import copy_world
 from atomic.definitions.victims import Victims
 from atomic.definitions.world_map import WorldMap
 
@@ -376,19 +375,6 @@ class DataParser(object):
         :rtype: str
         """
         return self.data['player_ID'].iloc[0]
-
-
-class TrajectoryParser(DataParser):
-    def __init__(self, filename, maxDist=5, logger=logging):
-        super().__init__(filename, maxDist, logger)
-        self.trajectory = []
-
-    def pre_step(self, world):
-        self.prev_world = copy_world(world)
-
-    def post_step(self, world, act):
-        if act is not None:
-            self.trajectory.append((self.prev_world, act))
 
 
 def printAEs(aes, logger=logging):
