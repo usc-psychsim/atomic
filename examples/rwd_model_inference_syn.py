@@ -93,8 +93,8 @@ if __name__ == '__main__':
     else:
         raise NameError(f'Experiment "{EXPT}" is not implemented yet')
 
-    sr_map = getSandRMap(small=IS_SMALL, fldr='maps', fname=adj_fname)
-    sr_vics = getSandRVictims(small=IS_SMALL, fldr='maps', fname=vics_fname)
+    sr_map = getSandRMap(small=IS_SMALL, fname=adj_fname)
+    sr_vics = getSandRVictims(small=IS_SMALL, fname=vics_fname)
 
     # create world, agent and observer
     world, agent, observer, victims, world_map = \
