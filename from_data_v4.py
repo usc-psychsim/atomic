@@ -7,48 +7,49 @@ Created on Sun Apr  5 17:00:50 2020
 """
 import os.path
 import sys
+import logging
 
 from parser_no_pre import DataParser
 from SandRMap import getSandRMap, getSandRVictims
 from maker import makeWorld
 
-def ptree(tree, level):
-    
-    pre = ' '.ljust(4*level)
-    if type(tree) == dict:
-        for k in tree.keys():
-            print(pre, k)
-            ptree(tree[k], level+1)
-    else:
-        print(pre, tree)
+
+logging.root.setLevel(logging.DEBUG)
+
+logging.basicConfig(
+        handlers=[logging.StreamHandler(sys.stdout),
+                  logging.FileHandler('hala.log', 'w')],
+        format='%(message)s', level=logging.DEBUG)
         
-#	file	player	duration	success	failed	savedGold	savedGreenBe4	savedGreenAft	rooms	moves
-#0	processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv	ASU_MC	886.418	22	4	6	0	16	40	173
-#1	processed_ASIST_data_study_id_000001_condition_id_000002_trial_id_000010_messages.csv	ASU_MC	742.332	22	1	5	4	13	41	151
-#2	processed_ASIST_data_study_id_000001_condition_id_000001_trial_id_000008_messages.csv	ASU_MC	739.765	18	0	5	0	13	32	115
-#3	processed_ASIST_data_study_id_000001_condition_id_000002_trial_id_000002_messages.csv	K_Fuse	603.21	22	0	6	3	13	39	133
-#4	processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000006_messages.csv	K_Fuse	1215.312	19	2	6	0	13	41	159
-#5	processed_ASIST_data_study_id_000001_condition_id_000002_trial_id_000003_messages.csv	K_Fuse	648.278	19	0	6	7	6	41	148
-#6	processed_ASIST_data_study_id_000001_condition_id_000001_trial_id_000005_messages.csv	K_Fuse	607.1	4	3	2	1	1	17	37
-#7	processed_ASIST_data_study_id_000001_condition_id_000001_trial_id_000001_messages.csv	K_Fuse	394.472	3	1	2	1	0	11	23
-        
+default_maps = {'sparky': {'room_file': 'sparky_adjacency',
+                           'victim_file': 'sparky_vic_locs',
+                           'coords_file': 'sparky_coords'},
+                'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
+                           'victim_file': 'falcon_vic_locs_v1.1_OCN',
+                           'coords_file': None}}
+      
 
 #### Parse the data file into a sequence of actions and events
+maxDist=5
 try:
-       parser = DataParser(os.path.join(os.path.dirname(__file__),'data',sys.argv[1]))
+       parser = DataParser(os.path.join(os.path.dirname(__file__),'data',sys.argv[1]), maxDist, logging)
 except IndexError:
-       parser = DataParser(os.path.join(os.path.dirname(__file__),'data','processed_ASIST_data_study_id_000001_condition_id_000003_trial_id_000013_messages.csv'))
+       parser = DataParser(os.path.join(os.path.dirname(__file__),'data',
+                                        'processed_20200805_Participant7_Cond1.csv'),
+                maxDist, logging)
 name = parser.player_name()
 
 #
-####### Get Map Data
-#small = False
-#SandRLocs = getSandRMap(small)
-#SandRVics = getSandRVictims(small)
+###### Get Map Data
+#mapName = 'falcon'
+#SandRLocs = getSandRMap(fname=default_maps[mapName]['room_file'],logger=logging)
+#SandRVics = getSandRVictims(fname=default_maps[mapName]['victim_file'])
 
-world, triageAgent, agent, victimsObj = makeWorld(name, 'BH2', SandRLocs, SandRVics)
+
+
+world, triageAgent, agent, victimsObj = makeWorld(name, None, SandRLocs, SandRVics, logging)
 parser.victimsObj = victimsObj
 
 ### Replay sequence of actions and events
-aes, data = parser.getActionsAndEvents(triageAgent.name, True, 50)
+aes, data = parser.getActionsAndEvents(triageAgent.name, True, 350)
 #DataParser.runTimeless(world, triageAgent.name, aes,  0, 148, 0)
