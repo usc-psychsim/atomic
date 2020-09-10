@@ -71,7 +71,7 @@ class Analyzer(Replayer):
     parser_class = AnalysisParser
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, logger=logging):
-        super().__init__(files, maps, logger)
+        super().__init__(files, maps, models, ignore_models, logger)
 
         # Set player models for observer agent
         if models is None:

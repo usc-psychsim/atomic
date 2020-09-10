@@ -196,6 +196,7 @@ class DataParser(object):
         self.logger.info('Dropped duplicates. Down to %d' % (len(self.pData)))
 
         self.pData['duration'] = np.ceil(-self.pData['dtime'].diff(periods=-1) / np.timedelta64(1, 's'))
+        self.pData['duration'].values[-1] = 0
 
         prev = pd.Series()
         lastLoc = None

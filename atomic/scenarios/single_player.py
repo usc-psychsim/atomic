@@ -17,15 +17,7 @@ def make_single_player_world(
     world_map = WorldMap(world, loc_neighbors)
 
     # create victims info
-    victims_locs = []
-    victim_types = []
-    for loc, vics in victims_color_locs.items():
-        for vic in vics:
-            if loc.startswith('2'):
-                loc = 'R' + loc
-            victims_locs.append(loc)
-            victim_types.append(vic)
-    victims = Victims(world, victims_locs, victim_types, world_map, full_obs=full_obs,
+    victims = Victims(world, victims_color_locs, world_map, full_obs=full_obs,
                       color_prior_p=COLOR_PRIOR_P, color_fov_p=COLOR_FOV_P, color_reqd_times=COLOR_REQD_TIMES)
 
     # (single) triage agent

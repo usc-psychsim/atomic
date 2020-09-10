@@ -29,14 +29,13 @@ COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}
 class Victims(object):
     """ Methods for modeling victims within a PsychSim world. """
 
-    def __init__(self, world, victims_locs, victims_colors, world_map,
+    def __init__(self, world, victims_color_locs, world_map,
                  color_names=None, color_expiry=None, color_reqd_times=None, color_prior_p=None, color_fov_p=None,
                  full_obs=False):
         """
         Creates a new representation over victims for the given world.
         :param SearchAndRescueWorld world: the PsychSim world.
-        :param list[str] victims_locs: list of locations of victims.
-        :param list[str] victims_colors: list containing the color value for each victim in `victims_locs`.
+        :param dict[str, list[str]] victims_color_locs: dictionary containing the location (key) and colors (value) of victims.
         :param WorldMap world_map: map with the location names that constitute legal values for the `loc` state of each victim.
         :param list[str] color_names: the names of the possible colors of victims.
         :param dict[str, int] color_expiry: a dictionary containing the expiration times (seconds) for each victim color.
@@ -64,13 +63,13 @@ class Victims(object):
         # A map from a player to her search actions
         self.searchActs = {}
 
-        assert (len(victims_locs) == len(victims_colors))
-        self.numVictims = len(victims_colors)
-
         # Create location-centric counters for victims of each of the 2 victims_colors
         self.victimClrCounts = {loc: {clr: 0 for clr in self.color_expiry} for loc in world_map.all_locations}
-        for loc, clr in zip(victims_locs, victims_colors):
-            self.victimClrCounts[loc][clr] = self.victimClrCounts[loc][clr] + 1
+        for loc, vics in victims_color_locs.items():
+            if loc.startswith('2'):
+                loc = 'R' + loc
+            for clr in vics:
+                self.victimClrCounts[loc][clr] += 1
 
         # Create the psychsim version of these counters, including WHITE and RED
         for loc in world_map.all_locations:
@@ -284,8 +283,9 @@ class Victims(object):
         # collects victims saved of each color
         weights = {}
         for color in self.color_names:
-            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else COLOR_REWARDS[color]
-            if rwd == 0:
+            rwd = rwd_dict[color] if rwd_dict is not None and color in rwd_dict else \
+                COLOR_REWARDS[color] if color in COLOR_REWARDS else None
+            if rwd is None or rwd == 0:
                 continue
             saved_key = stateKey(agent.name, 'saved_' + color)
             weights[saved_key] = rwd
