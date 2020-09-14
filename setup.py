@@ -11,19 +11,23 @@ setup(
     description='PsychSim tools for the ATOMIC team within the ASIST program',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/usc-psychsim/atomic_domain_definitions',
+    url='https://github.com/usc-psychsim/atomic',
     packages=find_packages(),
     scripts=[
     ],
     install_requires=[
         'psychsim @ git+https://github.com/usc-psychsim/psychsim.git',
         'numpy',
-        'matplotlib',
-        'plotly',
         'jsonpickle',
         'pandas',
-        'python-igraph'
+        'matplotlib',
+        'plotly'
     ],
+    extras_require={
+        'all': [
+            'python-igraph',
+        ],
+    },
     zip_safe=True,
     classifiers=[
         "Programming Language :: Python :: 3",
