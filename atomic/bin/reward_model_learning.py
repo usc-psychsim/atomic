@@ -4,6 +4,7 @@ import logging
 import os
 from model_learning.util import str2bool
 from model_learning.util.io import create_clear_dir, get_files_with_extension
+from atomic.model_learning.linear.post_process import PostProcessor
 from atomic.model_learning.linear.analyzer import RewardModelAnalyzer, OUTPUT_DIR, \
     NUM_TRAJECTORIES, TRAJ_LENGTH, HORIZON, MAX_EPOCHS, LEARNING_RATE, NORM_THETA, PRUNE_THRESHOLD, DIFF_THRESHOLD, \
     PROCESSES, IMG_FORMAT, SEED
@@ -68,7 +69,7 @@ if __name__ == '__main__':
         raise ValueError('Input path is not a valid file or directory: {}.'.format(args.replays))
 
     # create replayer and process all files
-    replayer = RewardModelAnalyzer(
+    analyzer = RewardModelAnalyzer(
         replays=files,
         output=args.output,
         clear=args.clear,
@@ -85,5 +86,8 @@ if __name__ == '__main__':
         processes=args.processes,
         img_format=args.format
     )
-    replayer.process_files()
-    replayer.post_process()
+    analyzer.process_files()
+
+    # performs post-processing of results
+    post_processor = PostProcessor(analyzer)
+    post_processor.run()
