@@ -1,7 +1,11 @@
 import logging
 import os
 import random
+from collections import OrderedDict
+
 import numpy as np
+from model_learning.util.plot import plot_bar
+
 from psychsim.agent import Agent
 from psychsim.world import World
 from model_learning.metrics import evaluate_internal
@@ -146,8 +150,8 @@ class RewardModelAnalyzer(Replayer):
 
         # checks trajectory
         trajectory = parser.trajectory
-        if len(trajectory) == 0:
-            logging.info('Could not process datapoint, empty trajectory.')
+        if len(trajectory) <= self.length + self.num_trajectories - 1:
+            logging.info('Could not process datapoint, empty or very short trajectory.')
             return
 
         # create output
@@ -169,7 +173,7 @@ class RewardModelAnalyzer(Replayer):
 
         logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
             parser.filename, parser.player_name(), len(trajectory), parser.data.shape[0]))
-        plot_trajectories(agent, locations, neighbors, [trajectory],
+        plot_trajectories(agent, [trajectory], locations, neighbors,
                           os.path.join(output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
                           title='Player Trajectory')
         plot_agent_location_frequencies(
@@ -181,7 +185,7 @@ class RewardModelAnalyzer(Replayer):
         trajectories = sample_sub_trajectories(trajectory, self.num_trajectories, self.length, seed=self.seed)
         logging.info('Collected {} trajectories of length {} from original trajectory.'.format(
             self.num_trajectories, self.length))
-        plot_trajectories(agent, locations, neighbors, trajectories,
+        plot_trajectories(agent, trajectories, locations, neighbors,
                           os.path.join(output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
                           title='Training Sub-Trajectories')
         trajectories = [[(w.state, a) for w, a in t] for t in trajectories]
@@ -202,10 +206,17 @@ class RewardModelAnalyzer(Replayer):
         save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
         self.trajectories[parser.filename] = trajectory
 
+        logging.info('=================================')
+
         # gets optimal reward function
-        rwd_vector.set_rewards(agent, result.stats[THETA_STR])
+        rwd_weights = result.stats[THETA_STR]
+        rwd_vector.set_rewards(agent, rwd_weights)
+        with np.printoptions(precision=2, suppress=True):
+            logging.info('Optimized reward weights: {}'.format(rwd_weights))
+        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights ($θ$)',
+                 os.path.join(output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
         learner_r = next(iter(agent.getReward().values()))
-        logging.info('Optimized reward function:\n\n{}'.format(learner_r))
+        logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
 
         logging.info('=================================')
 

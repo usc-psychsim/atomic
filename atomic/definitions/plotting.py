@@ -71,15 +71,15 @@ def plot(world, locations, neighbors, output_img, coordinates=None,
         g_plot.show()
 
 
-def plot_trajectories(agent, locations, neighbors, trajectories, output_img, coordinates=None,
-                      state=None, title='Trajectories', draw_victims=True, show=False):
+def plot_trajectories(agents, trajectories, locations, neighbors, output_img, coordinates=None, state=None,
+                      title='Trajectories', draw_victims=True, show=False):
     """
     Plots the given set of trajectories over a graph representation of the environment.
-    :param Agent agent: the agent whose trajectories we want to plot.
-    :param list[str] locations: the list of possible world locations.
-    :param dict[str,dict[int, str]] neighbors: the locations' neighbors in each direction.
+    :param Agent or list[Agent] agents: the agent or agents (one per trajectory) whose trajectories we want to plot.
     :param list[list[tuple[World, Distribution]]] trajectories: the set of trajectories to save, containing
     several sequences of state-action pairs.
+    :param list[str] locations: the list of possible world locations.
+    :param dict[str,dict[int, str]] neighbors: the locations' neighbors in each direction.
     :param str output_img: the path to the file in which to save the plot.
     :param dict[str, tuple[float,float]] coordinates: the coordinates of each world location.
     :param VectorDistributionSet state: the state used to fetch the graph information to be plotted.
@@ -88,25 +88,33 @@ def plot_trajectories(agent, locations, neighbors, trajectories, output_img, coo
     :param bool show: whether to show the plot to the screen.
     :return:
     """
-    g, g_plot = _plot(agent.world, locations, neighbors, output_img, coordinates, state, title, draw_victims)
+    multiagent = True
+    if isinstance(agents, Agent):
+        multiagent = False
+        agents = [agents] * len(trajectories)
+
+    # get base world plot
+    g, g_plot = _plot(agents[0].world, locations, neighbors, output_img, coordinates, state, title, draw_victims)
 
     if len(trajectories) == 0 or len(trajectories[0]) == 0:
         return
 
-    loc_feat = get_location_key(agent)
+    # draw each trajectory
     t_colors = distinct_colors(len(trajectories))
     for i, trajectory in enumerate(trajectories):
+        loc_feat = get_location_key(agents[i])
         state = copy.deepcopy(trajectory[0][0].state)
-        state.select(True)
+        state.select(True)  # select most likely state
         source = trajectory[0][0].getFeature(loc_feat, state, True)
         for t in range(1, len(trajectory)):
             state = copy.deepcopy(trajectory[t][0].state)
             state.select(True)
             target = trajectory[t][0].getFeature(loc_feat, state, True)
+            label = (agents[i].name if multiagent else 'T{:02d}'.format(i)) if t == len(trajectory) - 1 else None
             g.add_edge(source, target, color=color_to_html_format(t_colors[i]),
                        arrow_size=EDGE_ARROW_SIZE, arrow_width=EDGE_ARROW_WIDTH,
                        label_size=EDGE_LABEL_SIZE, label_color=EDGE_LABEL_COLOR, width=TRAJ_EDGE_WIDTH,
-                       label='T{:02d}'.format(i) if t == len(trajectory) - 1 else None)
+                       label=label)
             source = target
 
     g_plot.redraw()
@@ -117,7 +125,8 @@ def plot_trajectories(agent, locations, neighbors, trajectories, output_img, coo
 
 
 def plot_agent_location_frequencies(
-        agent, trajectories, locations, output_img, title='Location Visitation Frequencies', plot_mean=True):
+        agent, trajectories, locations, output_img, title='Location Visitation Frequencies',
+        plot_mean=True, plot_error=True):
     """
     Generates a plot with the agent's visitation frequency for each location in the environment.
     :param Agent agent: the agent whose visitation frequency we want to plot.
@@ -127,26 +136,28 @@ def plot_agent_location_frequencies(
     state-action pairs.
     :param str title: the plot's title.
     :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
+    :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
     """
     # gets agent's visitation frequency for all locations
     data = get_location_frequencies(agent, trajectories, locations)
-    plot_location_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title), plot_mean)
+    plot_location_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title), plot_mean, plot_error)
 
 
-def plot_location_frequencies(data, output_img, title, plot_mean=True):
+def plot_location_frequencies(data, output_img, title, plot_mean=True, plot_error=True):
     """
     Generates a plot with the visitation frequency for each location in the environment.
-    :param dict[str, float] data: a dictionary containing the number of executions for each action.
+    :param dict[str, float or list[float]] data: a dictionary containing the number of executions for each action.
     :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
     :param str title: the plot's title.
     :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
+    :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
     :return:
     """
-    plot_bar(data, title, None, output_img, plot_mean, '', 'Frequency', False)
+    plot_bar(data, title, output_img, None, plot_mean, plot_error, y_label='Frequency')
 
 
-def plot_agent_action_frequencies(agent, trajectories, output_img, title='Action Execution Frequencies',
-                                  plot_mean=True):
+def plot_agent_action_frequencies(
+        agent, trajectories, output_img, title='Action Execution Frequencies', plot_mean=True):
     """
     Generates a plot with the agent's action execution frequency for each action in the given trajectories.
     :param Agent agent: the agent whose visitation frequency we want to plot.
@@ -161,16 +172,17 @@ def plot_agent_action_frequencies(agent, trajectories, output_img, title='Action
     plot_action_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title), plot_mean)
 
 
-def plot_action_frequencies(data, output_img, title, plot_mean=True):
+def plot_action_frequencies(data, output_img, title, plot_mean=True, plot_error=True):
     """
     Generates a plot with the agent's action execution frequency for each action.
-    :param dict[str, float] data: a dictionary containing the number of executions for each action.
+    :param dict[str, float or list[float]] data: a dictionary containing the number of executions for each action.
     :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
     :param str title: the plot's title.
     :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
+    :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
     :return:
     """
-    plot_bar(data, title, None, output_img, plot_mean, '', 'Frequency', False)
+    plot_bar(data, title, output_img, None, plot_mean, plot_error, y_label='Frequency')
 
 
 def _plot(world, locations, neighbors, output_img, coordinates,

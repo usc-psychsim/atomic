@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from model_learning.util import str2bool
-from model_learning.util.io import create_clear_dir, get_files_with_extension
+from model_learning.util.io import create_clear_dir, get_files_with_extension, change_log_handler
 from atomic.model_learning.linear.post_process import PostProcessor
 from atomic.model_learning.linear.analyzer import RewardModelAnalyzer, OUTPUT_DIR, \
     NUM_TRAJECTORIES, TRAJ_LENGTH, HORIZON, MAX_EPOCHS, LEARNING_RATE, NORM_THETA, PRUNE_THRESHOLD, DIFF_THRESHOLD, \
@@ -90,4 +90,14 @@ if __name__ == '__main__':
 
     # performs post-processing of results
     post_processor = PostProcessor(analyzer)
-    post_processor.run()
+    output_dir = os.path.join(args.output, 'post-process')
+    change_log_handler(os.path.join(output_dir, 'post-process.log'), args.verbosity)
+    create_clear_dir(args.output, False)
+
+    # runs the different post-processors
+    logging.info('Analyzing {} results, saving post-process results in "{}"...'.format(
+        len(analyzer.results), output_dir))
+
+    post_processor.process_evaluation_metrics(output_dir)
+    post_processor.process_player_data(output_dir)
+    post_processor.process_reward_weights(output_dir)
