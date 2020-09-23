@@ -114,14 +114,25 @@ class PostProcessor(object):
 
         # mean weights within each cluster
         logging.info('Found {} clusters:'.format(clustering.n_clusters_))
-        for cluster, idxs in clusters.items():
+        cluster_weights = {}
+        for cluster in sorted(clusters):
+            idxs = clusters[cluster]
             logging.info('\tCluster {}: {}'.format(cluster, idxs))
-            data = np.array([np.mean(thetas[idxs], axis=0), np.std(thetas[idxs], axis=0) / len(idxs)]).T.tolist()
-            plot_bar(OrderedDict(zip(rwd_feat_names, data)),
+            data = np.array([np.mean(thetas[idxs], axis=0), np.std(thetas[idxs], axis=0) / len(idxs)])
+            cluster_weights[cluster] = data[0]
+            plot_bar(OrderedDict(zip(rwd_feat_names, data.T.tolist())),
                      'Mean Weights for Cluster {}'.format(cluster),
                      os.path.join(output_dir, 'weights-mean-{}.{}'.format(cluster, self.analyzer.img_format)),
                      plot_mean=False)
 
+        # file with cluster weights
+        with open(os.path.join(output_dir, 'cluster_weights.csv'), 'w') as f:
+            write = csv.writer(f)
+            write.writerow(['Cluster'] + rwd_feat_names)
+            for cluster in sorted(cluster_weights):
+                write.writerow([cluster] + cluster_weights[cluster].tolist())
+
+        # file with cluster ids for each filename (cluster contents)
         with open(os.path.join(output_dir, 'clusters.csv'), 'w') as f:
             write = csv.writer(f)
             write.writerow(['Cluster', 'Filename'])
