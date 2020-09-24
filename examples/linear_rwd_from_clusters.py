@@ -1,10 +1,11 @@
 import logging
 import os
 import numpy as np
+import random
 from model_learning.trajectory import generate_trajectory
 from model_learning.util.io import create_clear_dir, save_object, change_log_handler
 from atomic.definitions.plotting import plot_trajectories, plot_agent_location_frequencies, \
-    plot_agent_action_frequencies
+    plot_agent_action_frequencies, plot
 from atomic.model_learning.linear import load_cluster_reward_weights
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.scenarios.single_player import make_single_player_world
@@ -24,7 +25,7 @@ FULL_OBS = True
 
 # agents properties
 AGENT_NAME = 'Player'
-SELECTION = 'random'
+SELECTION = 'distribution'
 RATIONALITY = 1 / 0.1  # inverse temperature
 HORIZON = 2
 
@@ -50,9 +51,11 @@ if __name__ == '__main__':
     locations = list(loc_neighbors.keys())
     victims_color_locs = getSandRVictims(fname=MAP_TABLE['victim_file'])
     coords = getSandRCoords(fname=MAP_TABLE['coords_file'])
+    init_loc = random.sample(locations, 1)[0]
 
     world, agent, observer, victims, world_map = \
-        make_single_player_world(AGENT_NAME, locations[0], loc_neighbors, victims_color_locs, False, FULL_OBS)
+        make_single_player_world(AGENT_NAME, init_loc, loc_neighbors, victims_color_locs, False, FULL_OBS)
+    plot(world, locations, loc_neighbors, os.path.join(OUTPUT_DIR, 'env.pdf'), coords)
 
     # set agent params
     agent.setAttribute('horizon', HORIZON)
@@ -61,7 +64,7 @@ if __name__ == '__main__':
 
     # set agent rwd function
     rwd_vector = create_reward_vector(agent, locations, world_map.moveActions[agent.name])
-    rwd_weights = next(iter(cluster_weights.values()))
+    rwd_weights = random.sample(list(cluster_weights.values()), 1)[0]
     rwd_vector.set_rewards(agent, rwd_weights, model=None)
     logging.info('Set reward vector: {}'.format(dict(zip(rwd_vector.names, rwd_weights))))
 
