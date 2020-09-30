@@ -83,7 +83,8 @@ class msgreader(object):
             self.psychsim_tags = ['playername', 'sub_type', 'observation', 'blocks']
         elif jtxt.find('motion_z') > -1: # for type 'state' to disambiguate
             self.psychsim_tags = ['playername', 'sub_type', 'motion_x', 'motion_y', 'motion_z', 'message_type', 'yaw', 'pitch', 'life']
-#        elif jtxt.find('Event:Lever') > -1: # event:lever not found in trial data thus far
+        elif jtxt.find('Event:Lever') > -1:
+            self.psychsim_tags = ['playername', 'mission_time', 'powered', 'lever_x', 'lever_y', 'lever_z']
         else:
             self.psychsim_tags = []
 
@@ -110,4 +111,5 @@ reader = msgreader(jsonfile, True)
 singlemsg = reader.get_latest_message(jsonfile)
 print("LAST MESSAGE "+str(singlemsg))
 allmsgs = reader.get_all_messages(jsonfile)
+# print("ALL MSGS: "+str(allmsgs))
 
