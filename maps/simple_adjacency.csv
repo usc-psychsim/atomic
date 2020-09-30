@@ -1,0 +1,4 @@
+Room,N,S,E,W
+a,b,,c,
+b,,a,,
+c,,,,a
