@@ -1,3 +1,4 @@
+from psychsim.action import Action, ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, noChangeMatrix, \
     addFeatureMatrix, rewardKey
@@ -135,6 +136,16 @@ class WorldMap(object):
         if ds[0] == -1:
             return []
         return [self.moveActions[name][d] for d in ds]
+
+    @staticmethod
+    def get_move_actions(agent):
+        actions = []
+        for direction in Directions:
+            for a in agent.actions:
+                if a.match({'subject': agent.name, 'verb': 'move', 'object': direction.name}) is not None:
+                    actions.append(a)
+                    break
+        return actions
 
     def clear(self):
         self.moveActions.clear()

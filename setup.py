@@ -24,8 +24,11 @@ setup(
         'plotly'
     ],
     extras_require={
-        'all': [
+        'ml': [
+            'model-learning @ git+https://github.com/usc-psychsim/model-learning',
             'python-igraph',
+            'scipy',
+            'sklearn'
         ],
     },
     zip_safe=True,

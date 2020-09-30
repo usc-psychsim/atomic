@@ -61,6 +61,19 @@ class Replayer(object):
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
 
+    def get_map(self, parser, logger):
+        # Determine which map we're using
+        for map_name, map_table in self.maps.items():
+            if set(parser.locations) <= map_table['rooms']:
+                # This map contains all of the rooms from this log
+                return map_name, map_table
+            else:
+                logger.debug('Map "{}" missing rooms {}'.format(map_name, ','.join(
+                    sorted(set(parser.locations) - map_table['rooms']))))
+
+        logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
+        return None, None
+
     def process_files(self, num_steps=0, fname=None):
         """
         :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
@@ -83,17 +96,9 @@ class Replayer(object):
                 logger.error(traceback.format_exc())
                 logger.error('Unable to parse log file')
                 continue
-            # Determine which map we're using
-            for map_name, map_table in self.maps.items():
-                if set(parser.locations) <= map_table['rooms']:
-                    # This map contains all of the rooms from this log
-                    break
-                else:
-                    logger.debug('Map "{}" missing rooms {}'.format(map_name, ','.join(
-                        sorted(set(parser.locations) - map_table['rooms']))))
-            else:
-                logger.error(
-                    'Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
+
+            map_name, map_table = self.get_map(parser, logger)
+            if map_name is None or map_table is None:
                 continue
 
             # Create PsychSim model
