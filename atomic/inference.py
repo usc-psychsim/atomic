@@ -60,8 +60,9 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
         player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
 
     # observer has uniform prior distribution over possible player models
-    world.setMentalModel(observer.name, player.name,
-                         Distribution({param_dict['name']: 1. / (len(player.models) - 1) for param_dict in param_list}))
+    if len(player.models) > 1:
+        world.setMentalModel(observer.name, player.name,
+                             Distribution({param_dict['name']: 1. / (len(player.models) - 1) for param_dict in param_list}))
 
     # observer sees everything except true models
     observer.omega = [key for key in world.state.keys()
