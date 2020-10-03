@@ -11,10 +11,10 @@ COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
 
 
 def make_single_player_world(
-        player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False, logger=logging):
+        player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False, light_neighbors={}, logger=logging):
     # create world and map
     world = SearchAndRescueWorld()
-    world_map = WorldMap(world, loc_neighbors)
+    world_map = WorldMap(world, loc_neighbors, light_neighbors)
 
     # create victims info
     victims = Victims(world, victims_color_locs, world_map, full_obs=full_obs,
@@ -22,6 +22,15 @@ def make_single_player_world(
 
     # create (single) triage agent
     triage_agent = world.addAgent(player_name)
+    
+    # create player's sensor variable. Value is n<num beeps>d<direction>
+    beeps = ['none']
+    for num in [1,2]:
+        for d in range(4):
+            beeps.append('n' + str(num)+'d'+str(d))
+    world.defineState(triage_agent, 'sensor', list, beeps)
+    world.setState(triage_agent.name, 'sensor', 'none')
+    
     world_map.makePlayerLocation(triage_agent, init_loc)
     victims.setupTriager(triage_agent)
     victims.createTriageActions(triage_agent)
