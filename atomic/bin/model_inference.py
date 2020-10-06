@@ -8,7 +8,7 @@ from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.parsing.parser import DataParser
 from atomic.parsing.replayer import Replayer
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
-
+from atomic.model_learning.linear import load_cluster_reward_weights
 
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
@@ -106,13 +106,18 @@ if __name__ == '__main__':
     parser.add_argument('--ignore_reward', action='store_true', help='Do not consider alternate reward functions')
     parser.add_argument('--ignore_rationality', action='store_true', help='Do not consider alternate skill levels')
     parser.add_argument('--ignore_horizon', action='store_true', help='Do not consider alternate horizons')
+    parser.add_argument('--reward_file', help='Name of CSV file containing alternate reward functions')
     args = vars(parser.parse_args())
     # Extract logging level from command-line argument
     level = getattr(logging, args['debug'].upper(), None)
     if not isinstance(level, int):
         raise ValueError('Invalid debug level: {}'.format(args['debug']))
     logging.basicConfig(level=level)
+    # Look for reward file
     ignore = [dimension for dimension in DEFAULT_MODELS if args['ignore_{}'.format(dimension)]]
+    if args['reward_file']:
+        DEFAULT_MODELS['reward'] = {'cluster{}'.format(cluster): vector 
+            for cluster, vector in load_cluster_reward_weights(args['reward_file']).items()}
     replayer = Analyzer(args['fname'], DEFAULT_MAPS, DEFAULT_MODELS, ignore, logging)
     if args['1']:
         replayer.process_files(args['number'], replayer.files[0])
