@@ -50,10 +50,9 @@ class msgreader(object):
         self.nmessages = 0
         self.rooms = []
         self.doors = []
-        self.msg_types = ['Event:Triage', 'Event:Door']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever']
         self.messages = []
         self.mission_running = False
-        
 
     def get_all_messages(self,fname):
         message_arr = []
@@ -141,13 +140,10 @@ class msgreader(object):
             elif k.find('_z') > -1:
                 z = int(v)
                 zkey = k
-            elif k.find('_y') > -1:
-                ykey = k
         for r in self.rooms:
             if r.in_room(x,z):
                 room_name = r.name
         del msgdict[xkey]
-        del msgdict[ykey]
         del msgdict[zkey]
 
         msgdict.update({'room':room_name})
@@ -166,7 +162,6 @@ class msgreader(object):
                 msgdict.update({'room1':d.room1})
                 msgdict.update({'room2':d.room2})
                 del msgdict['door_x'] # no longer needed once have ajoining rooms
-                del msgdict['door_y']
                 del msgdict['door_z']
                 doors_found += 1
         # if we did not find this door's adjoining rooms, it's not a portal, still need to update its fields
@@ -174,7 +169,6 @@ class msgreader(object):
             msgdict.update({'room1':'null'})
             msgdict.update({'room2':'null'})
             del msgdict['door_x'] # no longer needed once have ajoining rooms
-            del msgdict['door_y']
             del msgdict['door_z']
         
     # check what kind of event to determine tags to look for
@@ -184,11 +178,14 @@ class msgreader(object):
         msg_type = 'NONE'
         self.psychsim_tags = ['mission_timer', 'sub_type', 'playername']
         if jtxt.find('Event:Triage') > -1:
-            self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_y', 'victim_z']
+            self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_z']
             msg_type = 'Event:Triage'
         elif jtxt.find('Event:Door') > -1:
-            self.psychsim_tags += ['open', 'door_x', 'door_y', 'door_z', 'room1', 'room2']
+            self.psychsim_tags += ['open', 'door_x', 'door_z', 'room1', 'room2']
             msg_type = 'Event:Door'
+        elif jtxt.find('Event:Lever') > -1:
+            self.psychsim_tags += ['powered', 'lever_x', 'lever_z']
+            msg_type = 'Event:Lever'
         return msg_type
 
     # this will be updated to use mmap, for now reads all lines
@@ -232,11 +229,11 @@ class msgreader(object):
 
 # USE: create reader object then use to read either last message in file -- returns single dict
 # or all messages in file -- returns array of dictionaries
-
 jsonfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
 reader = msgreader(jsonfile, True)
 reader.load_rooms('/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv')
 reader.load_doors('/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv')
+# singlemsg = reader.get_latest_message(jsonfile)
 reader.add_all_messages(jsonfile)
 # print all the messages
 for m in reader.messages:
