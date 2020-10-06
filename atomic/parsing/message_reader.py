@@ -50,7 +50,7 @@ class msgreader(object):
         self.nmessages = 0
         self.rooms = []
         self.doors = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired']
         self.messages = []
         self.mission_running = False
 
@@ -130,7 +130,6 @@ class msgreader(object):
         x = 0
         z = 0
         xkey = ''
-        ykey = ''
         zkey = ''
         room_name = ''
         for (k,v) in msgdict.items():
@@ -186,6 +185,9 @@ class msgreader(object):
         elif jtxt.find('Event:Lever') > -1:
             self.psychsim_tags += ['powered', 'lever_x', 'lever_z']
             msg_type = 'Event:Lever'
+        elif jtxt.find('Event:VictimsExpired') > -1:
+            self.psychsim_tags += ['mission_timer']
+            msg_type = 'Event:VictimsExpired'
         return msg_type
 
     # this will be updated to use mmap, for now reads all lines
