@@ -50,7 +50,7 @@ class msgreader(object):
         self.nmessages = 0
         self.rooms = []
         self.doors = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList']
         self.messages = []
         self.mission_running = False
 
@@ -72,8 +72,9 @@ class msgreader(object):
         jsonfile = open(fname, 'rt')
         nlines = 0
         for line in jsonfile.readlines():
-            if line.find("mission_state\":\"Start") > -1:
-                self.mission_running = True
+            if line.find("mission_victim_list") > -1:
+                self.mission_running = True # count this as mission start, start will occur just after list
+                self.add_message(line)
             elif line.find("mission_state\":\"Stop") > -1:
                 self.mission_running = False
             elif line.find("paused\":true") > -1:
@@ -85,30 +86,10 @@ class msgreader(object):
             nlines += 1
         jsonfile.close()
 
-    # parses single message from line of json txt
-    def parse_message(self,jtxt):
-        msg_type = self.check_type(jtxt) # this should set psychsim_tags
-        obs = json.loads(jtxt)
-        message = obs[u'msg']
-        data = obs[u'data']
-        alldat = {}
-        for (k,v) in data.items():
-            if k in self.psychsim_tags:
-                alldat[k] = v
-        for (k,v) in message.items():
-            if k in self.psychsim_tags:
-                alldat[k] = v
-        if msg_type in ['triage', 'beep', 'motionz', 'lever']:
-            self.add_room(alldat,msg_type)            
-        elif msg_type in ['door']: 
-            self.add_door_rooms(alldat,msg_type)
-        return alldat
-
     # adds single message to msgreader.messages list
     def add_message(self,jtxt): 
-        msg_type = self.check_type(jtxt) # this should set psychsim_tags
-        if msg_type in self.msg_types and self.mission_running:
-            m = msg(msg_type)
+        m = self.make_message(jtxt) # generates message, sets psychsim_tags
+        if m.mtype in self.msg_types and self.mission_running:
             obs = json.loads(jtxt)
             message = obs[u'msg']
             data = obs[u'data']
@@ -119,10 +100,10 @@ class msgreader(object):
             for (k,v) in message.items():
                 if k in self.psychsim_tags:
                     m.mdict[k] = v
-            if msg_type in ['Event:Triage', 'Event:Lever']:
-                self.add_room(m.mdict,msg_type)            
-            elif msg_type == 'Event:Door':
-                self.add_door_rooms(m.mdict,msg_type)
+            if m.mtype in ['Event:Triage', 'Event:Lever']:
+                self.add_room(m.mdict,m.mtype)            
+            elif m.mtype == 'Event:Door':
+                self.add_door_rooms(m.mdict,m.mtype)
             self.messages.append(m)
 
     # adds which room event is occurring in 
@@ -171,24 +152,27 @@ class msgreader(object):
             del msgdict['door_z']
         
     # check what kind of event to determine tags to look for
-    # if doesn't match any, we don't care about it so tag list will be empty
-    # and message won't be processed
-    def check_type(self,jtxt):
-        msg_type = 'NONE'
+    # if doesn't match any, we don't care about it so
+    # message won't be processed
+    def make_message(self,jtxt):
+        m = msg('NONE')
         self.psychsim_tags = ['mission_timer', 'sub_type', 'playername']
         if jtxt.find('Event:Triage') > -1:
             self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_z']
-            msg_type = 'Event:Triage'
+            m.mtype = 'Event:Triage'
         elif jtxt.find('Event:Door') > -1:
             self.psychsim_tags += ['open', 'door_x', 'door_z', 'room1', 'room2']
-            msg_type = 'Event:Door'
+            m.mtype = 'Event:Door'
         elif jtxt.find('Event:Lever') > -1:
             self.psychsim_tags += ['powered', 'lever_x', 'lever_z']
-            msg_type = 'Event:Lever'
+            m.mtype = 'Event:Lever'
         elif jtxt.find('Event:VictimsExpired') > -1:
             self.psychsim_tags += ['mission_timer']
-            msg_type = 'Event:VictimsExpired'
-        return msg_type
+            m.mtype = 'Event:VictimsExpired'
+        elif jtxt.find('Mission:VictimList') > -1:
+            self.psychsim_tags += ['mission_victim_list', 'room_name', 'message_type']
+            m.mtype = 'Mission:VictimList'
+        return m
 
     # this will be updated to use mmap, for now reads all lines
     # returns empty dict if no new messages
