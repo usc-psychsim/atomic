@@ -4,7 +4,7 @@ fy1,,,fy2,ew
 fy2,,,,fy1
 el,so,ew,lh1,
 lh1,lh2,,,el
-lh2,lh3,lh1,cf2,so
+lh2,lh3,lh1,,so
 lh3,lh4,lh2,,br
 lh4,lh5,lh3,chb1,es1h
 lh5,,lh4,jc,
@@ -13,7 +13,7 @@ lh7,lh8,lh6,chm1,
 lh8,,lh7,cht1,kco1
 rh1,rh2,,r111h,
 rh2,rh3,rh1,r110h,
-rh3,rh4,rh2,r109h,cf17
+rh3,rh4,rh2,r109h,
 rh4,rh5,rh3,r108h,
 rh5,rh6,rh4,r107h,chb2
 rh6,rh7,rh5,r106h,
@@ -31,7 +31,7 @@ br,,,lh3,
 es1,,es1h,,
 es1h,es1,,lh4,
 cf1,,cf2,cf4,
-cf2,cf1,cf3,cf5,lh2
+cf2,cf1,cf3,cf5,
 cf3,cf2,,cf6,
 cf4,,,cf7,cf1
 cf5,,,cf8,cf2
@@ -46,7 +46,7 @@ cf13,,,cf16,cf10
 cf14,,,cf17,cf11
 cf15,,,cf18,cf12
 cf16,,cf17,,cf13
-cf17,cf16,cf18,rh3,cf14
+cf17,cf16,cf18,,cf14
 cf18,cf17,,,cf15
 jc,,,,lh5
 es2,,es2h,,
@@ -72,9 +72,9 @@ r107,,r107h,,
 r107h,r107,,,rh5
 r108,,r108h,,
 r108h,r108,,,rh4
-r109,,r109h,,
-r109h,r109,,,rh3
-r110,,r110h,,
+r109,r108h,,,
+r109h,r109,r110,,rh3
+r110,r109h,r110h,,
 r110h,r110,,,rh2
 r111,,r111h,,
 r111h,r111,,,rh1
