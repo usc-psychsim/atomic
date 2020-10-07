@@ -104,7 +104,43 @@ class msgreader(object):
                 self.add_room(m.mdict,m.mtype)            
             elif m.mtype == 'Event:Door':
                 self.add_door_rooms(m.mdict,m.mtype)
+            elif m.mtype == 'Mission:VictimList':
+                #m = self.make_victims_msg(jtxt)
+                self.make_victims_msg(jtxt,m)
             self.messages.append(m)
+
+    def make_victims_msg(self,line,vmsg):
+        psychsim_tags = ['sub_type','message_type', 'mission_victim_list']
+        victim_list_dicts = []
+        obs = json.loads(line)
+        header = obs[u'header']
+        msg = obs[u'msg']
+        victims = obs[u'data']
+        for (k,v) in msg.items():
+            if k in psychsim_tags:
+                vmsg.mdict.update({k:v})
+        for (k,v) in header.items():
+            if k in psychsim_tags:
+                vmsg.mdict.update({k:v})
+        for (k,v) in victims.items():
+            if k == 'mission_victim_list':
+                victim_list_dicts = v
+        for victim in victim_list_dicts:
+            room_name = 'null'
+            for (k,v) in victim.items():
+                if k == 'x':
+                    vx = v
+                elif k == 'z':
+                    vz = v
+            for r in self.rooms:
+                if r.in_room(vx,vz):
+                    room_name = r.name
+            del victim['x']
+            del victim['y']
+            del victim['z']
+            victim.update({'room_name':room_name})
+        vmsg.mdict.update({'mission_victim_list':victim_list_dicts})
+        del vmsg.mdict['mission_timer']
 
     # adds which room event is occurring in 
     def add_room(self, msgdict, msg_type):
