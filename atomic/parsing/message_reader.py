@@ -30,8 +30,18 @@ class door(object):
     def __init__(self, x0, z0, x1, z1, room1, room2):
         self.room1 = room1
         self.room2 = room2
+        self.x0 = x0
+        self.x1 = x1
+        self.z0 = z0
+        self.z1 = z1
+        self.center = [x0,z0] # default to corner
         self.xrange = range(x0,x1+1)
         self.zrange = range(z0,z1+1)
+        # calc center half the span of x & z 
+        xlen = math.floor(abs(x0 - x1)/2)
+        zlen = math.floor(abs(z0 - z1)/2)
+        self.center = [x0+xlen,z0+zlen]
+
 
     def at_this_door(self, _x, _z):
         if _x in self.xrange and _z in self.zrange:
@@ -49,10 +59,11 @@ class msgreader(object):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
-        self.doors = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList']
+        self.doors = [] # actually portals
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep']
         self.messages = []
         self.mission_running = False
+        self.locations = []
 
     def get_all_messages(self,fname):
         message_arr = []
@@ -64,6 +75,32 @@ class msgreader(object):
                     message_arr.append(m)
             jsonfile.close()
         return message_arr
+
+    # find closest portal (closest room may not be accessible)
+    # then find the rooms that portal adjoins & select the one we're not already in
+    def find_beep_room(self,x,z):
+        best_dist = 99999
+        agent_room = ''
+        beep_room = 'null'
+        didx = 0
+        bestd = 0
+        for r in self.rooms:
+            if r.in_room(x,z):
+                agent_room = r.name
+        for d in self.doors:
+            dx = d.center[0]
+            dz = d.center[1]
+            distance = math.sqrt(pow((dx-x),2) + pow((dz-z),2))
+            if distance < best_dist:
+                best_dist = distance
+                bestd = didx
+                # now choose whichever room not already in
+                if agent_room == d.room1:
+                    beep_room = d.room2
+                else:
+                    beep_room = d.room1
+            didx += 1
+        return beep_room
 
     # add to msgreader obj
     # TODO: add counter to know nlines btwn start/stop
@@ -83,6 +120,8 @@ class msgreader(object):
                 self.mission_running = True
             elif line.find('data') > -1:
                 self.add_message(line)
+            elif line.find('Event:Location'):
+                self.add_location(line)
             nlines += 1
         jsonfile.close()
 
@@ -105,9 +144,19 @@ class msgreader(object):
             elif m.mtype == 'Event:Door':
                 self.add_door_rooms(m.mdict,m.mtype)
             elif m.mtype == 'Mission:VictimList':
-                #m = self.make_victims_msg(jtxt)
                 self.make_victims_msg(jtxt,m)
+            elif m.mtype == 'Event:Beep':
+                room_name = self.find_beep_room(int(m.mdict['beep_x']), int(m.mdict['beep_z']))
+                del m.mdict['beep_x']
+                del m.mdict['beep_z']
+                m.mdict.update({'room_name':room_name})
             self.messages.append(m)
+
+    def add_location(self,jtxt):
+        obs = json.loads(jtxt)
+        message = obs[u'msg']
+        data = obs[u'data']
+        
 
     def make_victims_msg(self,line,vmsg):
         psychsim_tags = ['sub_type','message_type', 'mission_victim_list']
@@ -208,6 +257,9 @@ class msgreader(object):
         elif jtxt.find('Mission:VictimList') > -1:
             self.psychsim_tags += ['mission_victim_list', 'room_name', 'message_type']
             m.mtype = 'Mission:VictimList'
+        elif jtxt.find('Event:Beep') > -1:
+            self.psychsim_tags += ['beep_message', 'room_name', 'beep_x', 'beep_z']
+            m.mtype = 'Event:Beep'
         return m
 
     # this will be updated to use mmap, for now reads all lines
