@@ -9,7 +9,17 @@ DEFAULT_MAPS = {'sparky': {'room_file': 'sparky_adjacency',
                            'coords_file': 'sparky_coords'},
                 'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
                            'victim_file': 'falcon_vic_locs_v1.1_OCN',
-                           'coords_file': None}}
+                           'coords_file': None},
+                'falcon_easy': {'room_file': 'falcon_easy_adjacency',
+                           'victim_file': 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
+                           'coords_file': None},
+                'falcon_medium': {'room_file': 'falcon_medium_adjacency',
+                           'victim_file': 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
+                           'coords_file': None},
+                'falcon_hard': {'room_file': 'falcon_hard_adjacency',
+                           'victim_file': 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
+                           'coords_file': None},
+                           }
 
 
 def checkSRMap(SRMap, logger=logging):
