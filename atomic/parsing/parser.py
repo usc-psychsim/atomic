@@ -330,8 +330,10 @@ class DataParser(object):
                 input('press any key.. ')
             if actEvent[0] == ACTION:
                 act = actEvent[1][0]
-                if act not in world.agents[human].getLegalActions():
-                    raise ValueError('Illegal action!')
+                legal_choices = world.agents[human].getLegalActions() 
+                if act not in legal_choices:
+                    raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(act, t+start, 
+                        ', '.join(sorted(map(str(legal_choices))))))
                 if len(actEvent[1]) > 1:
                     dur = actEvent[1][1]
                     # This is a triage action with an associated duration
