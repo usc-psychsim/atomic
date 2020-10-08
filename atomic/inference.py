@@ -56,7 +56,11 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
                             horizon=param_dict.get('horizon', 2),
                             rationality=param_dict.get('rationality', 0.5),
                             selection=param_dict.get('selection', 'distribution'))
-        victims.makeVictimReward(player, model_name, param_dict['reward'])
+        if isinstance(next(iter(param_dict['reward'].keys())), str):
+            victims.makeVictimReward(player, model_name, param_dict['reward'])
+        else:
+            for feature, weight in param_dict['reward'].items():
+                feature.set_reward(player, weight, model_name)
         player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
 
     # observer has uniform prior distribution over possible player models
