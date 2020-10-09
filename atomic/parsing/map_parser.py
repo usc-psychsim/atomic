@@ -2,17 +2,27 @@ import argparse
 import csv
 
 from psychsim.action import ActionSet
+from atomic.definitions.map_utils import getSandRMap
 from atomic.parsing.replayer import accumulate_files, Replayer
 from atomic.parsing.parser import ACTION
 
-class ReplayLight(Replayer):
-    def replay(self, events, duration, logger):
-        for event in events:
-            if event[0] == ACTION:
-                for entry in event[1]:
-                    if isinstance(entry, ActionSet):
-                        print(entry)
-                        
+def verify_adjacency(fname, adjacency_matrix):
+    errors = set()
+    with open(fname, 'r') as csvfile:
+        reader = csv.DictReader(csvfile)
+        last_room = None
+        for row in reader:
+            if row['Room_in'] != 'None':
+                if last_room is None:
+                    # First room
+                    last_room = row['Room_in']
+                elif row['Room_in'] != last_room:
+                    # Player has moved
+                    if row['Room_in'] not in adjacency_matrix[last_room].values():
+                        errors.add((last_room, row['Room_in']))
+                    last_room = row['Room_in']
+    return errors
+
 def extract_adjacency(fname, adjacency=None):
     if adjacency is None:
         adjacency = {}
@@ -52,8 +62,8 @@ def extract_adjacency(fname, adjacency=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('fname', nargs='+',
-                        help='Log file(s) (or directory of CSV files) to process')
+    parser.add_argument('adjacency_file', nargs=1, help='Adjacency file to use')
+    parser.add_argument('fname', nargs='+', help='Log file(s) (or directory of CSV files) to process')
     parser.add_argument('-c', '--create', action='store_true', help='Create adjacency matrix from scratch')
     args = vars(parser.parse_args())
 
@@ -64,5 +74,8 @@ if __name__ == '__main__':
         for start, end_set in adjacency.items():
             print(start, sorted(end_set))
     else:
-        replayer = ReplayLight(args['fname'])
-        replayer.process_files()
+        adjacency_matrix = getSandRMap(fname=args['adjacency_file'][0])
+        errors = set()
+        for fname in accumulate_files(args['fname']):
+            errors |= verify_adjacency(fname, adjacency_matrix)
+        print(sorted(errors))
