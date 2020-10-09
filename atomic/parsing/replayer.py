@@ -6,7 +6,6 @@ from atomic.definitions.map_utils import getSandRMap, getSandRVictims, getSandRC
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.parser import DataParser
 from atomic.scenarios.single_player import make_single_player_world
-from atomic.model_learning.linear.rewards import create_reward_vector
 
 def accumulate_files(files):
     """
@@ -43,14 +42,14 @@ class Replayer(object):
         # Extract maps
         if maps is None:
             maps = DEFAULT_MAPS
-        for map_name, map_table in maps.items():
+        for map_name, self.map_table in maps.items():
             logger = self.logger.getLogger(map_name)
-            map_table['adjacency'] = getSandRMap(fname=map_table['room_file'], logger=logger)
-            map_table['rooms'] = set(map_table['adjacency'].keys())
-            map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
-            map_table['coordinates'] = getSandRCoords(fname=map_table['coords_file'])
-            map_table['start'] = next(iter(map_table['adjacency'].keys()))
-            map_table['name'] = map_name
+            self.map_table['adjacency'] = getSandRMap(fname=self.map_table['room_file'], logger=logger)
+            self.map_table['rooms'] = set(self.map_table['adjacency'].keys())
+            self.map_table['victims'] = getSandRVictims(fname=self.map_table['victim_file'])
+            self.map_table['coordinates'] = getSandRCoords(fname=self.map_table['coords_file'])
+            self.map_table['start'] = next(iter(self.map_table['adjacency'].keys()))
+            self.map_table['name'] = map_name
         self.maps = maps
 
         # Set player models for observer agent
@@ -72,15 +71,15 @@ class Replayer(object):
 
     def get_map(self, parser, logger=logging):
         # Determine which map we're using
-        for map_name, map_table in self.maps.items():
-            if set(parser.locations) <= map_table['rooms']:
+        for map_name, self.map_table in self.maps.items():
+            if set(self.parser.locations) <= self.map_table['rooms']:
                 # This map contains all of the rooms from this log
-                return map_name, map_table
+                return map_name, self.map_table
             else:
                 logger.debug('Map "{}" missing rooms {}'.format(map_name, ','.join(
-                    sorted(set(parser.locations) - map_table['rooms']))))
+                    sorted(set(self.parser.locations) - self.map_table['rooms']))))
 
-        logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(parser.locations)))))
+        logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(self.parser.locations)))))
         return None, None
 
     def read_filename(self, fname):
@@ -119,7 +118,7 @@ class Replayer(object):
 
             # Parse events from log file
             try:
-                parser = self.parser_class(fname, logger=logger.getChild(self.parser_class.__name__))
+                self.parser = self.parser_class(fname, logger=logger.getChild(self.parser_class.__name__))
             except:
                 logger.error(traceback.format_exc())
                 logger.error('Unable to parse log file')
@@ -127,48 +126,20 @@ class Replayer(object):
 
             try:
                 map_name = conditions['CondWin'][0]
-                map_table = self.maps[map_name]
+                self.map_table = self.maps[map_name]
             except KeyError:
                 # Map not given in filename, try to find fallback
-                map_name, map_table = self.get_map(parser, logger)
-            if map_name is None or map_table is None:
+                map_name, self.map_table = self.get_map(self.parser, logger)
+            if map_name is None or self.map_table is None:
                 continue
 
-            # Create PsychSim model
-            logger.info('Creating world with "{}" map'.format(map_name))
-            try:
-                world, triageAgent, observer, victims, world_map = \
-                    make_single_player_world(parser.player_name(), map_table['start'],
-                                             map_table['adjacency'], map_table['victims'], False, True,
-                                             logger.getChild('makeWorld'))
-            except:
-                logger.error(traceback.format_exc())
-                logger.error('Unable to create world')
-                if fname is not None:
-                    break
-                else:
-                    continue
-            # Last-minute filling in of models. Would do it earlier if we extracted triageAgent's name
-            features = None
-            self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
-                               for value in itertools.product(*self.models.values()) if len(value) > 0]
-            for index, model in enumerate(self.model_list):
-                if 'name' not in model:
-                    model['name'] = '{}_{}'.format(triageAgent.name,
-                                                   '_'.join([model[dimension] for dimension in self.models]))
-                    for dimension in self.models:
-                        model[dimension] = self.models[dimension][model[dimension]]
-                        if dimension == 'reward':
-                            if not isinstance(model[dimension], dict):
-                                if features is None:
-                                    features = create_reward_vector(triageAgent, world_map.all_locations, world_map.moveActions[triageAgent.name])
-                                model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
-            if len(self.model_list) > 0:
-                set_player_models(world, observer.name, triageAgent.name, victims, self.model_list)
+            if not self.pre_replay(map_name, logger=logger.getChild('pre_replay')):
+                # Failure in creating world
+                continue
+
             # Replay actions from log file
-            parser.victimsObj = victims
             try:
-                aes, _ = parser.getActionsAndEvents(triageAgent.name, victims, world_map)
+                aes, _ = self.parser.getActionsAndEvents(self.triage_agent.name, self.victims, self.world_map)
             except:
                 logger.error(traceback.format_exc())
                 logger.error('Unable to extract actions/events')
@@ -177,16 +148,50 @@ class Replayer(object):
                 last = len(aes)
             else:
                 last = num_steps + 1
-            self.replay(parser, world, triageAgent, aes, last, logger)
-            self.post_replay(parser, world, triageAgent, observer, map_table, victims, world_map)
-            world_map.clear()
+            self.replay(aes, last, logger)
+            self.post_replay()
+            self.world_map.clear()
 
-    def replay(self, parser, world, agent, events, duration, logger):
+    def pre_replay(self, map_name, logger=logging):
+        # Create PsychSim model
+        logger.info('Creating world with "{}" map'.format(map_name))
         try:
-            parser.runTimeless(world, agent.name, events, 0, duration, len(events), permissive=True)
+            self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
+                make_single_player_world(self.parser.player_name(), self.map_table['start'],
+                                         self.map_table['adjacency'], self.map_table['victims'], False, True,
+                                         logger.getChild('make_single_player_world'))
+        except:
+            logger.error(traceback.format_exc())
+            logger.error('Unable to create world')
+            return False
+        # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
+        features = None
+        self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
+                           for value in itertools.product(*self.models.values()) if len(value) > 0]
+        for index, model in enumerate(self.model_list):
+            if 'name' not in model:
+                model['name'] = '{}_{}'.format(self.triage_agent.name,
+                                               '_'.join([model[dimension] for dimension in self.models]))
+                for dimension in self.models:
+                    model[dimension] = self.models[dimension][model[dimension]]
+                    if dimension == 'reward':
+                        if not isinstance(model[dimension], dict):
+                            if features is None:
+                                import atomic.model_learning.linear.rewards as rewards
+                                features = rewards.create_reward_vector(self.triage_agent, self.world_map.all_locations, 
+                                    self.world_map.moveActions[triage_agent.name])
+                            model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
+        if len(self.model_list) > 0:
+            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
+        self.parser.victimsObj = self.victims
+        return True
+
+    def replay(self, events, duration, logger):
+        try:
+            self.parser.runTimeless(self.world, self.triage_agent.name, events, 0, duration, len(events), permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')
 
-    def post_replay(self, parser, world, agent, observer, map_table, victims, world_map):
+    def post_replay(self):
         pass

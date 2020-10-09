@@ -90,7 +90,7 @@ class Analyzer(Replayer):
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
 
-    def post_replay(self, parser, map_table, world, agent, observer, victims, world_map):
+    def post_replay(self):
         parser.draw_plot()
 
 

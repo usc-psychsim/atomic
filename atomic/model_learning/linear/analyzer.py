@@ -132,30 +132,26 @@ class RewardModelAnalyzer(Replayer):
             except:
                 return False
 
-    def post_replay(self, parser, world, agent, observer, map_table, victims, world_map):
+    def post_replay(self, world, agent, observer):
         """
         Performs linear reward model learning using the Maximum Entropy IRL algorithm.
-        :param atomic.model_learning.parser.TrajectoryParser parser: the trajectory parser with the collected player trajectory.
-        :param dict map_table: a dictionary containing information on the environment map.
         :param World world: the PsychSim world.
         :param Agent agent: the player agent.
         :param Agent observer: the observer / ASIST agent.
-        :param WorldMap world_map: the world map with location and move actions information.
-        :param Victims victims: the info about victims distribution over the world.
         :return:
         """
         # checks result data, ignore if exists
-        if self._check_results(parser.filename):
+        if self._check_results(self.parser.filename):
             return
 
         # checks trajectory
-        trajectory = parser.trajectory
+        trajectory = self.parser.trajectory
         if len(trajectory) <= self.length + self.num_trajectories - 1:
             logging.info('Could not process datapoint, empty or very short trajectory.')
             return
 
         # create output
-        output_dir = os.path.join(self.output, get_file_name_without_extension(parser.filename))
+        output_dir = os.path.join(self.output, get_file_name_without_extension(self.parser.filename))
         create_clear_dir(output_dir, self.clear)
 
         # sets up log to file
@@ -166,13 +162,13 @@ class RewardModelAnalyzer(Replayer):
         np.random.seed(self.seed)
 
         # print map
-        neighbors = map_table['adjacency']
-        locations = list(map_table['rooms'])
-        coordinates = map_table['coordinates']
+        neighbors = self.map_table['adjacency']
+        locations = list(self.map_table['rooms'])
+        coordinates = self.map_table['coordinates']
         plot(world, locations, neighbors, os.path.join(output_dir, 'env.{}'.format(self.img_format)), coordinates)
 
         logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
-            parser.filename, parser.player_name(), len(trajectory), parser.data.shape[0]))
+            self.parser.filename, self.parser.player_name(), len(trajectory), self.parser.data.shape[0]))
         plot_trajectories(agent, [trajectory], locations, neighbors,
                           os.path.join(output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
                           title='Player Trajectory')
@@ -193,18 +189,18 @@ class RewardModelAnalyzer(Replayer):
         # create reward vector and optimize reward weights via MaxEnt IRL
         logging.info('=================================')
         logging.info('Starting Maximum Entropy IRL optimization...')
-        rwd_vector = create_reward_vector(agent, locations, world_map.moveActions[agent.name])
+        rwd_vector = create_reward_vector(agent, locations, self.world_map.moveActions[agent.name])
         alg = MaxEntRewardLearning(
             'max-ent', agent, rwd_vector, self.processes, self.normalize, self.learn_rate, self.epochs, self.diff, True,
             self.prune, self.horizon, self.seed)
-        result = alg.learn(trajectories, parser.filename, self.verbosity > 0)
+        result = alg.learn(trajectories, self.parser.filename, self.verbosity > 0)
 
         # saves results/stats
         alg.save_results(result, output_dir, self.img_format)
         save_object(result, os.path.join(output_dir, RESULTS_FILE_NAME))
-        self.results[parser.filename] = result
+        self.results[self.parser.filename] = result
         save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
-        self.trajectories[parser.filename] = trajectory
+        self.trajectories[self.parser.filename] = trajectory
 
         logging.info('=================================')
 
@@ -236,5 +232,5 @@ class RewardModelAnalyzer(Replayer):
         for name, metric in metrics.items():
             logging.info('\t{}: {:.3f}'.format(name, metric))
 
-        logging.info('Finished processing {}!'.format(parser.filename))
+        logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')
