@@ -42,7 +42,6 @@ class door(object):
         zlen = math.floor(abs(z0 - z1)/2)
         self.center = [x0+xlen,z0+zlen]
 
-
     def at_this_door(self, _x, _z):
         if _x in self.xrange and _z in self.zrange:
             return True
@@ -60,10 +59,11 @@ class msgreader(object):
         self.nmessages = 0
         self.rooms = []
         self.doors = [] # actually portals
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep', 'FoV']
         self.messages = []
         self.mission_running = False
         self.locations = []
+        self.observations = []
 
     def get_all_messages(self,fname):
         message_arr = []
@@ -102,6 +102,18 @@ class msgreader(object):
             didx += 1
         return beep_room
 
+    def get_obs_timer(self,fmessage):
+        obsnum = fmessage.mdict['observation']
+        nobs = len(self.observations)
+        oidx = nobs-1
+        timer = ''
+        while oidx >= 0:
+            if obsnum == self.observations[oidx][0]: # we have a match
+                timer = self.observations[oidx][1]
+            oidx -= 1
+        #return timer
+        fmessage.mdict.update({'mission_timer':timer})
+
     # add to msgreader obj
     # TODO: add counter to know nlines btwn start/stop
     def add_all_messages(self,fname):
@@ -109,6 +121,7 @@ class msgreader(object):
         jsonfile = open(fname, 'rt')
         nlines = 0
         for line in jsonfile.readlines():
+            # first filter messages before mission start & record observations
             if line.find("mission_victim_list") > -1:
                 self.mission_running = True # count this as mission start, start will occur just after list
                 self.add_message(line)
@@ -118,15 +131,19 @@ class msgreader(object):
                 self.mission_running = False
             elif line.find("paused\":false") > -1:
                 self.mission_running = True
-            elif line.find('data') > -1:
+            elif line.find('observation_number') > -1 and self.mission_running:
+                self.add_observation(line)
+            # now get actual messages
+            elif line.find('data') > -1: 
                 self.add_message(line)
-            elif line.find('Event:Location'):
-                self.add_location(line)
+            # if line.find('Event:Location'):
+            #    self.add_location(line)
             nlines += 1
         jsonfile.close()
 
     # adds single message to msgreader.messages list
     def add_message(self,jtxt): 
+        add_msg = True
         m = self.make_message(jtxt) # generates message, sets psychsim_tags
         if m.mtype in self.msg_types and self.mission_running:
             obs = json.loads(jtxt)
@@ -150,14 +167,35 @@ class msgreader(object):
                 del m.mdict['beep_x']
                 del m.mdict['beep_z']
                 m.mdict.update({'room_name':room_name})
-            self.messages.append(m)
+            elif m.mtype == 'FoV':
+                self.get_obs_timer(m)
+                if jtxt.find('victim') == -1 or m.mdict['mission_timer'] == '': # no victims skip msg
+                    add_msg = False
+                else:
+                    del m.mdict['observation']
+                    self.get_fov_blocks(m,jtxt)
+            if add_msg:
+                self.messages.append(m)
 
-    def add_location(self,jtxt):
+    # *might* have to filer out uninitialized timer
+    def add_observation(self,jtxt):
         obs = json.loads(jtxt)
-        message = obs[u'msg']
+        # message = obs[u'msg']
         data = obs[u'data']
-        
+        obsnum = int(data['observation_number'])
+        mtimer = data['mission_timer']
+        self.observations.append([obsnum,mtimer])
 
+    def get_fov_blocks(self,m,jtxt):
+        victim_arr = []
+        obs = json.loads(jtxt)
+        data = obs[u'data']
+        blocks = data['blocks']
+        for b in blocks:
+            if b['type'].find('victim') > -1:
+                victim_arr.append(b['type'])
+        m.mdict.update({'victim_list':victim_arr})
+      
     def make_victims_msg(self,line,vmsg):
         psychsim_tags = ['sub_type','message_type', 'mission_victim_list']
         victim_list_dicts = []
@@ -241,7 +279,7 @@ class msgreader(object):
     # message won't be processed
     def make_message(self,jtxt):
         m = msg('NONE')
-        self.psychsim_tags = ['mission_timer', 'sub_type', 'playername']
+        self.psychsim_tags = ['sub_type', 'mission_timer', 'playername']
         if jtxt.find('Event:Triage') > -1:
             self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_z']
             m.mtype = 'Event:Triage'
@@ -259,7 +297,9 @@ class msgreader(object):
             m.mtype = 'Mission:VictimList'
         elif jtxt.find('Event:Beep') > -1:
             self.psychsim_tags += ['message', 'room_name', 'beep_x', 'beep_z']
-            m.mtype = 'Event:Beep'
+        elif jtxt.find('FoV') > -1:
+            self.psychsim_tags += ['observation']
+            m.mtype = 'FoV'
         return m
 
     # this will be updated to use mmap, for now reads all lines
