@@ -7,7 +7,7 @@ from model_learning.util.plot import plot_bar
 from model_learning.metrics import evaluate_internal
 from model_learning.planning import get_policy
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
-from model_learning.trajectory import sample_sub_trajectories
+from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
 from atomic.parsing.replayer import Replayer
@@ -192,7 +192,7 @@ class RewardModelAnalyzer(Replayer):
             self.triage_agent, [trajectory], os.path.join(output_dir, 'action-frequencies.{}'.format(self.img_format)))
 
         # collect sub-trajectories from player's trajectory
-        trajectories = sample_sub_trajectories(trajectory, self.num_trajectories, self.length, seed=self.seed)
+        trajectories = sample_spread_sub_trajectories(trajectory, self.num_trajectories, self.length)
         logging.info('Collected {} trajectories of length {} from original trajectory.'.format(
             self.num_trajectories, self.length))
         plot_trajectories(self.triage_agent, trajectories, locations, neighbors,
