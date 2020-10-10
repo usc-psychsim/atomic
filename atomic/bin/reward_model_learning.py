@@ -91,13 +91,13 @@ if __name__ == '__main__':
     # performs post-processing of results
     post_processor = PostProcessor(analyzer)
     output_dir = os.path.join(args.output, 'post-process')
+    create_clear_dir(output_dir, False)
     change_log_handler(os.path.join(output_dir, 'post-process.log'), args.verbosity)
-    create_clear_dir(args.output, False)
 
     # runs the different post-processors
     logging.info('Analyzing {} results, saving post-process results in "{}"...'.format(
         len(analyzer.results), output_dir))
 
     post_processor.process_evaluation_metrics(output_dir)
-    post_processor.process_player_data(output_dir)
-    post_processor.process_reward_weights(output_dir)
+    # post_processor.process_player_data(output_dir)
+    # post_processor.process_reward_weights(output_dir)
