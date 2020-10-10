@@ -50,6 +50,7 @@ class Replayer(object):
         self.map_table = None
         self.parser = None
         self.conditions = None
+        self.file_name = None
 
         # Extract maps
         if maps is None:
@@ -81,10 +82,10 @@ class Replayer(object):
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
 
-    def get_map(self, conditions, logger=logging):
+    def get_map(self, logger=logging):
         # try to get map name directly from conditions dictionary
         try:
-            map_name = conditions['CondWin'][0]
+            map_name = self.conditions['CondWin'][0]
             map_table = self.maps[map_name]
             return map_name, map_table
         except KeyError:
@@ -133,6 +134,7 @@ class Replayer(object):
             files = [fname]
         # Get to work
         for fname in files:
+            self.file_name = fname
             logger = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
             logger.debug('Full path: {}'.format(fname))
             self.conditions = self.read_filename(os.path.splitext(os.path.basename(fname))[0])
