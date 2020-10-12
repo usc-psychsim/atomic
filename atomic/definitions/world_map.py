@@ -1,7 +1,7 @@
 from psychsim.action import Action, ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, noChangeMatrix, \
-    addFeatureMatrix, rewardKey
+    addFeatureMatrix, rewardKey, WORLD
 from atomic.definitions import Directions
 from atomic.definitions.world import SearchAndRescueWorld
 
@@ -11,7 +11,7 @@ class WorldMap(object):
     Represents a search and rescue world map with cardinal direction transitions (grid-world representation).
     """
 
-    def __init__(self, world, loc_neighbors):
+    def __init__(self, world, loc_neighbors, light_neighbors):
         """
         Creates a new map with the given locations.
         :param SearchAndRescueWorld world: the PsychSim world.
@@ -22,6 +22,8 @@ class WorldMap(object):
         self.neighbors = []
         self.all_locations = []
         self.moveActions = {}
+        self.lightActions = {}
+        self.sharedLights = light_neighbors
         self.makeMapDict(loc_neighbors)
 
     def makeMapDict(self, loc_neighbors):
@@ -35,6 +37,11 @@ class WorldMap(object):
                 self.neighbors[d][room] = n
                 locations.add(n)
         self.all_locations = list(locations)
+        
+        ## Create light status feature per location
+        for loc in self.all_locations:
+            self.world.defineState(WORLD, 'light' + str(loc), bool, description='Location light on or off')
+            self.world.setState(WORLD, 'light' + str(loc), True)
 
     def makePlayerLocation(self, agent, initLoc=None):
         self.world.defineState(agent, 'loc', list, list(self.all_locations))
@@ -50,6 +57,38 @@ class WorldMap(object):
 
         # Make move actions
         self._makeMoveActions(agent)
+        
+        # Make laction to toggle light switch
+        if len(self.sharedLights) > 0:
+            self._makeLightToggleAction(agent)
+        
+    def _makeLightToggleAction(self, agent):
+        """
+        Action to toggle the light switch in a loc that has one.
+        Toggling a switch in a loc affects the light status in all rooms that share its light
+        """
+        locKey = stateKey(agent.name, 'loc')
+        locsWithLights = set(self.sharedLights.keys())
+        ## Legal if I'm in a room with a light switch
+        legalityTree = makeTree({'if': equalRow(locKey, locsWithLights),
+                                 True: True,
+                                 False: False})
+        action = agent.addAction({'verb': 'toggleLight'}, makeTree(legalityTree))
+        
+        ## Instead of iterating over locations, I'll iterate over those that have
+        ## switches and create a tree for each affected room
+        for switch,affected in self.sharedLights.items():
+            for aff in affected:
+                affFlag = stateKey(WORLD, 'light' + str(aff))
+                txnTree = {'if': equalRow(locKey, switch),
+                           True: {'if': equalRow(affFlag, True),
+                                  True: setToConstantMatrix(affFlag, False),
+                                  False: setToConstantMatrix(affFlag, True)},
+                           False:noChangeMatrix(affFlag)}
+                self.world.setDynamics(affFlag, action, makeTree(txnTree))
+        
+        
+        self.lightActions[agent.name] = action
 
     def _makeMoveActions(self, agent):
         """

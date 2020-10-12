@@ -13,6 +13,7 @@ from psychsim.world import WORLD
 MOVE = 0
 TRIAGE = 1
 SEARCH = 2
+TOGGLE_LIGHT = 3
 
 class DataParserFromJson(object):
 
@@ -61,6 +62,10 @@ class DataParserFromJson(object):
             self.actions.append([MOVE, mv, ts]) 
         self.logger.debug('moved to %s %s' % (self.lastParsedLoc, ts))
 
+
+    def parseLight(self, loc, ts):
+        action = self.world_map.lightActions[self.human]
+        self.actions.append([TOGGLE_LIGHT, [action], ts])
 
     def parseFOV(self, colors, ts):
         ## TODO what if multiple victims in FOV
@@ -123,6 +128,10 @@ class DataParserFromJson(object):
             elif mtype == 'Event:location':
                 loc = m['data']['location']
                 self.parseMove(loc, ts)
+                
+            elif mtype == 'Event:Lever':
+                #  is_powered:false then the player has just turned that light switch on
+                self.parseLight(loc, ts)
             
             m = next(jsonMsgIter)
         
