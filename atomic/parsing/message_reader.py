@@ -297,6 +297,7 @@ class msgreader(object):
             m.mtype = 'Mission:VictimList'
         elif jtxt.find('Event:Beep') > -1:
             self.psychsim_tags += ['message', 'room_name', 'beep_x', 'beep_z']
+            m.mtype = 'Event:Beep'
         elif jtxt.find('FoV') > -1:
             self.psychsim_tags += ['observation']
             m.mtype = 'FoV'
