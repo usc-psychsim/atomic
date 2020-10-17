@@ -32,7 +32,6 @@ class DataParser(object):
             self.data = pd.read_csv(filename)
         else:
             raise NameError('Unable to process data file with "{}" extension'.format(os.path.splitext(filename)[1]))
-        exit()
         self.maxVicsInLoc = self.data['num_victims'].max()
 
         self.cols = [
