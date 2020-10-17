@@ -8,6 +8,7 @@ Created on Thu Apr  2 20:35:23 2020
 import logging
 import pandas as pd
 import numpy as np
+import os.path
 from psychsim.action import ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey
@@ -25,10 +26,13 @@ class DataParser(object):
     def __init__(self, filename, maxDist=5, logger=logging):
         self.maxDist = maxDist
         self.filename = filename
-        if filename.endswith('xlsx'):
+        if os.path.splitext(filename)[1] == '.xlsx':
             self.data = pd.read_excel(filename)
-        elif filename.endswith('csv'):
+        elif os.path.splitext(filename)[1] == '.csv':
             self.data = pd.read_csv(filename)
+        else:
+            raise NameError('Unable to process data file with "{}" extension'.format(os.path.splitext(filename)[1]))
+        exit()
         self.maxVicsInLoc = self.data['num_victims'].max()
 
         self.cols = [
