@@ -23,14 +23,6 @@ def make_single_player_world(
     # create (single) triage agent
     triage_agent = world.addAgent(player_name)
     
-    # create player's sensor variable. Value is n<num beeps>d<direction>
-    beeps = ['none']
-    for num in [1,2]:
-        for d in range(4):
-            beeps.append('n' + str(num)+'d'+str(d))
-    world.defineState(triage_agent, 'sensor', list, beeps)
-    world.setState(triage_agent.name, 'sensor', 'none')
-    
     world_map.makePlayerLocation(triage_agent, init_loc)
     victims.setupTriager(triage_agent)
     victims.createTriageActions(triage_agent)

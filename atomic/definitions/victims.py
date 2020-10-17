@@ -1,5 +1,6 @@
 from psychsim.pwl import makeTree, setToConstantMatrix, equalRow, stateKey, rewardKey, Distribution, noChangeMatrix, \
     makeFuture, differenceRow, incrementMatrix, setFalseMatrix, dynamicsMatrix, thresholdRow, addFeatureMatrix
+from atomic.definitions import Directions
 from psychsim.world import WORLD
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.world import SearchAndRescueWorld
@@ -87,7 +88,42 @@ class Victims(object):
 
         # create and initialize fov
         self.world.defineState(agent.name, FOV_FEATURE, list, ['none'] + self.color_names)
-        agent.setState(FOV_FEATURE, 'none')
+        agent.setState(FOV_FEATURE, 'none')        
+        
+        # Sensors, 1 per direction. 
+        beeps = ['none', '1', '2']
+        for d in range(4):
+            self.world.defineState(agent, 'sensor'+str(d), list, beeps)
+            self.world.setState(agent.name, 'sensor'+str(d), 'none')
+        
+        # create dynamics of sensor
+        self._createSensorDyn(agent)        
+            
+    def _sense1Location(self, beepKey, nbrLoc):
+        nbrYCt = stateKey(WORLD, 'ctr_' + nbrLoc + '_' + GOLD_STR)
+        nbrGCt = stateKey(WORLD, 'ctr_' + nbrLoc + '_' + GREEN_STR)
+        probNoBeep = 0.01
+        yDistr = {'2':1-probNoBeep, 'none':probNoBeep}
+        gDistr = {'1':1-probNoBeep, 'none':probNoBeep}        
+        
+        tree = {'if': thresholdRow(nbrYCt, 0),
+                True: {'distribution': [(setToConstantMatrix(beepKey, c), p) for c, p in yDistr.items()]},
+                False: {'if': thresholdRow(nbrGCt, 0),
+                        True: {'distribution': [(setToConstantMatrix(beepKey, c), p) for c, p in gDistr.items()]},
+                        False: setToConstantMatrix(beepKey, 'none')}}
+        return tree        
+        
+    def _createSensorDyn(self, human):
+        for d in Directions:
+            beepKey = stateKey(human.name, 'sensor'+str(d.value))
+            locsWithNbrs = list(self.world_map.neighbors[d.value].keys())            
+            tree = {'if': equalRow(stateKey(human.name, 'loc'), locsWithNbrs),
+                    None: setToConstantMatrix(beepKey, 'none')}
+            for il, loc in enumerate(locsWithNbrs):
+                nbr = self.world_map.neighbors[d.value][loc]
+                tree[il] = self._sense1Location(beepKey, nbr)
+            self.world.setDynamics(beepKey, True, makeTree(tree))
+        
 
     def createTriageActions(self, agent):
         # Create a triage action per victim color
@@ -234,7 +270,6 @@ class Victims(object):
         self.searchActs[agent.name] = action
 
     def makeExpiryDynamics(self):
-
         # set every player's FOV to RED if they are seeing a victim
         vic_colors = [color for color in self.color_names if color not in {WHITE_STR, RED_STR}]
         for agent in self.triageActs.keys():

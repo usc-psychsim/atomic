@@ -9,13 +9,15 @@ import logging
 import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
+from atomic.definitions import Directions
 
 MOVE = 0
 TRIAGE = 1
 SEARCH = 2
 TOGGLE_LIGHT = 3
+BEEP = 4
 
-class DataParserFromJson(object):
+class ProcessParsedJson(object):
 
     def __init__(self, humanName, world_map, victimsObj, logger=logging):
         self.human = humanName
@@ -66,9 +68,18 @@ class DataParserFromJson(object):
     def parseLight(self, loc, ts):
         action = self.world_map.lightActions[self.human]
         self.actions.append([TOGGLE_LIGHT, [action], ts])
+        
+        
+    def parseBeep(self, msg, ts):
+        numBeeps= len(msg['message'].split())
+        targetRoom = msg['room_name']
+        direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
+        sensorKey = stateKey(self.human, 'sensor'+str(direction.value))
+        self.actions.append([BEEP, [sensorKey, str(numBeeps)], ts])
 
     def parseFOV(self, colors, ts):
         ## TODO what if multiple victims in FOV
+        ## TODO skip message with no change
         if len(colors) > 0:
             found = colors[0]            
         else:
@@ -106,32 +117,42 @@ class DataParserFromJson(object):
         while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):
             numMsgs = numMsgs + 1
             
-            mtype = m['msg']['sub_type']    
+            mtype = m['sub_type']
+            print(numMsgs, mtype)
+            if mtype in ['Mission:VictimList']:
+                m = next(jsonMsgIter)
+                continue
             # mission_timer gives remaining time
-            [mm, ss] = [int(x) for x in m['data']['mission_timer'].split(':')]
+            [mm, ss] = [int(x) for x in m['mission_timer'].split(':')]
             ## time elapsed in seconds
             ts = 10 * 60 - mm * 60 - ss
             
             if mtype == 'Event:Triage':
-                tstate = m['data']['triage_state']
-                vicColor = m['data']['color']
+                tstate = m['triage_state']
+                vicColor = m['color']
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(ts)
                 else:
                     success = (tstate == 'SUCCESSFUL')
                     self.parseTriageEnd(vicColor, success, ts)            
                     
+            elif mtype == 'Event:Beep':
+                self.parseBeep(m, ts)
+                    
             elif mtype == 'FoV':
-                colors = m['data']['colors']
-                self.parseFOV(colors, ts)
+                colors = map(lambda x: 'Green' if x == 'block_victim_1'  else 'Yellow', m['victim_list'])
+                self.parseFOV(list(colors), ts)
             
             elif mtype == 'Event:location':
-                loc = m['data']['location']
+                loc = m['location']
                 self.parseMove(loc, ts)
                 
             elif mtype == 'Event:Lever':
                 #  is_powered:false then the player has just turned that light switch on
                 self.parseLight(loc, ts)
+            
+            elif mtype == 'Event:Door':
+                pass
             
             m = next(jsonMsgIter)
         
@@ -156,14 +177,20 @@ class DataParserFromJson(object):
             world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
             start = 1
 
-        for t, actStruct in enumerate(self.actions[start:end]):
+        t = start
+        while True:
+            if t == end:
+                break
+            
+            actStruct = self.actions[t]
             self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actStruct[1]))))
             if t + start >= ffwdTo:
                 input('press any key.. ')
                 
             actType = actStruct[0]
             act = actStruct[1][0]
-            selDict = {}
+            ## Start with the assumption that you didn't hear any beeps in any direction
+            selDict = {stateKey(self.human, 'sensor'+str(d.value)):'none' for d in Directions}
             
             if act not in world.agents[self.human].getLegalActions():
                 raise ValueError('Illegal action!')
@@ -187,7 +214,14 @@ class DataParserFromJson(object):
                                                                      unique=True) == 0:
                     # Observed a victim who should not be here
                     self.logger.warning('In {}, a nonexistent {} victim entered the FOV'.format(self.lastParsedLoc, color))
-                    continue                
+                    continue
+                
+            t = t+1
+            ## After you parse an action, skip ahead to overwrite 'none' beeps with heard beeps.
+            while self.actions[t][0] == BEEP:
+                [sensorKey, value] = self.actions[t][1]
+                selDict[sensorKey] = value
+                t = t+1
                     
             self.pre_step(world)
             world.step(act, select=selDict, threshold=prune_threshold)                    
@@ -210,8 +244,8 @@ class DataParserFromJson(object):
         self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
 
 
-f = open('/home/mostafh/Documents/psim/new_atomic/atomic/data/tryj', 'rt')
-lines = f.readlines()
-jsonIter = iter([json.loads(ln) for ln in lines])
-jsonParser = DataParserFromJson()
-jsonParser.processJson(jsonIter, 100)
+#f = open('/home/mostafh/Documents/psim/new_atomic/atomic/data/tryj', 'rt')
+#lines = f.readlines()
+#jsonIter = ite([m.mdict for m in reader.messages])
+#jsonParser = ProcessParsedJson()
+#jsonParser.processJson(jsonIter, 100)

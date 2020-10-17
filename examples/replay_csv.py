@@ -30,11 +30,11 @@ except IndexError:
 name = parser.player_name()
 
 #
-######## Get Map Data
-#small = False
-#mapName = 'falcon'
-#SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
-#SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
+######### Get Map Data
+small = False
+mapName = 'falcon_easy'
+SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
+SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
 #
 ### Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
 #shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
@@ -43,7 +43,7 @@ name = parser.player_name()
 #    lightMap[shr + '1'] = []
 #    for i in range(1,num+1):
 #        lightMap[shr + '1'].append(shr + str(i))
-
+#
 
 #use_unobserved=True, full_obs=False, logger=logging):
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(name, None, SandRLocs, SandRVics, False, True, lightMap)
