@@ -53,6 +53,7 @@ class msg(object):
         self.mtype = msg_type
         self.mdict = {}
         self.linenum = 0
+        self.playername = ''
 
 class msgreader(object):
     def __init__(self, fname, latest=False):
@@ -143,6 +144,8 @@ class msgreader(object):
                 self.add_message(line,nlines)
             nlines += 1
         jsonfile.close()
+        # set playername
+        self.playername = self.messages[1].mdict['playername']
 
     # adds single message to msgreader.messages list
     def add_message(self,jtxt,linenum): 
