@@ -56,7 +56,7 @@ class msg(object):
         self.playername = ''
 
 class msgreader(object):
-    def __init__(self, fname, latest=False):
+    def __init__(self, fname, room_list, portal_list, latest=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
@@ -67,6 +67,10 @@ class msgreader(object):
         self.locations = []
         self.observations = []
         self.curr_room = ''
+        self.rescues = 0
+        self.load_rooms(room_list)
+        self.load_doors(portal_list)
+
 
     def get_all_messages(self,fname):
         message_arr = []
@@ -324,6 +328,8 @@ class msgreader(object):
         if jtxt.find('Event:Triage') > -1:
             self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_z']
             m.mtype = 'Event:Triage'
+            if jtxt.find('SUCCESS') > -1:
+                self.rescues += 1
         elif jtxt.find('Event:Door') > -1:
             self.psychsim_tags += ['open', 'door_x', 'door_z', 'room1', 'room2']
             m.mtype = 'Event:Door'
@@ -386,14 +392,54 @@ class msgreader(object):
                     self.doors.append(d)
                     line_count += 1
 
-# USE: create reader object then use to read all messages in file -- returns array of dictionaries
-jsonfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
-reader = msgreader(jsonfile, True)
-reader.load_rooms('/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv')
-reader.load_doors('/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv')
-reader.add_all_messages(jsonfile)
-# print all the messages
-for m in reader.messages:
-    print(str(m.mdict))
+# MAIN
+# create reader object then use to read all messages in trial file -- returns array of dictionaries
+msgfile = ''
+room_list = ''
+portal_list = ''
+print_rescues = False
+# allow user to specify inputs
+if len(sys.argv) > 1:
+    argcnt = 0
+    for a in sys.argv:
+        if a == '--rescues':
+            print_rescues = True
+        elif a == '--msgfile':
+            msgfile = sys.argv[argcnt+1] 
+        elif a == '--roomfile':
+            room_list = sys.argv[argcnt+1]
+        elif a == '--portalfile':
+            portal_list = sys.argv[argcnt+1]
+        elif a == '--help':
+            print("USAGE: message_reader.py --rescues --msgfile <trial messages file> --roomfile <list of rooms> --portalfile <list of portals>")
+        argcnt += 1
+
+# if ONLY getting number of rescues
+if print_rescues:
+    num_rescues = 0
+    mfile = ''
+    if msgfile == '':
+        print("ERROR: must provide --msgfile <filename>")
+    else:
+        mfile = open(msgfile, 'rt')
+        for line in mfile.readlines():
+            if line.find('triage') > -1 and line.find('SUCCESS') > -1:
+                num_rescues += 1
+        mfile.close()
+        print("NUMBER OF VICTIMS RESCUED: "+str(num_rescues))
+
+else:
+# USE DEFAULTS
+    if msgfile == '': # not entered on cmdline
+        msgfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
+    if room_list == '':
+        room_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv'
+    if portal_list == '':
+        portal_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    reader = msgreader(msgfile, room_list, portal_list, True)
+    reader.add_all_messages(msgfile)
+    # print all the messages
+    for m in reader.messages:
+        print(str(m.mdict))
 
 
