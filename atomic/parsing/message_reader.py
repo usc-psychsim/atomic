@@ -53,16 +53,16 @@ class msg(object):
         self.mtype = msg_type
         self.mdict = {}
         self.linenum = 0
-        self.playername = ''
 
 class msgreader(object):
-    def __init__(self, room_list, portal_list, latest=False):
+    def __init__(self, fname, room_list, portal_list, latest=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
         self.doors = [] # actually portals
         self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep', 'FoV','state']
         self.messages = []
+        self.filtered_messages = [] # filters ghost player
         self.mission_running = False
         self.locations = []
         self.observations = []
@@ -70,18 +70,8 @@ class msgreader(object):
         self.rescues = 0
         self.load_rooms(room_list)
         self.load_doors(portal_list)
-
-
-    def get_all_messages(self,fname):
-        message_arr = []
-        jsonfile = open(fname, 'rt')
-        for line in jsonfile.readlines():
-            if line.find('data') > -1:
-                m = self.parse_message(line)
-                if (len(m.items()) > 0):
-                    message_arr.append(m)
-            jsonfile.close()
-        return message_arr
+        self.playername = ''
+        self.foundplayer = 0
 
     # find closest portal (closest room may not be accessible)
     # then find the rooms that portal adjoins & select the one we're not already in
@@ -149,7 +139,15 @@ class msgreader(object):
             nlines += 1
         jsonfile.close()
         # set playername
-        self.playername = self.messages[1].mdict['playername']
+        # self.playername = self.messages[1].mdict['playername']
+        for i in range(len(self.messages)):
+            m = self.messages[i]
+            if m.mtype == 'Event:Beep' or m.mtype == 'Event:VictimsExpired' or m.mtype == 'Mission:VictimList':
+                m.mdict.update({'playername':self.playername})
+                self.filtered_messages.append(m)
+            elif m.mdict['playername'] == self.playername:
+                self.filtered_messages.append(m)
+        
 
     # adds single message to msgreader.messages list
     def add_message(self,jtxt,linenum): 
@@ -167,8 +165,15 @@ class msgreader(object):
             for (k,v) in message.items():
                 if k in self.psychsim_tags:
                     m.mdict[k] = v
-            if m.mtype in ['Event:Triage', 'Event:Lever']:
-                self.add_room(m.mdict)            
+            if m.mtype in ['Event:Triage']:
+                self.add_room(m.mdict)
+                if self.playername == '': # this is our first triage, only care abt this player
+                    self.playername = m.mdict['playername']
+                    self.foundplayer = 1
+                elif self.foundplayer == 1 and self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
+                    add_msg = False
+            if m.mtype == 'Event:Lever':
+                self.add_room(m.mdict)  
             elif m.mtype == 'Event:Door':
                 self.add_door_rooms(m.mdict,m.mtype)
             elif m.mtype == 'Mission:VictimList':
@@ -197,19 +202,20 @@ class msgreader(object):
         data = obs[u'data']
         obsnum = int(data['observation_number'])
         playername = data['name']
-        mtimer = data['mission_timer']
-        tstamp = data['timestamp'].split('T')[1].split('.')[0]
-        obsx = data['x']
-        obsz = data['z']
-        obsdict = {'x':obsx,'z':obsz}
-        room_name = self.add_room_obs(obsdict)
-        if room_name != self.curr_room and room_name != '':
-            m = msg('state')
-            m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer}
-            self.messages.append(m)
-            self.curr_room = room_name
-        else:
-            self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz])
+        if playername == self.playername: # only add if not ghost
+            mtimer = data['mission_timer']
+            tstamp = data['timestamp'].split('T')[1].split('.')[0]
+            obsx = data['x']
+            obsz = data['z']
+            obsdict = {'x':obsx,'z':obsz}
+            room_name = self.add_room_obs(obsdict)
+            if room_name != self.curr_room and room_name != '':
+                m = msg('state')
+                m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer}
+                self.messages.append(m)
+                self.curr_room = room_name
+            else:
+                self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz])
 
     def get_fov_blocks(self,m,jtxt):
         victim_arr = []
@@ -430,17 +436,15 @@ if print_rescues:
 
 else:
 # USE DEFAULTS
-    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
     if msgfile == '': # not entered on cmdline
-        msgfile = home + 'study-1_2020.08_TrialMessages_CondBtwn-TriageSignal_CondWin-FalconMed-DynamicMap_Trial-85_Team-na_Member-40_Vers-1.metadata'
+        msgfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
     if room_list == '':
-        room_list = home + 'ASIST_FalconMap_Rooms_v1.1_OCN.csv'
+        room_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv'
     if portal_list == '':
-        portal_list = home + 'ASIST_FalconMap_Portals_v1.1_OCN.csv'
-    reader = msgreader(room_list, portal_list, True)
+        portal_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    reader = msgreader(msgfile, room_list, portal_list, True)
     reader.add_all_messages(msgfile)
     # print all the messages
-#    for m in reader.messages:
-#        print(str(m.mdict))
-
+    for m in reader.filtered_messages:
+        print(str(m.mdict))
 
