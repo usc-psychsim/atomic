@@ -119,6 +119,7 @@ class ProcessParsedJson(object):
             
             mtype = m['sub_type']
             print(numMsgs, mtype)
+            input('press any key.. ')
             if mtype in ['Mission:VictimList']:
                 m = next(jsonMsgIter)
                 continue
@@ -143,8 +144,8 @@ class ProcessParsedJson(object):
                 colors = map(lambda x: 'Green' if x == 'block_victim_1'  else 'Yellow', m['victim_list'])
                 self.parseFOV(list(colors), ts)
             
-            elif mtype == 'Event:location':
-                loc = m['location']
+            elif mtype == 'Event:Location':
+                loc = m['room_name']
                 self.parseMove(loc, ts)
                 
             elif mtype == 'Event:Lever':

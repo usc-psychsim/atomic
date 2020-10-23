@@ -56,7 +56,7 @@ class msg(object):
         self.playername = ''
 
 class msgreader(object):
-    def __init__(self, fname, room_list, portal_list, latest=False):
+    def __init__(self, room_list, portal_list, latest=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
@@ -430,16 +430,17 @@ if print_rescues:
 
 else:
 # USE DEFAULTS
+    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
     if msgfile == '': # not entered on cmdline
-        msgfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
+        msgfile = home + 'study-1_2020.08_TrialMessages_CondBtwn-TriageSignal_CondWin-FalconMed-DynamicMap_Trial-85_Team-na_Member-40_Vers-1.metadata'
     if room_list == '':
-        room_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv'
+        room_list = home + 'ASIST_FalconMap_Rooms_v1.1_OCN.csv'
     if portal_list == '':
-        portal_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv'
-    reader = msgreader(msgfile, room_list, portal_list, True)
+        portal_list = home + 'ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    reader = msgreader(room_list, portal_list, True)
     reader.add_all_messages(msgfile)
     # print all the messages
-    for m in reader.messages:
-        print(str(m.mdict))
+#    for m in reader.messages:
+#        print(str(m.mdict))
 
 
