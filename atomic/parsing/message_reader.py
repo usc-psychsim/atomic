@@ -423,6 +423,8 @@ if len(sys.argv) > 1:
 # if ONLY getting number of rescues
 if print_rescues:
     num_rescues = 0
+    num_green = 0
+    num_yellow = 0
     mfile = ''
     if msgfile == '':
         print("ERROR: must provide --msgfile <filename>")
@@ -431,8 +433,14 @@ if print_rescues:
         for line in mfile.readlines():
             if line.find('triage') > -1 and line.find('SUCCESS') > -1:
                 num_rescues += 1
+                if line.find('Yellow') > -1:
+                    num_yellow += 1
+                else:
+                    num_green += 1
         mfile.close()
-        print("NUMBER OF VICTIMS RESCUED: "+str(num_rescues))
+        print('green rescues: '+str(num_green))
+        print('yellow rescues: '+str(num_yellow))
+        print("TOTAL VICTIMS RESCUED: "+str(num_rescues))
 
 else:
 # USE DEFAULTS
