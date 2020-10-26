@@ -398,30 +398,7 @@ class msgreader(object):
                     self.doors.append(d)
                     line_count += 1
 
-# MAIN
-# create reader object then use to read all messages in trial file -- returns array of dictionaries
-msgfile = ''
-room_list = ''
-portal_list = ''
-print_rescues = False
-# allow user to specify inputs
-if len(sys.argv) > 1:
-    argcnt = 0
-    for a in sys.argv:
-        if a == '--rescues':
-            print_rescues = True
-        elif a == '--msgfile':
-            msgfile = sys.argv[argcnt+1] 
-        elif a == '--roomfile':
-            room_list = sys.argv[argcnt+1]
-        elif a == '--portalfile':
-            portal_list = sys.argv[argcnt+1]
-        elif a == '--help':
-            print("USAGE: message_reader.py --rescues --msgfile <trial messages file> --roomfile <list of rooms> --portalfile <list of portals>")
-        argcnt += 1
-
-# if ONLY getting number of rescues
-if print_rescues:
+def get_rescues(msgfile):
     num_rescues = 0
     num_green = 0
     num_yellow = 0
@@ -438,10 +415,55 @@ if print_rescues:
                 else:
                     num_green += 1
         mfile.close()
-        print('green rescues: '+str(num_green))
+        print('green rescues : '+str(num_green))
         print('yellow rescues: '+str(num_yellow))
-        print("TOTAL VICTIMS RESCUED: "+str(num_rescues))
+        print("TOTAL RESCUED : "+str(num_rescues))
 
+# MAIN
+# create reader object then use to read all messages in trial file -- returns array of dictionaries
+msgfile = ''
+room_list = ''
+portal_list = ''
+print_rescues = False
+multitrial = False
+msgdir = ''
+# allow user to specify inputs
+if len(sys.argv) > 1:
+    argcnt = 0
+    for a in sys.argv:
+        if a == '--rescues':
+            print_rescues = True
+        elif a == '--msgfile':
+            msgfile = sys.argv[argcnt+1] 
+        elif a == '--roomfile':
+            room_list = sys.argv[argcnt+1]
+        elif a == '--multitrial':
+            multitrial = True
+            msgdir = sys.argv[argcnt+1]
+        elif a == '--portalfile':
+            portal_list = sys.argv[argcnt+1]
+        elif a == '--help':
+            print("USAGE: message_reader.py --rescues --msgfile <trial messages file> --roomfile <list of rooms> --portalfile <list of portals> --multitrial <directory with message files>")
+        argcnt += 1
+
+# if ONLY getting number of rescues
+if print_rescues:
+    if multitrial:
+        if msgdir == '':
+            print("ERROR: must provide --msgdir <directory>")
+        else:
+            file_arr = os.listdir(msgdir)
+            for f in file_arr:
+                full_path = os.path.join(msgdir,f)
+                if os.path.isfile(full_path):
+                    print(full_path)
+                    get_rescues(full_path)
+    else: # just want rescues for single file
+        if msgfile == '':
+            print("ERROR: must provide --msgfile <filename>")
+        else:
+            get_rescues(msgfile)
+        
 else:
 # USE DEFAULTS
     if msgfile == '': # not entered on cmdline
