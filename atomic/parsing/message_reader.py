@@ -62,7 +62,6 @@ class msgreader(object):
         self.doors = [] # actually portals
         self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep', 'FoV','state']
         self.messages = []
-        self.filtered_messages = [] # filters ghost player
         self.mission_running = False
         self.locations = []
         self.observations = []
@@ -70,8 +69,19 @@ class msgreader(object):
         self.rescues = 0
         self.load_rooms(room_list)
         self.load_doors(portal_list)
-        self.playername = ''
+        self.playername = self.get_player(fname)
         self.foundplayer = 0
+
+    def get_player(self, msgfile):
+        jsonfile = open(msgfile, 'rt')
+        nlines = 1 # start 1 so aligns with line num in file
+        for line in jsonfile.readlines():
+            if line.find('Triage') > -1:
+                obs = json.loads(line)
+                data = obs[u'data']
+                playername = data['playername']
+                break
+        return playername
 
     # find closest portal (closest room may not be accessible)
     # then find the rooms that portal adjoins & select the one we're not already in
@@ -112,6 +122,8 @@ class msgreader(object):
                 timer = obs[1]
                 x = obs[4]
                 z = obs[5]
+        if timer == '': # could not match, use last obs (maybe do by default? fovs collected more frequently)
+            timer = self.observations[nobs-1][3]
         fmessage.mdict.update({'mission_timer':timer})
 
     # add to msgreader obj
@@ -125,29 +137,23 @@ class msgreader(object):
             if line.find("mission_victim_list") > -1:
                 self.mission_running = True # count this as mission start, start will occur just after list
                 self.add_message(line,nlines)
-            elif line.find("mission_state\":\"Stop") > -1:
+            elif line.find("mission_state\":\"Stop") > -1 or line.find('Mission Timer not initialized') > -1:
                 self.mission_running = False
             elif line.find("paused\":true") > -1:
                 self.mission_running = False
             elif line.find("paused\":false") > -1:
                 self.mission_running = True
             elif line.find('observation_number') > -1 and self.mission_running:
-                self.add_observation(line,nlines) # also adds message
+                if self.mission_running:
+                    self.add_observation(line,nlines) # also adds message if room change
             # now get actual messages
             elif line.find('data') > -1: # should check for types here, don't pass all?
                 self.add_message(line,nlines)
             nlines += 1
         jsonfile.close()
         # set playername
+# get rid of this...add player name at the message level
         # self.playername = self.messages[1].mdict['playername']
-        for i in range(len(self.messages)):
-            m = self.messages[i]
-            if m.mtype == 'Event:Beep' or m.mtype == 'Event:VictimsExpired' or m.mtype == 'Mission:VictimList':
-                m.mdict.update({'playername':self.playername})
-                self.filtered_messages.append(m)
-            elif m.mdict['playername'] == self.playername:
-                self.filtered_messages.append(m)
-        
 
     # adds single message to msgreader.messages list
     def add_message(self,jtxt,linenum): 
@@ -167,10 +173,8 @@ class msgreader(object):
                     m.mdict[k] = v
             if m.mtype in ['Event:Triage']:
                 self.add_room(m.mdict)
-                if self.playername == '': # this is our first triage, only care abt this player
-                    self.playername = m.mdict['playername']
-                    self.foundplayer = 1
-                elif self.foundplayer == 1 and self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
+                #self.curr_room = m.mdict['room_name']
+                if self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
                     add_msg = False
             if m.mtype == 'Event:Lever':
                 self.add_room(m.mdict)  
@@ -183,10 +187,11 @@ class msgreader(object):
                 del m.mdict['beep_x']
                 del m.mdict['beep_z']
                 m.mdict.update({'room_name':room_name})
+                m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
-                self.get_obs_timer(m)
+                self.get_obs_timer(m) # do at end??
                 del m.mdict['timestamp']
-                if jtxt.find('victim') == -1 or m.mdict['mission_timer'] == '': # no victims skip msg
+                if jtxt.find('victim') == -1 or m.mdict['playername'] != self.playername: # no victims skip msg
                     add_msg = False
                 else:
                     del m.mdict['observation']
@@ -205,6 +210,7 @@ class msgreader(object):
         if playername == self.playername: # only add if not ghost
             mtimer = data['mission_timer']
             tstamp = data['timestamp'].split('T')[1].split('.')[0]
+            tstamp = tstamp.split('Z')[0]
             obsx = data['x']
             obsz = data['z']
             obsdict = {'x':obsx,'z':obsz}
@@ -214,8 +220,8 @@ class msgreader(object):
                 m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer}
                 self.messages.append(m)
                 self.curr_room = room_name
-            else:
-                self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz])
+                #            else:
+            self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz]) # add to obs even if is location change
 
     def get_fov_blocks(self,m,jtxt):
         victim_arr = []
@@ -266,6 +272,7 @@ class msgreader(object):
             del victim['z']
             victim.update({'room_name':room_name})
         vmsg.mdict.update({'mission_victim_list':victim_list_dicts})
+        vmsg.mdict.update({'playername':self.playername})
         del vmsg.mdict['mission_timer']
 
     # adds which room event is occurring in 
@@ -287,7 +294,7 @@ class msgreader(object):
                 room_name = r.name
         del msgdict[xkey]
         del msgdict[zkey]
-        msgdict.update({'room':room_name})
+        msgdict.update({'room_name':room_name})
 
     def add_room_obs(self, msgdict):
         x = 0
@@ -343,8 +350,8 @@ class msgreader(object):
             self.psychsim_tags += ['powered', 'lever_x', 'lever_z']
             m.mtype = 'Event:Lever'
         elif jtxt.find('Event:VictimsExpired') > -1:
-            self.psychsim_tags += ['mission_timer']
             m.mtype = 'Event:VictimsExpired'
+            m.mdict.update({'playername':self.playername})
         elif jtxt.find('Mission:VictimList') > -1:
             self.psychsim_tags += ['mission_victim_list', 'room_name', 'message_type']
             m.mtype = 'Mission:VictimList'
@@ -475,6 +482,5 @@ else:
     reader = msgreader(msgfile, room_list, portal_list, True)
     reader.add_all_messages(msgfile)
     # print all the messages
-    for m in reader.filtered_messages:
+    for m in reader.messages:
         print(str(m.mdict))
-
