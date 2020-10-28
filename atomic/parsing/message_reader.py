@@ -123,7 +123,7 @@ class msgreader(object):
                 x = obs[4]
                 z = obs[5]
         if timer == '': # could not match, use last obs (maybe do by default? fovs collected more frequently)
-            timer = self.observations[nobs-1][3]
+            timer = self.observations[nobs-1][1]
         fmessage.mdict.update({'mission_timer':timer})
 
     # add to msgreader obj
