@@ -74,26 +74,26 @@ class msgreader(object):
 
     def get_player(self, msgfile):
         jsonfile = open(msgfile, 'rt')
-        nlines = 1 # start 1 so aligns with line num in file
         for line in jsonfile.readlines():
             if line.find('Triage') > -1:
                 obs = json.loads(line)
                 data = obs[u'data']
                 playername = data['playername']
                 break
+        jsonfile.close()
         return playername
 
     # find closest portal (closest room may not be accessible)
     # then find the rooms that portal adjoins & select the one we're not already in
     def find_beep_room(self,x,z):
         best_dist = 99999
-        agent_room = ''
+        agent_room = self.curr_room
         beep_room = 'null'
         didx = 0
         bestd = 0
         for r in self.rooms:
             if r.in_room(x,z):
-                agent_room = r.name
+                beep_room = r.name
         for d in self.doors:
             dx = d.center[0]
             dz = d.center[1]
@@ -151,9 +151,6 @@ class msgreader(object):
                 self.add_message(line,nlines)
             nlines += 1
         jsonfile.close()
-        # set playername
-# get rid of this...add player name at the message level
-        # self.playername = self.messages[1].mdict['playername']
 
     # adds single message to msgreader.messages list
     def add_message(self,jtxt,linenum): 
@@ -173,11 +170,10 @@ class msgreader(object):
                     m.mdict[k] = v
             if m.mtype in ['Event:Triage']:
                 self.add_room(m.mdict)
-                #self.curr_room = m.mdict['room_name']
                 if self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
                     add_msg = False
             if m.mtype == 'Event:Lever':
-                self.add_room(m.mdict)  
+                self.add_room(m.mdict) 
             elif m.mtype == 'Event:Door':
                 self.add_door_rooms(m.mdict,m.mtype)
             elif m.mtype == 'Mission:VictimList':
@@ -220,7 +216,6 @@ class msgreader(object):
                 m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer}
                 self.messages.append(m)
                 self.curr_room = room_name
-                #            else:
             self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz]) # add to obs even if is location change
 
     def get_fov_blocks(self,m,jtxt):
