@@ -5,9 +5,8 @@ from collections import OrderedDict
 from model_learning.algorithms.max_entropy import THETA_STR
 from model_learning.clustering.linear import cluster_linear_rewards, get_clusters_means, save_mean_cluster_weights, \
     save_clusters_info, plot_clustering_distances, plot_clustering_dendrogram
-from model_learning.metrics import evaluate_internal
-from model_learning.planning import get_policy
-from model_learning.util.plot import plot_bar
+from model_learning.evaluation.linear import cross_evaluation
+from model_learning.util.plot import plot_bar, plot_confusion_matrix
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.plotting import plot_location_frequencies, plot_action_frequencies, plot_trajectories
 from atomic.model_learning.linear.rewards import create_reward_vector
@@ -19,6 +18,8 @@ __email__ = 'pedrodbs@gmail.com'
 
 DEF_DIST_THRESHOLD = .6
 DEF_LINKAGE = 'ward'
+
+CONF_MAT_COLOR_MAP = 'inferno'
 
 AGENT_RATIONALITY = 1 / 0.1  # inverse temperature
 
@@ -84,14 +85,14 @@ class PostProcessor(object):
                      plot_mean=False)
 
         player_names = [self.analyzer.player_names[filename] for filename in file_names]
-        save_mean_cluster_weights(cluster_weights, os.path.join(output_dir, 'cluster_weights.csv'), rwd_feat_names)
+        save_mean_cluster_weights(cluster_weights, os.path.join(output_dir, 'cluster-weights.csv'), rwd_feat_names)
         save_clusters_info(clustering, OrderedDict({'Player name': player_names, 'Filename': file_names}),
                            thetas, os.path.join(output_dir, 'clusters.csv'), rwd_feat_names)
 
         # dendrogram
         plot_clustering_dendrogram(
             clustering, os.path.join(output_dir, 'weights-dendrogram.{}'.format(self.analyzer.img_format)),
-            self.dist_threshold, player_names)
+            player_names)
 
         plot_clustering_distances(
             clustering, os.path.join(output_dir, 'weights-distance.{}'.format(self.analyzer.img_format)))
@@ -170,39 +171,42 @@ class PostProcessor(object):
             plot_bar(traj_len_data, 'Player Trajectory Length',
                      os.path.join(output_dir, '{}-trajectory-length.{}'.format(map_name, self.analyzer.img_format)))
 
-    def process_evaluation_metrics(self, output_dir):
+    def process_evaluation(self, output_dir):
 
         file_names = list(self.analyzer.results)
         logging.info('\n=================================')
-        logging.info('Calculating evaluation metrics for {} results...'.format(len(file_names)))
+        logging.info('Performing cross-evaluation of reward functions for {} results...'.format(len(file_names)))
 
-        metrics_data = {}
-        for filename in file_names:
-            trajectory = self.analyzer.trajectories[filename]
-            result = self.analyzer.results[filename]
-            player_name = self.analyzer.player_names[filename]
-            agent = trajectory[-1][0].agents[player_name]
+        # calculates eval metrics for each agent if using their own and others' rwd vectors
+        trajectories = [self.analyzer.trajectories[filename] for filename in file_names]
+        player_names = [self.analyzer.player_names[filename] for filename in file_names]
+        agents = [trajectories[i][-1][0].agents[player_names[i]] for i in range(len(trajectories))]
+        map_locs = [list(self.analyzer.map_tables[filename]['rooms']) for filename in file_names]
+        rwd_vectors = [create_reward_vector(agents[i], map_locs[i], WorldMap.get_move_actions(agents[i]))
+                       for i in range(len(agents))]
+        rwd_weights = [self.analyzer.results[filename].stats[THETA_STR] for filename in file_names]
 
-            # player's observed "policy"
-            player_states = [w.state for w, _ in trajectory]
-            player_pi = [a for _, a in trajectory]
+        eval_matrix = cross_evaluation(
+            trajectories, player_names, rwd_vectors, rwd_weights, True,
+            AGENT_RATIONALITY, self.analyzer.horizon, self.analyzer.prune, self.analyzer.processes)
 
-            # compute learner's policy
-            rwd_vector = create_reward_vector(
-                agent, list(self.analyzer.map_tables[filename]['rooms']), WorldMap.get_move_actions(agent))
-            rwd_vector.set_rewards(agent, result.stats[THETA_STR])
-            logging.info('Computing policy with learned reward for {} states...'.format(len(player_states)))
-            agent.setAttribute('rationality', AGENT_RATIONALITY)
-            learner_pi = get_policy(agent, player_states, None, self.analyzer.horizon, 'distribution',
-                                    self.analyzer.prune, self.analyzer.processes)
+        # gets internal evaluation (each agent against its own expert's reward function)
+        for metric_name, matrix in eval_matrix.items():
+            metric_values = {}
+            for i, filename in enumerate(file_names):
+                player_name = self.analyzer.player_names[filename]
+                metric_values[player_name] = matrix[i, i]
 
-            # gets algorithm internal performance metrics
-            metrics = evaluate_internal(player_pi, learner_pi)
-            for metric_name, metric in metrics.items():
-                if metric_name not in metrics_data:
-                    metrics_data[metric_name] = {}
-                metrics_data[metric_name][player_name] = metric
-
-        for metric_name, metric_values in metrics_data.items():
             plot_bar(metric_values, metric_name.title(), os.path.join(output_dir, 'metric-{}.{}'.format(
                 metric_name.lower().replace(' ', '-'), self.analyzer.img_format)), None, y_label=metric_name)
+
+        labels = [self.analyzer.player_names[filename] for filename in file_names]
+
+        # saves confusion matrix for cross-evaluation of each metric
+        for metric_name, matrix in eval_matrix.items():
+            file_path = os.path.join(output_dir, '{}-eval-matrix.{}'.format(
+                metric_name.lower().replace(' ', '-'), self.analyzer.img_format))
+            plot_confusion_matrix(
+                matrix, file_path, labels + ['UNIFORM'], labels, CONF_MAT_COLOR_MAP,
+                '{} Cross-Evaluation'.format(metric_name),
+                'Agent Policy Using Player\'s Optimal Reward Function', 'Player\'s Observed Policy', 0, 1)

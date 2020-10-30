@@ -98,6 +98,6 @@ if __name__ == '__main__':
     logging.info('Analyzing {} results, saving post-process results in "{}"...'.format(
         len(analyzer.results), output_dir))
 
-    post_processor.process_evaluation_metrics(output_dir)
-    # post_processor.process_player_data(output_dir)
-    # post_processor.process_reward_weights(output_dir)
+    post_processor.process_evaluation(output_dir)
+    post_processor.process_player_data(output_dir)
+    post_processor.process_reward_weights(output_dir)

@@ -4,8 +4,6 @@ import random
 import numpy as np
 from collections import OrderedDict
 from model_learning.util.plot import plot_bar
-from model_learning.metrics import evaluate_internal
-from model_learning.planning import get_policy
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
 from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
@@ -21,7 +19,7 @@ __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
 # trajectory params
-NUM_TRAJECTORIES = os.cpu_count()  # 8 # 20
+NUM_TRAJECTORIES = os.cpu_count() * 2  # 8 # 20
 TRAJ_LENGTH = 10  # 15
 PRUNE_THRESHOLD = 5e-2  # 1e-2
 SEED = 0
@@ -97,17 +95,6 @@ class RewardModelAnalyzer(Replayer):
         self.trajectories = {}
         self.player_names = {}
         self.map_tables = {}
-
-    # def process_files(self, num_steps=0, fname=None):
-    #     # check results dir for each file, if results present, load them and don't reprocess
-    #     files = []
-    #     for file_name in self.files.copy():
-    #         if not self._check_results(file_name):
-    #             files.append(file_name)
-    #     self.files = files
-    #
-    #     if fname is None or fname in self.files:
-    #         super().process_files(num_steps, fname)
 
     def _check_results(self):
 
@@ -223,29 +210,10 @@ class RewardModelAnalyzer(Replayer):
         rwd_vector.set_rewards(self.triage_agent, rwd_weights)
         with np.printoptions(precision=2, suppress=True):
             logging.info('Optimized reward weights: {}'.format(rwd_weights))
-        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights ($θ$)',
+        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $\\boldsymbol{θ^*}$',
                  os.path.join(output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
         learner_r = next(iter(self.triage_agent.getReward().values()))
         logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
-
-        logging.info('=================================')
-
-        # player's observed "policy"
-        logging.info('Collecting observed player policy...')
-        player_states = [w.state for w, _ in trajectory]
-        player_pi = [a for _, a in trajectory]
-
-        # compute learner's policy
-        logging.info('Computing policy with learned reward for {} states...'.format(len(player_states)))
-        self.triage_agent.setAttribute('rationality', AGENT_RATIONALITY)
-        learner_pi = get_policy(
-            self.triage_agent, player_states, None, self.horizon, 'distribution', self.prune, self.processes)
-
-        logging.info('Computing evaluation metrics...')
-        metrics = evaluate_internal(player_pi, learner_pi)
-        logging.info('Results:')
-        for name, metric in metrics.items():
-            logging.info('\t{}: {:.3f}'.format(name, metric))
 
         logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')
