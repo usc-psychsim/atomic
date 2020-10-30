@@ -67,11 +67,13 @@ class msgreader(object):
         self.observations = []
         self.curr_room = ''
         self.rescues = 0
-        self.load_rooms(room_list)
-        self.load_doors(portal_list)
         self.playername = self.get_player(fname)
-        self.foundplayer = 0
-
+        if (room_list.endswith('.csv')):
+            self.load_rooms(room_list)
+        else:
+            self.load_rooms_semantic(room_list)
+        self.load_doors(portal_list)
+        
     def get_player(self, msgfile):
         jsonfile = open(msgfile, 'rt')
         for line in jsonfile.readlines():
@@ -388,6 +390,31 @@ class msgreader(object):
                     self.rooms.append(r)
                     line_count += 1
 
+    def load_rooms_semantic(self, fname):
+        rfile = open(room_list, 'rt')
+        rdict = json.load(rfile)
+        rloc = rdict['locations']
+        coords = ''
+        rid = ''
+        x0 = 0
+        z0 = 0
+        x1 = 0
+        z1 = 0
+        for r in rloc:
+            try:
+                coords = (r['bounds']['coordinates'])
+            except:
+                coords = ''
+            if coords != '':
+                rid = r['id']
+                x0 = coords[0]['x']
+                z0 = coords[0]['z']
+                x1 = coords[1]['x']
+                z1 = coords[1]['z']
+                rm = room(rid, x0, z0, x1, z1)
+                self.rooms.append(rm)
+        rfile.close()
+
     def load_doors(self, fname):
         with open(fname) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
@@ -445,7 +472,7 @@ if len(sys.argv) > 1:
         elif a == '--portalfile':
             portal_list = sys.argv[argcnt+1]
         elif a == '--help':
-            print("USAGE: message_reader.py --rescues --msgfile <trial messages file> --roomfile <list of rooms> --portalfile <list of portals> --multitrial <directory with message files>")
+            print("USAGE: message_reader.py --rescues --msgfile <trial messages file> --roomfile <.json or .csv> --portalfile <list of portals> --multitrial <directory with message files>")
         argcnt += 1
 
 # if ONLY getting number of rescues
