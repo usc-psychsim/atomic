@@ -91,7 +91,7 @@ class Analyzer(Replayer):
         self.models = models
 
     def post_replay(self):
-        parser.draw_plot()
+        self.parser.draw_plot()
 
 
 if __name__ == '__main__':

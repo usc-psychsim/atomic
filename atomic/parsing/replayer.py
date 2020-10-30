@@ -176,7 +176,7 @@ class Replayer(object):
         try:
             self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
                 make_single_player_world(self.parser.player_name(), self.map_table['start'],
-                                         self.map_table['adjacency'], self.map_table['victims'], False, True,
+                                         self.map_table['adjacency'], self.map_table['victims'], False, True, {},
                                          logger.getChild('make_single_player_world'))
         except:
             logger.error(traceback.format_exc())

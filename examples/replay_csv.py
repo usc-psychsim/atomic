@@ -22,21 +22,31 @@ logging.basicConfig(
 #### Parse the data file into a sequence of actions and events
 maxDist = 5
 try:
-    parser = DataParser(os.path.join(os.path.dirname(__file__), 'data', sys.argv[1]), maxDist, logging)
+    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data', sys.argv[1]), maxDist, logging)
 except IndexError:
-    parser = DataParser(os.path.join(os.path.dirname(__file__), 'data',
-                                     'processed_20200805_Participant7_Cond1.csv'),
+    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data',
+                                     'processed_20200728_Participant3_Cond1.csv'),
                         maxDist, logging)
 name = parser.player_name()
 
 #
-####### Get Map Data
+######### Get Map Data
 small = False
-mapName = 'falcon'
+mapName = 'falcon_easy'
 SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
 SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
+#
+### Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
+#shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
+#lightMap = {k:[k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
+#for shr,num in shared.items():
+#    lightMap[shr + '1'] = []
+#    for i in range(1,num+1):
+#        lightMap[shr + '1'].append(shr + str(i))
+#
 
-world, triageAgent, agent, victimsObj, world_map = make_single_player_world(name, 'BH2', SandRLocs, SandRVics)
+#use_unobserved=True, full_obs=False, logger=logging):
+world, triageAgent, agent, victimsObj, world_map = make_single_player_world(name, None, SandRLocs, SandRVics, False, True, lightMap)
 
 ### Replay sequence of actions and events
 aes, data = parser.getActionsAndEvents(triageAgent.name, victimsObj, world_map, True, 350)
