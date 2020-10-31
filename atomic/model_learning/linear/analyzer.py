@@ -8,7 +8,7 @@ from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_ST
 from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
-from atomic.parsing.replayer import Replayer
+from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, CONDITION_TAG
 from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.definitions.plotting import plot, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
@@ -126,6 +126,11 @@ class RewardModelAnalyzer(Replayer):
         self.map_tables[file_name] = map_table
 
     def pre_replay(self, map_name, logger=logging):
+        # set current player name if possible from the conditions dict
+        if SUBJECT_ID_TAG in self.conditions and CONDITION_TAG in self.conditions:
+            self.parser.set_player_name(
+                '{}-{}'.format(self.conditions[SUBJECT_ID_TAG], self.conditions[CONDITION_TAG][0]))
+
         # check results and avoids creating stuff
         return False if self._check_results() else super().pre_replay(map_name, logger)
 

@@ -7,6 +7,10 @@ from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.parser import DataParser
 from atomic.scenarios.single_player import make_single_player_world
 
+CONDITION_TAG = 'CondWin'
+SUBJECT_ID_TAG = 'Member'
+TRIAL_TAG = 'Trial'
+
 
 def accumulate_files(files):
     """
