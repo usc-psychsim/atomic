@@ -19,7 +19,7 @@ __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
 # trajectory params
-NUM_TRAJECTORIES = os.cpu_count() * 2  # 8 # 20
+NUM_TRAJECTORIES = os.cpu_count()  # 8 # 20
 TRAJ_LENGTH = 10  # 15
 PRUNE_THRESHOLD = 5e-2  # 1e-2
 SEED = 0
@@ -91,6 +91,9 @@ class RewardModelAnalyzer(Replayer):
         self.processes = processes
         self.img_format = img_format
 
+        # current player name..
+        self._player_name = None
+
         self.results = {}
         self.trajectories = {}
         self.player_names = {}
@@ -114,7 +117,7 @@ class RewardModelAnalyzer(Replayer):
                 logging.info('Loaded valid results from {}'.format(results_file))
                 trajectory = load_object(trajectory_file)
                 logging.info('Loaded valid trajectory from {}'.format(trajectory_file))
-                self._register_results(self.file_name, trajectory, result, self.parser.player_name(), self.map_table)
+                self._register_results(self.file_name, trajectory, result, self._player_name, self.map_table)
                 return True
             except:
                 return False
@@ -128,8 +131,9 @@ class RewardModelAnalyzer(Replayer):
     def pre_replay(self, map_name, logger=logging):
         # set current player name if possible from the conditions dict
         if SUBJECT_ID_TAG in self.conditions and CONDITION_TAG in self.conditions:
-            self.parser.set_player_name(
-                '{}-{}'.format(self.conditions[SUBJECT_ID_TAG], self.conditions[CONDITION_TAG][0]))
+            self._player_name = '{}-{}'.format(self.conditions[SUBJECT_ID_TAG], self.conditions[CONDITION_TAG][0])
+        else:
+            self._player_name = self.parser.player_name()
 
         # check results and avoids creating stuff
         return False if self._check_results() else super().pre_replay(map_name, logger)
@@ -206,7 +210,7 @@ class RewardModelAnalyzer(Replayer):
         alg.save_results(result, output_dir, self.img_format)
         save_object(result, os.path.join(output_dir, RESULTS_FILE_NAME))
         save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
-        self._register_results(self.file_name, trajectory, result, self.parser.player_name(), self.map_table)
+        self._register_results(self.file_name, trajectory, result, self._player_name, self.map_table)
 
         logging.info('=================================')
 
