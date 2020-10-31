@@ -4,22 +4,24 @@ import pandas as pd
 from collections import OrderedDict
 from atomic.definitions import Directions
 
+FALCON_COORDS_FILE = 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU-coords'
+
 DEFAULT_MAPS = {'sparky': {'room_file': 'sparky_adjacency',
                            'victim_file': 'sparky_vic_locs',
                            'coords_file': 'sparky_coords'},
                 'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
                            'victim_file': 'falcon_vic_locs_v1.1_OCN',
-                           'coords_file': None},
+                           'coords_file': FALCON_COORDS_FILE},
                 'FalconEasy': {'room_file': 'falcon_easy_adjacency',
-                           'victim_file': 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
-                           'coords_file': None},
+                               'victim_file': 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
+                               'coords_file': FALCON_COORDS_FILE},
                 'FalconMed': {'room_file': 'falcon_medium_adjacency',
-                           'victim_file': 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
-                           'coords_file': None},
+                              'victim_file': 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
+                              'coords_file': FALCON_COORDS_FILE},
                 'FalconHard': {'room_file': 'falcon_hard_adjacency',
-                           'victim_file': 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
-                           'coords_file': None},
-                           }
+                               'victim_file': 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
+                               'coords_file': FALCON_COORDS_FILE},
+                }
 
 
 def checkSRMap(SRMap, logger=logging):
