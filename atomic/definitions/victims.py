@@ -92,9 +92,9 @@ class Victims(object):
         
         # Sensors, 1 per direction. 
         beeps = ['none', '1', '2']
-        for d in range(4):
-            self.world.defineState(agent, 'sensor'+str(d), list, beeps)
-            self.world.setState(agent.name, 'sensor'+str(d), 'none')
+        for d in Directions:
+            self.world.defineState(agent, 'sensor_'+d.name, list, beeps)
+            self.world.setState(agent.name, 'sensor_'+d.name, 'none')
         
         # create dynamics of sensor
         self._createSensorDyn(agent)        
@@ -115,7 +115,7 @@ class Victims(object):
         
     def _createSensorDyn(self, human):
         for d in Directions:
-            beepKey = stateKey(human.name, 'sensor'+str(d.value))
+            beepKey = stateKey(human.name, 'sensor_'+d.name)
             locsWithNbrs = list(self.world_map.neighbors[d.value].keys())            
             tree = {'if': equalRow(stateKey(human.name, 'loc'), locsWithNbrs),
                     None: setToConstantMatrix(beepKey, 'none')}
