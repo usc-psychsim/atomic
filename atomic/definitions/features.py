@@ -1,5 +1,6 @@
 from psychsim.pwl import stateKey, WORLD
 from psychsim.agent import Agent
+from atomic.definitions import Directions
 from atomic.definitions.world import PHASE_FEATURE
 from atomic.definitions.victims import FOV_FEATURE
 
@@ -20,6 +21,16 @@ def get_mission_phase_key():
     :return: the corresponding PsychSim feature key.
     """
     return stateKey(WORLD, PHASE_FEATURE)
+
+
+def get_light_status_key(location):
+    """
+    Gets the named key of the feature corresponding to the status of light (on/off) in a location.
+    :param str location: the location / room of the environment.
+    :rtype: str
+    :return: the corresponding PsychSim feature key.
+    """
+    return stateKey(WORLD, 'light' + str(location))
 
 
 def get_triaged_key(agent, color):
@@ -52,6 +63,17 @@ def get_fov_key(agent):
     :return: the corresponding PsychSim feature key.
     """
     return stateKey(agent.name, FOV_FEATURE)
+
+
+def get_sensor_key(agent, direction):
+    """
+    Gets the named key of the feature corresponding to the status of the agent's sensor in the given direction.
+    :param Agent agent: the agent for which to get the feature.
+    :param Directions direction: the direction of the sensor.
+    :rtype: str
+    :return: the corresponding PsychSim feature key.
+    """
+    return stateKey(agent.name, 'sensor_' + direction.name)
 
 
 def get_location_key(agent):
