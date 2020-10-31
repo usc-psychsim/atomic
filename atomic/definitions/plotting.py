@@ -118,7 +118,7 @@ def plot_trajectories(agents, trajectories, locations, neighbors, output_img, co
             source = target
 
     g_plot.redraw()
-    _draw_title(title, g_plot.surface, g_plot.width)
+    _draw_title(title, g_plot.surface, g_plot.width, g_plot.height)
     _save_plot(g_plot, output_img)
     if show:
         g_plot.show()
@@ -242,15 +242,15 @@ def _plot(world, locations, neighbors, output_img, coordinates,
                 vic_amount = world.getFeature(vic_amount_feat, state, True)
                 v = g.vs.select(label=loc)[0]
                 x, y = layout.coords[v.index]
-                g.add_vertex(title, label=vic_amount, label_size=VIC_LABEL_SIZE, color=(0, 0, 0, 0),
+                g.add_vertex(label=vic_amount, label_size=VIC_LABEL_SIZE, color=(0, 0, 0, 0),
                              frame_color=(0, 0, 0, 0),
                              label_angle=np.pi / 2, label_color=COLORS[color], label_dist=VIC_VERTEX_LABEL_DIST)
                 layout.append((x - label_start_x + VIC_LABEL_DIST * i, y))
 
-    g_plot = igraph.plot(g, surface, margin=PLOT_MARGIN, layout=layout)
+    g_plot = igraph.plot(g, surface, (0, 0, width, height), margin=PLOT_MARGIN, layout=layout)
     g_plot.redraw()
 
-    _draw_title(title, surface, width)
+    _draw_title(title, surface, width, height)
 
     return g, g_plot
 
@@ -277,7 +277,7 @@ def _get_surface(output_img, width, height):
     return surface
 
 
-def _draw_title(title, surface, width):
+def _draw_title(title, surface, width, height):
     ctx = cairo.Context(surface)
     ctx.set_font_size(TITLE_FONT_SIZE)
     drawer = TextDrawer(ctx, title, halign=TextDrawer.CENTER, valign=TextDrawer.TOP)

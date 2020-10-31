@@ -49,9 +49,9 @@ if __name__ == '__main__':
     df['x'] = 0.5 * (df[Z0_COORD_COL] + df[Z1_COORD_COL])
     df['y'] = 0.5 * (df[X0_COORD_COL] + df[X1_COORD_COL])
 
-    # min-max scale coords
+    # min-max scale and invert Y-axis coords
     df['x'] = (df['x'] - df['x'].min()) / (df['x'].max() - df['x'].min())
-    df['y'] = (df['y'] - df['y'].min()) / (df['y'].max() - df['y'].min())
+    df['y'] = 1 - ((df['y'] - df['y'].min()) / (df['y'].max() - df['y'].min()))
 
     # multiply by width/height
     df['x'] *= args.width
@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
     # plots rooms
     plt.figure(figsize=(args.width, args.height))
-    plt.scatter(df['x'], df['y'])
+    plt.scatter(df['x'], args.height - df['y'])
     plt.show()
     plt.close()
 
