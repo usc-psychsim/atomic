@@ -227,9 +227,9 @@ class msgreader(object):
         blocks = data['blocks']
         for b in blocks:
             if b['type'] == 'block_victim_1':
-                victim_arr.append('green')
+                victim_arr.append('Green')
             elif b['type'] == 'block_victim_2':
-                victim_arr.append('yellow')
+                victim_arr.append('Gold')
         m.mdict.update({'victim_list':victim_arr})
       
     def make_victims_msg(self,line,vmsg):
@@ -251,9 +251,9 @@ class msgreader(object):
                 for vv in victim_list_dicts:
                     blktype = vv['block_type']
                     if blktype == 'block_victim_1':
-                        vv.update({'block_type':'green'})
+                        vv.update({'block_type':'Green'})
                     else:
-                        vv.update({'block_type':'yellow'})
+                        vv.update({'block_type':'Gold'})
         for victim in victim_list_dicts:
             room_name = 'null'
             for (k,v) in victim.items():
@@ -430,7 +430,7 @@ class msgreader(object):
 def get_rescues(msgfile):
     num_rescues = 0
     num_green = 0
-    num_yellow = 0
+    num_Gold = 0
     mfile = ''
     if msgfile == '':
         print("ERROR: must provide --msgfile <filename>")
@@ -439,13 +439,13 @@ def get_rescues(msgfile):
         for line in mfile.readlines():
             if line.find('triage') > -1 and line.find('SUCCESS') > -1:
                 num_rescues += 1
-                if line.find('Yellow') > -1:
-                    num_yellow += 1
+                if line.find('Gold') > -1:
+                    num_Gold += 1
                 else:
                     num_green += 1
         mfile.close()
         print('green rescues : '+str(num_green))
-        print('yellow rescues: '+str(num_yellow))
+        print('Gold rescues: '+str(num_Gold))
         print("TOTAL RESCUED : "+str(num_rescues))
 
 # MAIN
@@ -495,14 +495,14 @@ if print_rescues:
         
 else:
 # USE DEFAULTS
+    home = '/home/skenny/usc/asist/data/'
+    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
     if msgfile == '': # not entered on cmdline
-        msgfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
+        msgfile = home + 'study-1_2020.08_HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
     if room_list == '':
-        room_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv'
+        room_list = home + 'ASIST_FalconMap_Rooms_v1.1_OCN.csv'
     if portal_list == '':
-        portal_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+        portal_list = home + 'ASIST_FalconMap_Portals_v1.1_OCN.csv'
     reader = msgreader(msgfile, room_list, portal_list, True)
     reader.add_all_messages(msgfile)
     # print all the messages
-    for m in reader.messages:
-        print(str(m.mdict))

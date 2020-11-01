@@ -117,7 +117,7 @@ class Victims(object):
         for d in Directions:
             beepKey = stateKey(human.name, 'sensor_'+d.name)
             locsWithNbrs = list(self.world_map.neighbors[d.value].keys())            
-            tree = {'if': equalRow(stateKey(human.name, 'loc'), locsWithNbrs),
+            tree = {'if': equalRow(makeFuture(stateKey(human.name, 'loc')), locsWithNbrs),
                     None: setToConstantMatrix(beepKey, 'none')}
             for il, loc in enumerate(locsWithNbrs):
                 nbr = self.world_map.neighbors[d.value][loc]

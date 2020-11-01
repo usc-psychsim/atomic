@@ -83,26 +83,41 @@ class ProcessParsedJson(object):
             self.actions.append([MOVE, mv, ts]) 
         self.logger.debug('moved to %s ' % (newRoom))
         self.lastParsedLoc = newRoom
+        ## Clear the last seen victim color!
+        self.lastParsedClrInFOV = 'none'
         
 
     def parseLight(self, loc, ts):
         action = self.world_map.lightActions[self.human]
         self.actions.append([TOGGLE_LIGHT, [action], ts])        
         
-    def parseBeep(self, msg, ts):
+    def parseBeep(self, msg, SandRVics, ts):
         numBeeps= len(msg['message'].split())
         targetRoom = msg['room_name']
+        
+        if targetRoom not in SandRVics.keys():
+            self.logger.error('%d Beeps from %s but no victims' % (numBeeps, targetRoom))
+            return 1
+        
+        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
+        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]
+        
+        if not (cond1 or cond2):
+            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
+            return 1
+        
         direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
         if len(direction) > 1:
             self.logger.error('In %s beep from %s %d steps away' % (self.lastParsedLoc, targetRoom, len(direction)))
-            return
+            return 1
         self.logger.debug('Heard %d beeps from %s' % (numBeeps, targetRoom))
-        sensorKey = stateKey(self.human, 'sensor'+str(direction[0]))
+        direc = Directions(direction[0]).name
+        sensorKey = stateKey(self.human, 'sensor_'+direc)
         self.actions.append([BEEP, [sensorKey, str(numBeeps)], ts])
+        return 0
 
     def parseFOV(self, colors, ts):
         ## TODO what if multiple victims in FOV
-        colors = list(map(lambda x: 'Gold' if x == 'Yellow' else x, colors))
         if len(colors) > 0:
             found = colors[0]
         else:
@@ -135,7 +150,7 @@ class ProcessParsedJson(object):
 #######  Processing the json messages
 ###############################################
         
-    def processJson(self, jsonMsgIter, ffwd = 0, maxActions = -1):
+    def processJson(self, jsonMsgIter, SandRVics, ffwd = 0, maxActions = -1):
         numMsgs = 0
         m = next(jsonMsgIter)
         ignore = ['Mission:VictimList', 'Event:Door']
@@ -151,7 +166,6 @@ class ProcessParsedJson(object):
             ## time elapsed in seconds
             ts = (10-mm)*60 - ss
                         
-#            print(numMsgs, mtype, ts)
             if numMsgs >= ffwd:
                 input('press any key.. ')
             
@@ -169,12 +183,11 @@ class ProcessParsedJson(object):
                     success = (tstate == 'SUCCESSFUL')
                     self.parseTriageEnd(vicColor, success, ts)            
                     
-            elif mtype == 'Event:Beep':
-                self.parseBeep(m, ts)
+            elif mtype == 'Event:Beep':                
+                self.parseBeep(m, SandRVics, ts)
                     
             elif mtype == 'FoV':
-                colors = map(lambda x: 'Green' if x == 'block_victim_1'  else 'Yellow', m['victim_list'])
-                self.parseFOV(list(colors), ts)
+                self.parseFOV(m['victim_list'], ts)
             
             elif mtype == 'Event:Location':
                 loc = m['room_name']
@@ -217,14 +230,12 @@ class ProcessParsedJson(object):
             
             actStruct = self.actions[t]
             self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actStruct[1]))))
-            if t + start >= ffwdTo:
-                input('press any key.. ')
                 
+            ## Force no beeps (unless overwritten later)
+            selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
+            
             actType = actStruct[0]
             act = actStruct[1][0]
-            ## Start with the assumption that you didn't hear any beeps in any direction
-            selDict = {stateKey(self.human, 'sensor'+str(d.value)):'none' for d in Directions}
-            
             if act not in world.agents[self.human].getLegalActions():
                 raise ValueError('Illegal action!')
                 
@@ -236,12 +247,12 @@ class ProcessParsedJson(object):
                 clock = stateKey(WORLD, 'seconds')
                 curTime = world.getState(WORLD, 'seconds', unique=True)
                 newTime = curTime + dur
-                selDict = {clock: newTime}
+                selDict[clock] = newTime
                 self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
 
             if actType == SEARCH:
                 color = actStruct[1][1]
-                selDict = {stateKey(self.human, 'vicInFOV'): color}
+                selDict[stateKey(self.human, 'vicInFOV')] = color
                 if permissive and color != 'none' and world.getState(WORLD, 'ctr_{}_{}'.format(self.lastParsedLoc, color),
                                                                      unique=True) == 0:
                     # Observed a victim who should not be here
@@ -254,12 +265,16 @@ class ProcessParsedJson(object):
                 [sensorKey, value] = self.actions[t][1]
                 selDict[sensorKey] = value
                 t = t+1
+            self.logger.info('Injecting %s' %(selDict))
                     
             selDict = {k: world.value2float(k, v) for k,v in selDict.items()}
             self.pre_step(world)
             world.step(act, select=selDict, threshold=prune_threshold)                    
             self.post_step(world, None if act is None else world.getAction(self.human))
             self.summarizeState(world)
+            
+            if t + start >= ffwdTo:
+                input('press any key.. ')
             
     
     def summarizeState(self, world):

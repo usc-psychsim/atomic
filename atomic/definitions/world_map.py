@@ -89,6 +89,14 @@ class WorldMap(object):
         
         
         self.lightActions[agent.name] = action
+        
+    def makeMoveResetFOV(self, agent):        
+        fovKey = stateKey(agent.name, 'vicInFOV')
+        for direction in range(4):
+            action = self.moveActions[agent.name][direction]
+            ## Reset FoV            
+            tree = setToConstantMatrix(fovKey, 'none')
+            self.world.setDynamics(fovKey, action, makeTree(tree))
 
     def _makeMoveActions(self, agent):
         """
@@ -116,6 +124,7 @@ class WorldMap(object):
             for il, loc in enumerate(lstlocsWithNbrs):
                 tree[il] = setToConstantMatrix(locKey, self.neighbors[direction.value][loc])
             self.world.setDynamics(locKey, action, makeTree(tree))
+            
 
             # A move sets the seen flag of the location we moved to
             for dest in self.all_locations:
