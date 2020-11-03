@@ -62,11 +62,13 @@ class msg(object):
         self.linenum = 0
 
 class msgreader(object):
-    def __init__(self, fname, room_list, portal_list, latest=False):
+    def __init__(self, fname, room_list, portal_list, victim_list, latest=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
         self.doors = [] # actually portals
+        self.victims = []
+        self.victim_rooms = []
         self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep', 'FoV','state']
         self.messages = []
         self.mission_running = False
@@ -80,6 +82,7 @@ class msgreader(object):
         else:
             self.load_rooms_semantic(room_list)
         self.load_doors(portal_list)
+        self.load_victims(victim_list)
         
     def get_player(self, msgfile):
         jsonfile = open(msgfile, 'rt')
@@ -94,16 +97,26 @@ class msgreader(object):
 
     # find closest portal (closest room may not be accessible)
     # then find the rooms that portal adjoins & select the one we're not already in
-    def find_beep_room(self,x,z):
+    # if no victim there just find closest victim
+    def find_beep_room(self,m):
+        x = int(m.mdict['beep_x'])
+        z = int(m.mdict['beep_z'])
         best_dist = 99999
+        victim_room = ''
         agent_room = self.curr_room
-        beep_room = 'null'
+        vidx = 0
+        bestd = 0
         didx = 0
         bestd = 0
+
+        # first check if player has changed rooms on this move (in case beep msg preceeds state observation msg)
         for r in self.rooms:
-            if r.in_room(x,z):
-                beep_room = r.name
-        for d in self.doors:
+            if r.in_room(x,z) and self.curr_room != r.name: # agent moved, need to add event:location message
+              self.make_location_event(m.mdict['mission_timer'],r.name) # adds msg, changes agent room
+              agent_room = r.name
+              break
+
+        for d in self.doors: # find closest portal
             dx = d.center[0]
             dz = d.center[1]
             distance = math.sqrt(pow((dx-x),2) + pow((dz-z),2))
@@ -112,11 +125,23 @@ class msgreader(object):
                 bestd = didx
                 # now choose whichever room not already in
                 if agent_room == d.room1:
-                    beep_room = d.room2
+                    victim_room = d.room2
                 else:
-                    beep_room = d.room1
+                    victim_room = d.room1
             didx += 1
-        return beep_room
+        if victim_room in self.victim_rooms: 
+            return victim_room
+        else: # can't find in adjacent room so get whichever victim closest
+            best_dist = 99999
+            for v in self.victims:
+                if v.room != agent_room: # can't be room player already in
+                    distance = math.sqrt(pow((v.x-x),2) + pow((v.z-z),2))
+                    if distance < best_dist:
+                        best_dist = distance
+                        bestv = vidx
+                        victim_room = v.room
+                vidx += 1
+        return victim_room
 
     def get_obs_timer(self,fmessage):
         obsnum = fmessage.mdict['observation']
@@ -184,7 +209,7 @@ class msgreader(object):
             elif m.mtype == 'Mission:VictimList':
                 self.make_victims_msg(jtxt,m)
             elif m.mtype == 'Event:Beep':
-                room_name = self.find_beep_room(int(m.mdict['beep_x']), int(m.mdict['beep_z']))
+                room_name = self.find_beep_room(m)
                 del m.mdict['beep_x']
                 del m.mdict['beep_z']
                 m.mdict.update({'room_name':room_name})
@@ -229,6 +254,13 @@ class msgreader(object):
                 self.curr_room = room_name
             self.observations.append([obsnum,mtimer,nln,tstamp,obsx,obsz]) # add to obs even if is location change
 
+    def make_location_event(self,mtimer, room_name): # generates & adds message
+        m = msg('state')
+        m.mdict = {'sub_type':'Event:Location','playername':self.playername,'room_name':room_name,'mission_timer':mtimer}
+        self.convert_mission_timer(m)
+        self.messages.append(m)
+        self.curr_room = room_name
+
     def get_fov_blocks(self,m,jtxt):
         victim_arr = []
         obs = json.loads(jtxt)
@@ -236,9 +268,9 @@ class msgreader(object):
         blocks = data['blocks']
         for b in blocks:
             if b['type'] == 'block_victim_1':
-                victim_arr.append('green')
+                victim_arr.append('Green')
             elif b['type'] == 'block_victim_2':
-                victim_arr.append('yellow')
+                victim_arr.append('Gold')
         m.mdict.update({'victim_list':victim_arr})
       
     def make_victims_msg(self,line,vmsg):
@@ -260,9 +292,9 @@ class msgreader(object):
                 for vv in victim_list_dicts:
                     blktype = vv['block_type']
                     if blktype == 'block_victim_1':
-                        vv.update({'block_type':'green'})
+                        vv.update({'block_type':'Green'})
                     else:
-                        vv.update({'block_type':'yellow'})
+                        vv.update({'block_type':'Gold'})
         for victim in victim_list_dicts:
             room_name = 'null'
             for (k,v) in victim.items():
@@ -407,8 +439,10 @@ class msgreader(object):
                 if line_count == 0:
                     line_count += 1
                 else:
-                    v = victim(int(row[1]), int(row[2]), int(row[3]), int(row[5]))
+                    v = victim(row[1], row[2], int(row[3]), int(row[5]))
                     self.victims.append(v)
+                    if v.room not in self.victim_rooms:
+                        self.victim_rooms.append(v.room)
                     line_count += 1
 
     def load_rooms_semantic(self, fname):
@@ -451,7 +485,7 @@ class msgreader(object):
 def get_rescues(msgfile):
     num_rescues = 0
     num_green = 0
-    num_yellow = 0
+    num_Gold = 0
     mfile = ''
     if msgfile == '':
         print("ERROR: must provide --msgfile <filename>")
@@ -460,13 +494,13 @@ def get_rescues(msgfile):
         for line in mfile.readlines():
             if line.find('triage') > -1 and line.find('SUCCESS') > -1:
                 num_rescues += 1
-                if line.find('Yellow') > -1:
-                    num_yellow += 1
+                if line.find('Gold') > -1:
+                    num_Gold += 1
                 else:
                     num_green += 1
         mfile.close()
         print('green rescues : '+str(num_green))
-        print('yellow rescues: '+str(num_yellow))
+        print('Gold rescues: '+str(num_Gold))
         print("TOTAL RESCUED : "+str(num_rescues))
 
 # MAIN
@@ -521,16 +555,18 @@ if print_rescues:
         
 else:
 # USE DEFAULTS when files not specified
-# maybe get victim list from mission_victim_list instead??
+# TODO: get victim list from mission_victim_list instead of file
+    home = '/home/skenny/usc/asist/data/'
+#    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
     if msgfile == '': # not entered on cmdline
-        msgfile = '/home/skenny/usc/asist/data/study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
+        msgfile = home+'study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
     if room_list == '':
-        room_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Rooms_v1.1_OCN.csv'
+        room_list = home+'ASIST_FalconMap_Rooms_v1.1_OCN.csv'
     if portal_list == '':
-        portal_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+        portal_list = home+'ASIST_FalconMap_Portals_v1.1_OCN.csv'
     if victim_list == '': 
-        victim_list = '/home/skenny/usc/asist/data/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
-    reader = msgreader(msgfile, room_list, portal_list, True)
+        victim_list = home+'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
+    reader = msgreader(msgfile, room_list, portal_list, victim_list, True)
     reader.add_all_messages(msgfile)
     # print all the messages
     for m in reader.messages:
