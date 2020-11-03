@@ -179,7 +179,7 @@ class msgreader(object):
             elif line.find('data') > -1: # should check for types here, don't pass all?
                 self.add_message(line,nlines)
             nlines += 1
-        self.messages = sorted(self.messages, key = lambda i: (i.mdict['mission_timer']), reverse=True)
+        self.messages = sorted(self.messages, key = lambda i: (i.mdict['sort_timer']), reverse=True)
         jsonfile.close()
 
     # adds single message to msgreader.messages list
@@ -210,14 +210,14 @@ class msgreader(object):
                 self.make_victims_msg(jtxt,m)
             elif m.mtype == 'Event:Beep':
                 room_name = self.find_beep_room(m)
-                del m.mdict['beep_x']
-                del m.mdict['beep_z']
+                # del m.mdict['beep_x']
+                # del m.mdict['beep_z']
                 m.mdict.update({'room_name':room_name})
                 m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
                 self.get_obs_timer(m) # do at end??
                 if jtxt.find('victim') == -1 or m.mdict['playername'] != self.playername or m.mdict['mission_timer'] == '':
-                    add_msg = False  # no victims, ghost player or no matching state message, skip msg
+                    add_msg = False  # no victims, ghost player or no matching state message/was paused, skip msg
                 else:
                     del m.mdict['observation']
                     self.get_fov_blocks(m,jtxt)
@@ -228,8 +228,11 @@ class msgreader(object):
     def convert_mission_timer(self,m):
         curr_timer = m.mdict['mission_timer']
         new_mt = curr_timer.replace(' ','')
-        new_mt = new_mt.replace(':','.')
-        m.mdict.update({'mission_timer':float(new_mt)})
+        new_mt = time.strptime(new_mt,'%M:%S')
+#        print("newmt "+str(new_mt))
+#        new_mt = new_mt.replace(':','.')
+        m.mdict.update({'sort_timer':new_mt})
+        m.mdict.update({'mission_timer':str(new_mt.tm_min)+":"+str(new_mt.tm_sec)})
 
     # OBS & STATE ARE SAME, CHECK ROOM HERE
     # this also generates a message if room has changed
@@ -268,9 +271,9 @@ class msgreader(object):
         blocks = data['blocks']
         for b in blocks:
             if b['type'] == 'block_victim_1':
-                victim_arr.append('Green')
+                victim_arr.append('green')
             elif b['type'] == 'block_victim_2':
-                victim_arr.append('Gold')
+                victim_arr.append('yellow')
         m.mdict.update({'victim_list':victim_arr})
       
     def make_victims_msg(self,line,vmsg):
@@ -292,9 +295,9 @@ class msgreader(object):
                 for vv in victim_list_dicts:
                     blktype = vv['block_type']
                     if blktype == 'block_victim_1':
-                        vv.update({'block_type':'Green'})
+                        vv.update({'block_type':'green'})
                     else:
-                        vv.update({'block_type':'Gold'})
+                        vv.update({'block_type':'yellow'})
         for victim in victim_list_dicts:
             room_name = 'null'
             for (k,v) in victim.items():
@@ -570,4 +573,5 @@ else:
     reader.add_all_messages(msgfile)
     # print all the messages
     for m in reader.messages:
+        del m.mdict['sort_timer']
         print(str(m.mdict))
