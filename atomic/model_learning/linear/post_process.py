@@ -7,6 +7,7 @@ from model_learning.clustering.linear import cluster_linear_rewards, get_cluster
     save_clusters_info, plot_clustering_distances, plot_clustering_dendrogram
 from model_learning.evaluation.linear import cross_evaluation
 from model_learning.util.plot import plot_bar, plot_confusion_matrix
+from atomic.parsing.replayer import SUBJECT_ID_TAG, CONDITION_TAG
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.plotting import plot_location_frequencies, plot_action_frequencies, plot_trajectories
 from atomic.model_learning.linear.rewards import create_reward_vector
@@ -45,9 +46,16 @@ class PostProcessor(object):
 
         logging.info('Post-processing IRL data for the following files:')
         for filename in self.analyzer.results:
-            logging.info('\t{}, player: "{}", map: "{}", {} steps'.format(
-                filename, self.analyzer.player_names[filename],
+            logging.info('\t{}, player: "{}", agent: "{}", map: "{}", {} steps'.format(
+                filename, self._get_player_name(filename), self.analyzer.agent_names[filename],
                 self.analyzer.map_tables[filename]['name'], len(self.analyzer.trajectories[filename])))
+
+    def _get_player_name(self, filename):
+        # set current player name if possible from the conditions dict
+        conditions = self.analyzer.trial_conditions[filename]
+        if SUBJECT_ID_TAG in conditions and CONDITION_TAG in conditions:
+            return '{}-{}'.format(conditions[SUBJECT_ID_TAG], conditions[CONDITION_TAG][0])
+        return self.analyzer.agent_names[filename]
 
     def process_reward_weights(self, output_dir):
 
@@ -60,8 +68,8 @@ class PostProcessor(object):
         clustering, thetas = cluster_linear_rewards(results, self.linkage, self.dist_threshold)
 
         # gets rwd feature names with dummy info
-        player_name = self.analyzer.player_names[file_names[0]]
-        agent = self.analyzer.trajectories[file_names[0]][-1][0].agents[player_name]
+        agent_name = self.analyzer.agent_names[file_names[0]]
+        agent = self.analyzer.trajectories[file_names[0]][-1][0].agents[agent_name]
         locations = self.analyzer.map_tables[file_names[0]]['rooms']
         rwd_feat_names = create_reward_vector(agent, locations, WorldMap.get_move_actions(agent)).names
 
@@ -84,7 +92,7 @@ class PostProcessor(object):
                      os.path.join(output_dir, 'weights-mean-{}.{}'.format(cluster, self.analyzer.img_format)),
                      plot_mean=False)
 
-        player_names = [self.analyzer.player_names[filename] for filename in file_names]
+        player_names = [self.analyzer.agent_names[filename] for filename in file_names]
         save_mean_cluster_weights(cluster_weights, os.path.join(output_dir, 'cluster-weights.csv'), rwd_feat_names)
         save_clusters_info(clustering, OrderedDict({'Player name': player_names, 'Filename': file_names}),
                            thetas, os.path.join(output_dir, 'clusters.csv'), rwd_feat_names)
@@ -125,7 +133,7 @@ class PostProcessor(object):
             trajectory = self.analyzer.trajectories[filename]
             trajectories[map_name].append(trajectory)
 
-            agent = trajectory[-1][0].agents[self.analyzer.player_names[filename]]
+            agent = trajectory[-1][0].agents[self.analyzer.agent_names[filename]]
             traj_agents[map_name].append(agent)
 
             location_data[map_name].append(get_location_frequencies(agent, [trajectory], map_table['rooms']))
@@ -166,7 +174,7 @@ class PostProcessor(object):
 
             # saves trajectory length
             traj_len_data = OrderedDict(
-                {self.analyzer.player_names[filename]: len(self.analyzer.trajectories[filename])
+                {self._get_player_name(filename): len(self.analyzer.trajectories[filename])
                  for filename in file_names})
             plot_bar(traj_len_data, 'Player Trajectory Length',
                      os.path.join(output_dir, '{}-trajectory-length.{}'.format(map_name, self.analyzer.img_format)))
@@ -179,28 +187,28 @@ class PostProcessor(object):
 
         # calculates eval metrics for each agent if using their own and others' rwd vectors
         trajectories = [self.analyzer.trajectories[filename] for filename in file_names]
-        player_names = [self.analyzer.player_names[filename] for filename in file_names]
-        agents = [trajectories[i][-1][0].agents[player_names[i]] for i in range(len(trajectories))]
+        agent_names = [self.analyzer.agent_names[filename] for filename in file_names]
+        agents = [trajectories[i][-1][0].agents[agent_names[i]] for i in range(len(trajectories))]
         map_locs = [list(self.analyzer.map_tables[filename]['rooms']) for filename in file_names]
         rwd_vectors = [create_reward_vector(agents[i], map_locs[i], WorldMap.get_move_actions(agents[i]))
                        for i in range(len(agents))]
         rwd_weights = [self.analyzer.results[filename].stats[THETA_STR] for filename in file_names]
 
         eval_matrix = cross_evaluation(
-            trajectories, player_names, rwd_vectors, rwd_weights, True,
+            trajectories, agent_names, rwd_vectors, rwd_weights, True,
             AGENT_RATIONALITY, self.analyzer.horizon, self.analyzer.prune, self.analyzer.processes)
 
         # gets internal evaluation (each agent against its own expert's reward function)
         for metric_name, matrix in eval_matrix.items():
             metric_values = {}
             for i, filename in enumerate(file_names):
-                player_name = self.analyzer.player_names[filename]
+                player_name = self._get_player_name(filename)
                 metric_values[player_name] = matrix[i, i]
 
             plot_bar(metric_values, metric_name.title(), os.path.join(output_dir, 'metric-{}.{}'.format(
                 metric_name.lower().replace(' ', '-'), self.analyzer.img_format)), None, y_label=metric_name)
 
-        labels = [self.analyzer.player_names[filename] for filename in file_names]
+        labels = [self._get_player_name(filename) for filename in file_names]
 
         # saves confusion matrix for cross-evaluation of each metric
         for metric_name, matrix in eval_matrix.items():

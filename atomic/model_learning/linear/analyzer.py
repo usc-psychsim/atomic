@@ -1,5 +1,6 @@
 import logging
 import os
+import copy
 import random
 import numpy as np
 from collections import OrderedDict
@@ -8,7 +9,7 @@ from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_ST
 from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
-from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, CONDITION_TAG
+from atomic.parsing.replayer import Replayer
 from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.definitions.plotting import plot, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
@@ -91,19 +92,17 @@ class RewardModelAnalyzer(Replayer):
         self.processes = processes
         self.img_format = img_format
 
-        # current player name..
-        self._player_name = None
-
         self.results = {}
         self.trajectories = {}
-        self.player_names = {}
+        self.agent_names = {}
         self.map_tables = {}
+        self.trial_conditions = {}
 
     def _check_results(self):
 
         # checks already processed in this session
         if self.file_name in self.results and self.file_name in self.trajectories and \
-                self.file_name in self.map_tables and self.file_name in self.player_names:
+                self.file_name in self.map_tables and self.file_name in self.agent_names:
             return True
 
         # checks if results file exists and tries to load it
@@ -117,24 +116,20 @@ class RewardModelAnalyzer(Replayer):
                 logging.info('Loaded valid results from {}'.format(results_file))
                 trajectory = load_object(trajectory_file)
                 logging.info('Loaded valid trajectory from {}'.format(trajectory_file))
-                self._register_results(self.file_name, trajectory, result, self._player_name, self.map_table)
+                self._register_results(
+                    self.file_name, trajectory, result, self.parser.player_name(), self.map_table, self.conditions)
                 return True
             except:
                 return False
 
-    def _register_results(self, file_name, trajectory, results, player_name, map_table):
+    def _register_results(self, file_name, trajectory, results, agent_name, map_table, conditions):
         self.trajectories[file_name] = trajectory
         self.results[file_name] = results
-        self.player_names[file_name] = player_name
+        self.agent_names[file_name] = agent_name
         self.map_tables[file_name] = map_table
+        self.trial_conditions[file_name] = copy.deepcopy(conditions)
 
     def pre_replay(self, map_name, logger=logging):
-        # set current player name if possible from the conditions dict
-        if SUBJECT_ID_TAG in self.conditions and CONDITION_TAG in self.conditions:
-            self._player_name = '{}-{}'.format(self.conditions[SUBJECT_ID_TAG], self.conditions[CONDITION_TAG][0])
-        else:
-            self._player_name = self.parser.player_name()
-
         # check results and avoids creating stuff
         return False if self._check_results() else super().pre_replay(map_name, logger)
 
@@ -210,7 +205,8 @@ class RewardModelAnalyzer(Replayer):
         alg.save_results(result, output_dir, self.img_format)
         save_object(result, os.path.join(output_dir, RESULTS_FILE_NAME))
         save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
-        self._register_results(self.file_name, trajectory, result, self._player_name, self.map_table)
+        self._register_results(
+            self.file_name, trajectory, result, self.parser.player_name(), self.map_table, self.conditions)
 
         logging.info('=================================')
 
@@ -219,7 +215,7 @@ class RewardModelAnalyzer(Replayer):
         rwd_vector.set_rewards(self.triage_agent, rwd_weights)
         with np.printoptions(precision=2, suppress=True):
             logging.info('Optimized reward weights: {}'.format(rwd_weights))
-        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $\\boldsymbol{θ^*}$',
+        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $θ^*$',
                  os.path.join(output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
         learner_r = next(iter(self.triage_agent.getReward().values()))
         logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
