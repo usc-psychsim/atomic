@@ -485,7 +485,7 @@ class msgreader(object):
 def get_rescues(msgfile):
     num_rescues = 0
     num_green = 0
-    num_Gold = 0
+    num_yellow = 0
     mfile = ''
     if msgfile == '':
         print("ERROR: must provide --msgfile <filename>")
@@ -494,13 +494,13 @@ def get_rescues(msgfile):
         for line in mfile.readlines():
             if line.find('triage') > -1 and line.find('SUCCESS') > -1:
                 num_rescues += 1
-                if line.find('Gold') > -1:
-                    num_Gold += 1
+                if line.find('Yellow') > -1:
+                    num_yellow += 1
                 else:
                     num_green += 1
         mfile.close()
         print('green rescues : '+str(num_green))
-        print('Gold rescues: '+str(num_Gold))
+        print('yellow rescues: '+str(num_yellow))
         print("TOTAL RESCUED : "+str(num_rescues))
 
 # MAIN
