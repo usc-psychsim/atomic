@@ -210,8 +210,8 @@ class msgreader(object):
                 self.make_victims_msg(jtxt,m)
             elif m.mtype == 'Event:Beep':
                 room_name = self.find_beep_room(m)
-                # del m.mdict['beep_x']
-                # del m.mdict['beep_z']
+                del m.mdict['beep_x']
+                del m.mdict['beep_z']
                 m.mdict.update({'room_name':room_name})
                 m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
