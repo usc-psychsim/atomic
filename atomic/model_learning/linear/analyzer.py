@@ -42,7 +42,6 @@ RESULTS_FILE_NAME = 'result.pkl.gz'
 AGENT_RATIONALITY = 1 / 0.1  # inverse temperature
 
 
-
 class RewardModelAnalyzer(Replayer):
     """
     Replay analyzer that performs linear reward model learning given a player's data using the MaxEnt IRL algorithm.
@@ -230,5 +229,3 @@ class RewardModelAnalyzer(Replayer):
 
         logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')
-
-

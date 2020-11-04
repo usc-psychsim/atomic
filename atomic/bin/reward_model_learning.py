@@ -115,4 +115,7 @@ if __name__ == '__main__':
 
     process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
     cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'), clear=args.clear, verbosity=args.verbosity)
-    # evaluate_reward_models(analyzer, os.path.join(output_dir, 'evaluation'), args.clear, args.verbosity)
+    evaluate_reward_models(analyzer, os.path.join(output_dir, 'evaluation'),
+                           os.path.join(output_dir, 'rewards', 'cluster-weights.csv'),
+                           os.path.join(output_dir, 'rewards', 'clusters.csv'),
+                           args.clear, args.verbosity)

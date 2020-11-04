@@ -6,7 +6,7 @@ from model_learning.trajectory import generate_trajectory
 from model_learning.util.io import create_clear_dir, save_object, change_log_handler
 from atomic.definitions.plotting import plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies, plot
-from atomic.model_learning.linear import load_cluster_reward_weights
+from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.scenarios.single_player import make_single_player_world
 from atomic.parsing.parser import summarizeState
