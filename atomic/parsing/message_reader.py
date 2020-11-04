@@ -199,6 +199,8 @@ class msgreader(object):
                 if k in self.psychsim_tags:
                     m.mdict[k] = v
             if m.mtype in ['Event:Triage']:
+                if m.mdict['color'] == 'Yellow':
+                    m.mdict.update({'color':'Gold'})
                 self.add_room(m.mdict)
                 if self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
                     add_msg = False
@@ -271,9 +273,9 @@ class msgreader(object):
         blocks = data['blocks']
         for b in blocks:
             if b['type'] == 'block_victim_1':
-                victim_arr.append('green')
+                victim_arr.append('Green')
             elif b['type'] == 'block_victim_2':
-                victim_arr.append('yellow')
+                victim_arr.append('Gold')
         m.mdict.update({'victim_list':victim_arr})
       
     def make_victims_msg(self,line,vmsg):
@@ -295,9 +297,9 @@ class msgreader(object):
                 for vv in victim_list_dicts:
                     blktype = vv['block_type']
                     if blktype == 'block_victim_1':
-                        vv.update({'block_type':'green'})
+                        vv.update({'block_type':'Green'})
                     else:
-                        vv.update({'block_type':'yellow'})
+                        vv.update({'block_type':'Gold'})
         for victim in victim_list_dicts:
             room_name = 'null'
             for (k,v) in victim.items():
