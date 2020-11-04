@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+from atomic.definitions import victims, world_map
 from model_learning.util import str2bool
 from model_learning.util.io import create_clear_dir, get_files_with_extension
 from atomic.model_learning.linear.post_process.evaluation import evaluate_reward_models
@@ -17,6 +18,10 @@ __desc__ = 'Loads several log files containing the information about different p
            'search and rescue task and performs linear reward model learning for each datapoint using the ' \
            'Maximum Entropy Inverse Reinforcement Learning algorithm (MaxEnt IRL). Statistics about the learned ' \
            'rewards models are also gathered and saved in the output directory.'
+
+# TODO hacks to avoid stochastic beep and lights
+victims.PROB_NO_BEEP = 0
+world_map.MODEL_LIGHTS = False
 
 if __name__ == '__main__':
     # parse command-line arguments

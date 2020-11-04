@@ -25,6 +25,7 @@ COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
 COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(7 * 60)}
 COLOR_PRIOR_P = {'Green': 0, 'Gold': 0}
 COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}
+PROB_NO_BEEP = 0.01
 
 
 class Victims(object):
@@ -44,6 +45,7 @@ class Victims(object):
         :param dict[str, float] color_prior_p: a dictionary containing the prior probability for each victim color of the victim being present in a room
         :param dict[str, float] color_fov_p: a dictionary containing the prior probability for each victim color that a player's FOV has a victim of a given color after a search action.
         :param bool full_obs: whether the world is partially (`True`) or fully (`False`) observable, in the agents' perspective.
+        :param float prob_no_beep: the probability of the agent's sensor reporting 'no beep' due to being distant to the neighbor room.
         """
         self.world = world
         self.world_map = world_map
@@ -88,42 +90,40 @@ class Victims(object):
 
         # create and initialize fov
         self.world.defineState(agent.name, FOV_FEATURE, list, ['none'] + self.color_names)
-        agent.setState(FOV_FEATURE, 'none')        
-        
+        agent.setState(FOV_FEATURE, 'none')
+
         # Sensors, 1 per direction. 
         beeps = ['none', '1', '2']
         for d in Directions:
-            self.world.defineState(agent, 'sensor_'+d.name, list, beeps)
-            self.world.setState(agent.name, 'sensor_'+d.name, 'none')
-        
+            self.world.defineState(agent, 'sensor_' + d.name, list, beeps)
+            self.world.setState(agent.name, 'sensor_' + d.name, 'none')
+
         # create dynamics of sensor
-        self._createSensorDyn(agent)        
-            
+        self._createSensorDyn(agent)
+
     def _sense1Location(self, beepKey, nbrLoc):
         nbrYCt = stateKey(WORLD, 'ctr_' + nbrLoc + '_' + GOLD_STR)
         nbrGCt = stateKey(WORLD, 'ctr_' + nbrLoc + '_' + GREEN_STR)
-        probNoBeep = 0.01
-        yDistr = {'2':1-probNoBeep, 'none':probNoBeep}
-        gDistr = {'1':1-probNoBeep, 'none':probNoBeep}        
-        
+        yDistr = {'2': 1 - PROB_NO_BEEP, 'none': PROB_NO_BEEP}
+        gDistr = {'1': 1 - PROB_NO_BEEP, 'none': PROB_NO_BEEP}
+
         tree = {'if': thresholdRow(nbrYCt, 0),
                 True: {'distribution': [(setToConstantMatrix(beepKey, c), p) for c, p in yDistr.items()]},
                 False: {'if': thresholdRow(nbrGCt, 0),
                         True: {'distribution': [(setToConstantMatrix(beepKey, c), p) for c, p in gDistr.items()]},
                         False: setToConstantMatrix(beepKey, 'none')}}
-        return tree        
-        
+        return tree
+
     def _createSensorDyn(self, human):
         for d in Directions:
-            beepKey = stateKey(human.name, 'sensor_'+d.name)
-            locsWithNbrs = list(self.world_map.neighbors[d.value].keys())            
+            beepKey = stateKey(human.name, 'sensor_' + d.name)
+            locsWithNbrs = list(self.world_map.neighbors[d.value].keys())
             tree = {'if': equalRow(makeFuture(stateKey(human.name, 'loc')), locsWithNbrs),
                     None: setToConstantMatrix(beepKey, 'none')}
             for il, loc in enumerate(locsWithNbrs):
                 nbr = self.world_map.neighbors[d.value][loc]
                 tree[il] = self._sense1Location(beepKey, nbr)
             self.world.setDynamics(beepKey, True, makeTree(tree))
-        
 
     def createTriageActions(self, agent):
         # Create a triage action per victim color

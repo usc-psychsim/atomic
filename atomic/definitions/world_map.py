@@ -1,9 +1,10 @@
-from psychsim.action import Action, ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, noChangeMatrix, \
     addFeatureMatrix, rewardKey, WORLD
 from atomic.definitions import Directions
 from atomic.definitions.world import SearchAndRescueWorld
+
+MODEL_LIGHTS = True
 
 
 class WorldMap(object):
@@ -39,9 +40,10 @@ class WorldMap(object):
         self.all_locations = list(locations)
         
         ## Create light status feature per location
-        for loc in self.all_locations:
-            self.world.defineState(WORLD, 'light' + str(loc), bool, description='Location light on or off')
-            self.world.setState(WORLD, 'light' + str(loc), True)
+        if MODEL_LIGHTS:
+            for loc in self.all_locations:
+                self.world.defineState(WORLD, 'light' + str(loc), bool, description='Location light on or off')
+                self.world.setState(WORLD, 'light' + str(loc), True)
 
     def makePlayerLocation(self, agent, initLoc=None):
         self.world.defineState(agent, 'loc', list, list(self.all_locations))
@@ -58,8 +60,8 @@ class WorldMap(object):
         # Make move actions
         self._makeMoveActions(agent)
         
-        # Make laction to toggle light switch
-        if len(self.sharedLights) > 0:
+        # Make action to toggle light switch
+        if MODEL_LIGHTS and len(self.sharedLights) > 0:
             self._makeLightToggleAction(agent)
         
     def _makeLightToggleAction(self, agent):
