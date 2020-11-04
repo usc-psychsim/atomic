@@ -3,8 +3,10 @@ import json
 import logging
 import os
 from model_learning.util import str2bool
-from model_learning.util.io import create_clear_dir, get_files_with_extension, change_log_handler
-from atomic.model_learning.linear.post_process import PostProcessor
+from model_learning.util.io import create_clear_dir, get_files_with_extension
+from atomic.model_learning.linear.post_process.evaluation import evaluate_reward_models
+from atomic.model_learning.linear.post_process.players_data import process_players_data
+from atomic.model_learning.linear.post_process.clustering import cluster_reward_weights
 from atomic.model_learning.linear.analyzer import RewardModelAnalyzer, OUTPUT_DIR, \
     NUM_TRAJECTORIES, TRAJ_LENGTH, HORIZON, MAX_EPOCHS, LEARNING_RATE, NORM_THETA, PRUNE_THRESHOLD, DIFF_THRESHOLD, \
     PROCESSES, IMG_FORMAT, SEED
@@ -88,16 +90,24 @@ if __name__ == '__main__':
     )
     analyzer.process_files()
 
+    logging.info('=================================')
+    if analyzer.results is None or len(analyzer.results) == 0 or \
+            analyzer.trajectories is None or len(analyzer.trajectories) == 0:
+        logging.warning('Inexistent or incomplete results!')
+        exit()
+
     # performs post-processing of results
-    post_processor = PostProcessor(analyzer)
-    output_dir = os.path.join(args.output, 'post-process')
-    create_clear_dir(output_dir, False)
-    change_log_handler(os.path.join(output_dir, 'post-process.log'), args.verbosity)
+    logging.info('Post-processing IRL data for the following {} files:'.format(len(analyzer.results)))
+    for filename in analyzer.results:
+        logging.info('\t{}, player: "{}", agent: "{}", map: "{}", {} steps'.format(
+            filename, analyzer.get_player_name(filename), analyzer.agent_names[filename],
+            analyzer.map_tables[filename]['name'], len(analyzer.trajectories[filename])))
 
     # runs the different post-processors
+    output_dir = os.path.join(args.output, 'post-process')
     logging.info('Analyzing {} results, saving post-process results in "{}"...'.format(
         len(analyzer.results), output_dir))
 
-    post_processor.process_player_data(output_dir)
-    post_processor.process_reward_weights(output_dir)
-    # post_processor.process_evaluation(output_dir)
+    process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
+    cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'), clear=args.clear, verbosity=args.verbosity)
+    # evaluate_reward_models(analyzer, os.path.join(output_dir, 'evaluation'), args.clear, args.verbosity)
