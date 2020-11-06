@@ -3,10 +3,12 @@ import logging
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
+from model_learning.clustering.evaluation import evaluate_clustering
 from model_learning.util.io import create_clear_dir, change_log_handler
 from model_learning.util.plot import plot_bar
 from model_learning.clustering.linear import cluster_linear_rewards, get_clusters_means, save_mean_cluster_weights, \
     save_clusters_info, plot_clustering_dendrogram, plot_clustering_distances
+from atomic.parsing.replayer import SUBJECT_ID_TAG, COND_MAP_TAG, TRIAL_TAG, COND_TRAIN_TAG
 from atomic.definitions.world_map import WorldMap
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.model_learning.linear.analyzer import RewardModelAnalyzer
@@ -97,7 +99,7 @@ def cluster_reward_weights(analyzer, output_dir,
                  os.path.join(output_dir, 'weights-mean-{}.{}'.format(cluster, analyzer.img_format)),
                  plot_mean=False)
 
-    player_names = [analyzer.get_player_name(filename) for filename in file_names]
+    player_names = [analyzer.get_player_name(file_name) for file_name in file_names]
     save_mean_cluster_weights(cluster_weights, os.path.join(output_dir, 'cluster-weights.csv'), rwd_feat_names)
     save_clusters_info(clustering, OrderedDict({'Player name': player_names, 'Filename': file_names}),
                        thetas, os.path.join(output_dir, 'clusters.csv'), rwd_feat_names)
@@ -106,6 +108,25 @@ def cluster_reward_weights(analyzer, output_dir,
     plot_clustering_dendrogram(
         clustering, os.path.join(output_dir, 'weights-dendrogram.{}'.format(analyzer.img_format)),
         player_names)
-
     plot_clustering_distances(
         clustering, os.path.join(output_dir, 'weights-distance.{}'.format(analyzer.img_format)))
+
+    # gets different data partitions according to maps, conditions, subjects, etc
+    gt_labels = {
+        'Subject': [analyzer.trial_conditions[file_name][SUBJECT_ID_TAG] for file_name in file_names],
+        'Map Condition': [analyzer.trial_conditions[file_name][COND_MAP_TAG][0] for file_name in file_names],
+        'Dynamic Map Cond.': [analyzer.trial_conditions[file_name][COND_MAP_TAG][1] for file_name in file_names],
+        'Train Condition': [analyzer.trial_conditions[file_name][COND_TRAIN_TAG] for file_name in file_names]
+    }
+    subject_min_trials = {}
+    for i, file_name in enumerate(file_names):
+        subj_label = gt_labels['Subject'][i]
+        subj_trial = int(analyzer.trial_conditions[file_name][TRIAL_TAG])
+        if subj_label not in subject_min_trials or subj_trial < subject_min_trials[subj_label]:
+            subject_min_trials[subj_label] = subj_trial
+    gt_labels['Trial'] = [
+        int(analyzer.trial_conditions[file_name][TRIAL_TAG]) -
+        subject_min_trials[gt_labels['Subject'][i]] for i, file_name in enumerate(file_names)]
+
+    # performs clustering evaluation according to the different gt partitions and combinations thereof
+    evaluate_clustering(clustering, gt_labels, output_dir, analyzer.img_format, 3)

@@ -110,8 +110,7 @@ if __name__ == '__main__':
 
     # runs the different post-processors
     output_dir = os.path.join(args.output, 'post-process')
-    logging.info('Analyzing {} results, saving post-process results in "{}"...'.format(
-        len(analyzer.results), output_dir))
+    logging.info('Saving post-process results in "{}"...'.format(len(analyzer.results), output_dir))
 
     process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
     cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'), clear=args.clear, verbosity=args.verbosity)
