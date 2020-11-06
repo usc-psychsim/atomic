@@ -110,6 +110,9 @@ class ProcessParsedJson(object):
         if len(direction) > 1:
             self.logger.error('In %s beep from %s %d steps away' % (self.lastParsedLoc, targetRoom, len(direction)))
             return 1
+        if direction[0] == -1:
+            self.logger.error('In %s beep from %s UNCONNECTED' % (self.lastParsedLoc, targetRoom))
+            return 1
         self.logger.debug('Heard %d beeps from %s' % (numBeeps, targetRoom))
         direc = Directions(direction[0]).name
         sensorKey = stateKey(self.human, 'sensor_'+direc)
@@ -161,11 +164,12 @@ class ProcessParsedJson(object):
             if mtype in ignore:
                 m = next(jsonMsgIter)
                 continue
-            # mission_timer gives remaining time
+            ## time elapsed in seconds
             [mm, ss] = [int(x) for x in m['mission_timer'].split(':')]
             ## time elapsed in seconds
             ts = (10-mm)*60 - ss
-                        
+               
+            print(numMsgs-1)
             if numMsgs >= ffwd:
                 input('press any key.. ')
             
@@ -175,7 +179,7 @@ class ProcessParsedJson(object):
                 if vicColor == 'Yellow':
                     vicColor = 'Gold'
                 if m['room_name'] != self.lastParsedLoc:
-                    self.logger.error('Triaging in ' + m['room_name'] + ' but I am in ' + self.lastParsedLoc + ' at ' + m['mission_timer'])
+                    self.logger.error('Triaging in ' + m['room_name'] + ' but I am in ' + self.lastParsedLoc + ' at ' + str(m['mission_timer']))
                     
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(vicColor, ts)
@@ -235,6 +239,7 @@ class ProcessParsedJson(object):
             selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
             
             actType = actStruct[0]
+            trueTime = actStruct[-1]
             act = actStruct[1][0]
             if act not in world.agents[self.human].getLegalActions():
                 raise ValueError('Illegal action!')
@@ -271,16 +276,17 @@ class ProcessParsedJson(object):
             self.pre_step(world)
             world.step(act, select=selDict, threshold=prune_threshold)                    
             self.post_step(world, None if act is None else world.getAction(self.human))
-            self.summarizeState(world)
+            self.summarizeState(world, trueTime)
             
             if t + start >= ffwdTo:
                 input('press any key.. ')
             
     
-    def summarizeState(self, world):
+    def summarizeState(self, world, ttime):
         loc = world.getState(self.human, 'loc', unique=True)
         time = world.getState(WORLD, 'seconds', unique=True)
-        self.logger.info('Time: %d' % (time))
+        self.logger.info('psim Time: %d' % (time))
+        self.logger.info('True Time: %d' % (ttime))
     
         self.logger.info('Player location: %s' % (loc))
         clrs = ['Green', 'Gold', 'Red', 'White']

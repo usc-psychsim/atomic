@@ -48,10 +48,10 @@ world, triageAgent, agent, victimsObj, world_map = make_single_player_world(play
 from atomic.parsing.parserFromJson import ProcessParsedJson
 jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
 allMs = [m.mdict for m in reader.messages]
-allMs = allMs[:10] + \
-        [{'playername': 'Research_Account', 'sub_type': 'FoV', 'mission_timer': '9 : 50', 'victim_list': ['Gold']}] +\
-        allMs[10:]
+#allMs = allMs[:10] + \
+#        [{'playername': 'Research_Account', 'sub_type': 'FoV', 'mission_timer': '9 : 50', 'victim_list': ['Gold']}] +\
+#        allMs[10:]
 
 jsonPrpcessor.processJson(iter(allMs), SandRVics, 99999)
 ### Replay sequence of actions and events
-jsonPrpcessor.runTimeless(world, 0, 9999, 18)
+jsonPrpcessor.runTimeless(world, 0, 9999, 1)
