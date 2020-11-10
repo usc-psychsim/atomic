@@ -649,11 +649,11 @@ else:
     if msgfile == '': # not entered on cmdline
         msgfile = home+'study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
     if room_list == '':
-        room_list = home+'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+        room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     if portal_list == '':
-        portal_list = home+'ASIST_FalconMap_Portals_v1.1_OCN.csv'
+        portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
     if victim_list == '': 
-        victim_list = home+'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
+        victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file, verbose)
     reader.add_all_messages(msgfile)
     # print all the messages
