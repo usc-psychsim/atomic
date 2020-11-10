@@ -38,7 +38,7 @@ class ProcessParsedJson(object):
         self.logger.debug('triage started of %s at %s' % (vicColor, ts))
         self.triageStartTime = ts
     
-    def parseTriageEnd(self, vicColor, isSuccessful, ts):
+    def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
         originalDuration = ts - self.triageStartTime
 
@@ -50,11 +50,13 @@ class ProcessParsedJson(object):
 #            self.logger.error('Triage succes in data %s but by duration %s' % (isSuccessful, success) )
 
         ## If reported as successful, force duration to be long enough
-        if isSuccessful:
+        if isSuccessful:            
             if vicColor == 'Green':
                 duration = 8
             else:
                 duration = 15
+            ## Reset the FoV we're tracking
+            self.lastParsedClrInFOV = 'White'
         ## Otherwise use actual duration capped by long enough duration
         else:
             if vicColor == 'Green':
@@ -63,13 +65,14 @@ class ProcessParsedJson(object):
                 duration = min(originalDuration, 14)
         
         triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
-        self.actions.append([TRIAGE, [triageAct, duration], ts])
+        ## Record it as happening at self.triageStartTime
+        self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
     
-    def parseMove(self, newRoom, ts):
+    def parseMove(self, newRoom, msgIdx, ts):
         if self.lastParsedLoc == None:
             self.actions.append(newRoom) 
             self.lastParsedLoc = newRoom
-            self.logger.debug('moved to %s' % (self.lastParsedLoc))
+            self.logger.debug('moved to %s at %d' % (self.lastParsedLoc, ts))
             return
         
         # Add one or more move actions
@@ -80,55 +83,56 @@ class ProcessParsedJson(object):
             return
 
         for m in mv:
-            self.actions.append([MOVE, mv, ts]) 
-        self.logger.debug('moved to %s ' % (newRoom))
+            self.actions.append([MOVE, mv, msgIdx, ts]) 
+        self.logger.debug('moved to %s at %d' % (newRoom, ts))
         self.lastParsedLoc = newRoom
         ## Clear the last seen victim color!
         self.lastParsedClrInFOV = 'none'
         
 
-    def parseLight(self, loc, ts):
+    def parseLight(self, loc, msgIdx, ts):
         action = self.world_map.lightActions[self.human]
-        self.actions.append([TOGGLE_LIGHT, [action], ts])        
+        self.actions.append([TOGGLE_LIGHT, [action], msgIdx, ts])        
         
-    def parseBeep(self, msg, SandRVics, ts):
+    def parseBeep(self, msg, SandRVics, msgIdx, ts):
         numBeeps= len(msg['message'].split())
         targetRoom = msg['room_name']
         
         if targetRoom not in SandRVics.keys():
-            self.logger.error('%d Beeps from %s but no victims' % (numBeeps, targetRoom))
+            self.logger.error('%d Beeps from %s but no victims at %d' % (numBeeps, targetRoom, ts))
             return 1
         
-        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
-        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]
-        
-        if not (cond1 or cond2):
-            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
-            return 1
+#        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
+#        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]        
+#        if not (cond1 or cond2):
+#            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
+#            return 1
         
         direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
         if len(direction) > 1:
-            self.logger.error('In %s beep from %s %d steps away' % (self.lastParsedLoc, targetRoom, len(direction)))
+            self.logger.error('In %s beep from %s %d steps away at %d' % (self.lastParsedLoc, targetRoom, len(direction), ts))
             return 1
         if direction[0] == -1:
-            self.logger.error('In %s beep from %s UNCONNECTED' % (self.lastParsedLoc, targetRoom))
+            self.logger.error('In %s beep from %s UNCONNECTED at %d' % (self.lastParsedLoc, targetRoom, ts))
             return 1
-        self.logger.debug('Heard %d beeps from %s' % (numBeeps, targetRoom))
+        self.logger.debug('Heard %d beeps from %s at %d' % (numBeeps, targetRoom, ts))
         direc = Directions(direction[0]).name
         sensorKey = stateKey(self.human, 'sensor_'+direc)
-        self.actions.append([BEEP, [sensorKey, str(numBeeps)], ts])
+        self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
         return 0
 
-    def parseFOV(self, colors, ts):
+    def parseFOV(self, colors, msgIdx, ts):
         ## TODO what if multiple victims in FOV
         if len(colors) > 0:
             found = colors[0]
         else:
             found = 'none'
+#        if found != 'none' and found not in SandRVics[self.lastParsedLoc]:
+#            return
         # If you're seeing a new color (including none)
         if found != self.lastParsedClrInFOV:
-            self.logger.debug('Searched and found ' + found)
-            self.actions.append([SEARCH, [self.victimsObj.getSearchAction(self.human), found], ts])
+            self.logger.debug('Searched and found %s at %d' % (found, ts))
+            self.actions.append([SEARCH, [self.victimsObj.getSearchAction(self.human), found], msgIdx, ts])
             self.lastParsedClrInFOV = found
 
     def getTriageDuration(self, color, originalDuration):
@@ -157,19 +161,20 @@ class ProcessParsedJson(object):
         numMsgs = 0
         m = next(jsonMsgIter)
         ignore = ['Mission:VictimList', 'Event:Door']
-        while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):
-            numMsgs = numMsgs + 1
-            
+        triageInProgress = False
+        
+        while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):            
             mtype = m['sub_type']
             if mtype in ignore:
                 m = next(jsonMsgIter)
                 continue
             ## time elapsed in seconds
-            [mm, ss] = [int(x) for x in m['mission_timer'].split(':')]
+            mtime = m['mission_timer']
+            [mm, ss] = [int(x) for x in mtime.split(':')]
             ## time elapsed in seconds
             ts = (10-mm)*60 - ss
                
-            print(numMsgs-1)
+#            print(numMsgs)
             if numMsgs >= ffwd:
                 input('press any key.. ')
             
@@ -179,33 +184,43 @@ class ProcessParsedJson(object):
                 if vicColor == 'Yellow':
                     vicColor = 'Gold'
                 if m['room_name'] != self.lastParsedLoc:
-                    self.logger.error('Triaging in ' + m['room_name'] + ' but I am in ' + self.lastParsedLoc + ' at ' + str(m['mission_timer']))
+                    self.logger.error('Triaging in ' + m['room_name'] + ' but I am in ' + self.lastParsedLoc + ' at ' + mtime)
                     
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(vicColor, ts)
+                    triageInProgress = True
                 else:
                     success = (tstate == 'SUCCESSFUL')
-                    self.parseTriageEnd(vicColor, success, ts)            
+                    self.parseTriageEnd(vicColor, success, numMsgs, ts)
+                    triageInProgress = False
                     
             elif mtype == 'Event:Beep':                
-                self.parseBeep(m, SandRVics, ts)
+                self.parseBeep(m, SandRVics, numMsgs, ts)
                     
             elif mtype == 'FoV':
-                self.parseFOV(m['victim_list'], ts)
+                ## Ignore 'looking' at victims while you're triaging
+                if not triageInProgress:
+                    self.parseFOV(m['victim_list'], numMsgs, ts)
             
             elif mtype == 'Event:Location':
+                if triageInProgress:
+                    self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
+                    triageInProgress = False
                 loc = m['room_name']
-                self.parseMove(loc, ts)
+                self.parseMove(loc, numMsgs, ts)
                 
             elif mtype == 'Event:Lever':
+                if triageInProgress:
+                    self.logger.error('At %s msg %d flipped a light while triaging' % (m['mission_timer'], numMsgs))
+                    triageInProgress = False
                 #  is_powered:false then the player has just turned that light switch on
-                self.parseLight(loc, ts)
+                self.parseLight(loc, numMsgs, ts)
             
             elif mtype == 'Event:Door':
                 pass
             
             m = next(jsonMsgIter, None)
-        
+            numMsgs = numMsgs + 1
 
 ###############################################
 #######  Running the actions we collected
@@ -232,15 +247,16 @@ class ProcessParsedJson(object):
             if t == end:
                 break
             
-            actStruct = self.actions[t]
-            self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actStruct[1]))))
+            actStruct = self.actions[t]            
+            actType = actStruct[0]
+            act = actStruct[1][0]
+            testbedMsgId = actStruct[-2]
+            trueTime = actStruct[-1]
+            
+            self.logger.info('%d) Running msg %d: %s' % (t + start, testbedMsgId, ','.join(map(str, actStruct[1]))))
                 
             ## Force no beeps (unless overwritten later)
             selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
-            
-            actType = actStruct[0]
-            trueTime = actStruct[-1]
-            act = actStruct[1][0]
             if act not in world.agents[self.human].getLegalActions():
                 raise ValueError('Illegal action!')
                 
@@ -266,7 +282,7 @@ class ProcessParsedJson(object):
                 
             t = t+1
             ## After you parse an action, skip ahead to overwrite 'none' beeps with heard beeps.
-            while self.actions[t][0] == BEEP:
+            while (t < len(self.actions)) and (self.actions[t][0] == BEEP):
                 [sensorKey, value] = self.actions[t][1]
                 selDict[sensorKey] = value
                 t = t+1
