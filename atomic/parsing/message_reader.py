@@ -175,6 +175,7 @@ class msgreader(object):
         obsx = 0
         obsz = 0
         obsroom = ''
+        ts = ''
         while oidx >= 0:
             if obsnum == self.observations[oidx][0]: # we have a match
                 timer = self.observations[oidx][1]
@@ -283,15 +284,18 @@ class msgreader(object):
                 m.mdict.update({'room_name':room_name})
                 m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
+                victim_arr = []
                 self.get_obs_timer(m) # do at end??
-                if jtxt.find('victim') == -1 or m.mdict['playername'] != self.playername or m.mdict['mission_timer'] == '' or m.mdict['room_name'] not in self.victim_rooms:
+                victim_arr = self.get_fov_blocks_f(m, jtxt)
+                if len(victim_arr) == 0 or m.mdict['playername'] != self.playername or m.mdict['mission_timer'] == '' or m.mdict['room_name'] not in self.victim_rooms:
                     add_msg = False  # no victims, ghost player or no matching state message/was paused, skip msg
-                elif not self.verbose:
+                else:
+                    m.mdict.update({'victim_list':victim_arr})          
+                if not self.verbose:
                     del m.mdict['observation']
                     del m.mdict['x']
                     del m.mdict['z']
                     del m.mdict['room_name']
-                    self.get_fov_blocks(m,jtxt)
             if add_msg:
                 self.messages.append(m)
 
@@ -493,7 +497,7 @@ class msgreader(object):
         elif jtxt.find('Event:Beep') > -1:
             self.psychsim_tags += ['message', 'room_name', 'beep_x', 'beep_z']
             m.mtype = 'Event:Beep'
-        elif jtxt.find('FoV') > -1:
+        elif jtxt.find('FoV') > -1 and jtxt.find('victim') > -1:
             self.psychsim_tags += ['observation']
             m.mtype = 'FoV'
         elif jtxt.find("sub_type\":\"state") > -1: # DON'T NEED?
@@ -647,7 +651,7 @@ else:
     home = '/home/skenny/usc/asist/data/'
 #    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
     if msgfile == '': # not entered on cmdline
-        msgfile = home+'study-1_2020.08_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-1.metadata'
+        msgfile = home+'HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
     if room_list == '':
         room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     if portal_list == '':
