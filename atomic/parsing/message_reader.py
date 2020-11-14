@@ -599,23 +599,22 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
     metafile = open(file_list, 'r')
     cpcnt = 0 # for testing only do first 2 files
     for line in metafile.readlines():
-        if cpcnt < 20:
-            fname = line.split(gcdir+'/')[1].strip()
-            msgfile = tmpdir+fname
-            outfile = tmpdir+fname+'.json'
-            cmd = 'gsutil cp '+line.strip()+' '+tmpdir # fetch file
-            print("processing file:: "+fname)
-            subprocess.getstatusoutput(cmd)
-            reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file)
-            reader.add_all_messages(msgfile)
-            # write msgs to file
-            msgout = open(outfile,'w')
-            for m in reader.messages:
-                del m.mdict['timestamp']
-                json.dump(m.mdict,msgout)
-                msgout.write('\n')
-            msgout.close()
-            subprocess.getstatusoutput('rm '+msgfile)
+        fname = line.split(gcdir+'/')[1].strip()
+        msgfile = tmpdir+fname
+        outfile = tmpdir+fname+'.json'
+        cmd = 'gsutil cp '+line.strip()+' '+tmpdir # fetch file
+        print("processing file:: "+fname)
+        subprocess.getstatusoutput(cmd)
+        reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file)
+        reader.add_all_messages(msgfile)
+        # write msgs to file
+        msgout = open(outfile,'w')
+        for m in reader.messages:
+            del m.mdict['timestamp']
+            json.dump(m.mdict,msgout)
+            msgout.write('\n')
+        msgout.close()
+        subprocess.getstatusoutput('rm '+msgfile)
         cpcnt += 1
     metafile.close()
 
