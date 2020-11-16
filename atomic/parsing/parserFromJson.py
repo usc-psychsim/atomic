@@ -40,7 +40,7 @@ class ProcessParsedJson(object):
     
     def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
-        originalDuration = ts - self.triageStartTime
+        originalDuration = (ts[0]*60 + ts[1]) - (self.triageStartTime[0]*60 + self.triageStartTime[1])
 
         ## IGNORE what I think about the duration being enough
         ## Adopt success/failure reported in message!
@@ -72,19 +72,19 @@ class ProcessParsedJson(object):
         if self.lastParsedLoc == None:
             self.actions.append(newRoom) 
             self.lastParsedLoc = newRoom
-            self.logger.debug('moved to %s at %d' % (self.lastParsedLoc, ts))
+            self.logger.debug('moved to %s at %s' % (self.lastParsedLoc, ts))
             return
         
         # Add one or more move actions
         mv = self.world_map.getMoveAction(self.human, self.lastParsedLoc, newRoom)
         if mv == []:
-            self.logger.error('unreachable %s to %s at %d seconds' % (self.lastParsedLoc, newRoom, ts))
+            self.logger.error('unreachable %s to %s at %s' % (self.lastParsedLoc, newRoom, ts))
             self.lastParsedLoc = newRoom
             return
 
         for m in mv:
             self.actions.append([MOVE, mv, msgIdx, ts]) 
-        self.logger.debug('moved to %s at %d' % (newRoom, ts))
+        self.logger.debug('moved to %s at %s' % (newRoom, ts))
         self.lastParsedLoc = newRoom
         ## Clear the last seen victim color!
         self.lastParsedClrInFOV = 'none'
@@ -99,23 +99,23 @@ class ProcessParsedJson(object):
         targetRoom = msg['room_name']
         
         if targetRoom not in SandRVics.keys():
-            self.logger.error('%d Beeps from %s but no victims at %d' % (numBeeps, targetRoom, ts))
+            self.logger.error('%d Beeps from %s but no victims at %s' % (numBeeps, targetRoom, ts))
             return 1
         
-#        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
-#        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]        
-#        if not (cond1 or cond2):
-#            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
-#            return 1
+        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
+        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]        
+        if not (cond1 or cond2):
+            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
+            return 1
         
         direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
         if len(direction) > 1:
-            self.logger.error('In %s beep from %s %d steps away at %d' % (self.lastParsedLoc, targetRoom, len(direction), ts))
+            self.logger.error('In %s beep from %s %d steps away at %s' % (self.lastParsedLoc, targetRoom, len(direction), ts))
             return 1
         if direction[0] == -1:
-            self.logger.error('In %s beep from %s UNCONNECTED at %d' % (self.lastParsedLoc, targetRoom, ts))
+            self.logger.error('In %s beep from %s UNCONNECTED at %s' % (self.lastParsedLoc, targetRoom, ts))
             return 1
-        self.logger.debug('Heard %d beeps from %s at %d' % (numBeeps, targetRoom, ts))
+        self.logger.debug('Heard %d beeps from %s at %s' % (numBeeps, targetRoom, ts))
         direc = Directions(direction[0]).name
         sensorKey = stateKey(self.human, 'sensor_'+direc)
         self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
@@ -131,7 +131,7 @@ class ProcessParsedJson(object):
 #            return
         # If you're seeing a new color (including none)
         if found != self.lastParsedClrInFOV:
-            self.logger.debug('Searched and found %s at %d' % (found, ts))
+            self.logger.debug('Searched and found %s at %s' % (found, ts))
             self.actions.append([SEARCH, [self.victimsObj.getSearchAction(self.human), found], msgIdx, ts])
             self.lastParsedClrInFOV = found
 
@@ -167,12 +167,11 @@ class ProcessParsedJson(object):
             mtype = m['sub_type']
             if mtype in ignore:
                 m = next(jsonMsgIter)
+                numMsgs = numMsgs + 1
                 continue
             ## time elapsed in seconds
             mtime = m['mission_timer']
-            [mm, ss] = [int(x) for x in mtime.split(':')]
-            ## time elapsed in seconds
-            ts = (10-mm)*60 - ss
+            ts = [int(x) for x in mtime.split(':')]
                
 #            print(numMsgs)
             if numMsgs >= ffwd:
@@ -300,9 +299,9 @@ class ProcessParsedJson(object):
     
     def summarizeState(self, world, ttime):
         loc = world.getState(self.human, 'loc', unique=True)
-        time = world.getState(WORLD, 'seconds', unique=True)
-        self.logger.info('psim Time: %d' % (time))
-        self.logger.info('True Time: %d' % (ttime))
+        time = 600 - world.getState(WORLD, 'seconds', unique=True)
+        self.logger.info('psim Time: %s' % ([int(time/60), time%60]))
+        self.logger.info('True Time: %s' % (ttime))
     
         self.logger.info('Player location: %s' % (loc))
         clrs = ['Green', 'Gold', 'Red', 'White']

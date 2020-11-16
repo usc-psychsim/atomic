@@ -6,11 +6,11 @@ Created on Sun Apr  5 17:00:50 2020
 @author: mostafh
 """
 import logging
-import os.path
 import sys
 from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS
 from atomic.parsing.parserFromJson import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world
+from atomic.parsing.message_reader import getMessages
 
 logging.root.setLevel(logging.DEBUG)
 
@@ -37,11 +37,11 @@ for shr,num in shared.items():
 playerName = 'Research_Account'
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(playerName, None, SandRLocs, SandRVics, False, True, lightMap)
 
-### Process the message into actions and events
-from atomic.parsing.parserFromJson import ProcessParsedJson
-jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
-allMs = [m.mdict for m in reader.messages]
+allMs = getMessages({})
 
+jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
+### Process the message into actions and events
 jsonPrpcessor.processJson(iter(allMs), SandRVics, 9999)
 ### Replay sequence of actions and events
 jsonPrpcessor.runTimeless(world, 0, 9999, 9999)
+
