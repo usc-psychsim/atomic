@@ -621,51 +621,52 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
 
 # MAIN
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
-msgfile = ''
-room_list = ''
-portal_list = ''
-victim_list = ''
-fov_file = ''
-print_rescues = False
-multitrial = False
-msgdir = ''
-fovs_from_file = False
-verbose = False
-gcdir = 'study-1_2020.08'
-gcprefix = ''
-files_from_gc = False
-psychsimdir = '/var/tmp/'
-
-# allow user to specify inputs
-if len(sys.argv) > 1:
-    argcnt = 0
-    for a in sys.argv:
+def getMessages(args):    
+    ## Defaults
+    msgfile = '../data/study-1_2020.08_HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+    room_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+    portal_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    victim_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
+    fov_file = ''
+    msgdir = ''
+    
+    psychsimdir = '/var/tmp/'    
+    gcdir = 'study-1_2020.08'
+    gcprefix = ''
+    
+    files_from_gc = False
+    print_rescues = False
+    multitrial = False
+    verbose = False
+    
+    # Grab inputs, where available
+    for a,val in args.items():            
         if a == '--rescues':
             print_rescues = True
         elif a == '--msgfile':
-            msgfile = sys.argv[argcnt+1] 
+            msgfile = args[a]
         elif a == '--roomfile':
-            room_list = sys.argv[argcnt+1]
+            room_list = args[a]
         elif a == '--multitrial':
             multitrial = True
-            msgdir = sys.argv[argcnt+1]
+            msgdir = args[a]
         elif a == '--portalfile':
-            portal_list = sys.argv[argcnt+1]
+            portal_list = args[a]
         elif a == '--victimfile': # no longer allow victim file?
-            victim_list = sys.argv[argcnt+1]
+            victim_list = args[a]
         elif a == '--fovfile':
-            fov_file = sys.argv[argcnt+1]
-            fovs_from_file = True
+            fov_file = args[a]
         elif a == '--gcprefix':
-            gcprefix = sys.argv[argcnt+1]
+            gcprefix = args[a]
             files_from_gc = True
         elif a == '--psychsimdir':
-            psychsimdir = sys.argv[argcnt+1]
+            psychsimdir = args[a]
             files_from_gc = True
         elif a == '--verbose':
             verbose = True
         elif a == '--help':
             print("USAGE:")
+            print('--home: specify atomic home')
             print("--rescues: count number of rescues in a message file (or for all message files in a directory specified with --multitrial")
             print("--msgfile <trial messages file>")
             print("--roomfile <.json or .csv list of rooms>")
@@ -676,49 +677,46 @@ if len(sys.argv) > 1:
             print("--gcprefix <prefix>: prefix for files you want to pull from the google cloud in studies.aptima.com/study-1_2020.08")
             print("--psychsimdir <directory to store processed message files>")
             exit()
-        argcnt += 1
 
-# USE DEFAULTS when files not specified
-home = '/home/skenny/usc/asist/data/'
-#    home = '/home/mostafh/Documents/psim/new_atomic/atomic/data/'
-if msgfile == '': # not entered on cmdline
-    msgfile = home+'HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
-if room_list == '':
-    room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
-if portal_list == '':
-    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
-if victim_list == '': 
-    victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
-
-# first check if we are reading a directory
-# TODO
-if files_from_gc:
-    if gcdir == '':
-        gcdir = 'HSRData_TrialMessages'
-    proc_gc_files(gcdir,gcprefix, psychsimdir+"/")
-
+    # If reading a directory and writing to files
+    if files_from_gc:
+        if gcdir == '':
+            gcdir = 'HSRData_TrialMessages'
+        proc_gc_files(gcdir,gcprefix, psychsimdir+"/")
+        return None
+    
     # if ONLY getting number of rescues
-elif print_rescues:
-    if multitrial:
-        if msgdir == '':
-            print("ERROR: must provide message directory --multitrial <directory>")
-        else:
+    if print_rescues:
+        if multitrial:
+            if msgdir == '':
+                print("ERROR: must provide message directory --multitrial <directory>")
+                exit()
             file_arr = os.listdir(msgdir)
             for f in file_arr:
                 full_path = os.path.join(msgdir,f)
                 if os.path.isfile(full_path):
                     print(full_path)
                     get_rescues(full_path)
-    else: # just want rescues for single file
-        if msgfile == '':
-            print("ERROR: must provide --msgfile <filename>")
-        else:
+        else: # just want rescues for single file
+            if msgfile == '':
+                print("ERROR: must provide --msgfile <filename>")
+                exit()
             get_rescues(msgfile)
-
-else: 
+        return None
+    
+    # If returning a list of dictionaries
     reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file, verbose)
     reader.add_all_messages(msgfile)
-    # print all the messages
     for m in reader.messages:
         del m.mdict['timestamp']
-        print(str(m.mdict))
+    allMs = [m.mdict for m in reader.messages]
+    return allMs
+
+if __name__ == "__main__":
+    argDict = {}
+    for i in range(1, len(sys.argv), 2):
+        k = sys.argv[i]
+        v = sys.argv[i+1]
+        argDict[k] = v
+        
+    msgs = getMessages(argDict)
