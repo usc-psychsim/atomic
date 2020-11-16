@@ -288,7 +288,7 @@ class msgreader(object):
             elif m.mtype == 'FoV':
                 victim_arr = []
                 self.get_obs_timer(m) # do at end??
-                victim_arr = self.get_fov_blocks_f(m, jtxt)
+                victim_arr = self.get_fov_blocks(m, jtxt)
                 if len(victim_arr) == 0 or m.mdict['playername'] != self.playername or m.mdict['mission_timer'] == '' or m.mdict['room_name'] not in self.victim_rooms:
                     add_msg = False  # no victims, ghost player or no matching state message/was paused, skip msg
                 else:
@@ -339,15 +339,28 @@ class msgreader(object):
             vloc = b['location']
             vx = vloc[0]
             vz = vloc[2]
-            if b['type'] == 'block_victim_1':
-                vcolor = 'Green'
-                victim_arr.append('Green')
-            elif b['type'] == 'block_victim_2':
-                vcolor = 'Gold'
-                victim_arr.append('Gold')
+            vrm = ''
+            # first check if victim block is in same room as player:
+            for r in self.rooms:
+                if r.in_room(vx,vz):
+                    vrm = r.name
+            if vrm == m.mdict['room_name']: # only add if victim in same room
+                if b['type'] == 'block_victim_1':
+                    if self.verbose:
+                        vcolor = 'Green '+str(vloc)+' '+vrm
+                    else:
+                        vcolor = 'Green'
+                    victim_arr.append(vcolor)
+                elif b['type'] == 'block_victim_2':
+                    if self.verbose:
+                        vcolor = 'Gold '+str(vloc)+' '+vrm
+                    else:
+                        vcolor = 'Gold'
+                    victim_arr.append(vcolor)
         m.mdict.update({'victim_list':victim_arr})
+        return victim_arr
 
-    def get_fov_blocks_f(self,m,jtxt):
+    def get_fov_blocks_nope(self,m,jtxt):
         victim_arr = []
         obs = json.loads(jtxt)
         data = obs[u'data']
@@ -623,10 +636,10 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
 def getMessages(args):    
     ## Defaults
-    msgfile = '../data/study-1_2020.08_HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
-    room_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
-    portal_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
-    victim_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
+    msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+    room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     fov_file = ''
     msgdir = ''
     
@@ -708,15 +721,23 @@ def getMessages(args):
     reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file, verbose)
     reader.add_all_messages(msgfile)
     for m in reader.messages:
-        del m.mdict['timestamp']
+        if not reader.verbose:
+            del m.mdict['timestamp']
     allMs = [m.mdict for m in reader.messages]
     return allMs
 
 if __name__ == "__main__":
     argDict = {}
     for i in range(1, len(sys.argv), 2):
-        k = sys.argv[i]
-        v = sys.argv[i+1]
+        if sys.argv[i] == '--verbose':
+            k = '--verbose'
+            v = True
+        elif sys.argv[i] == '--rescues':
+            k = '--rescues'
+            v = True
+        else:
+            k = sys.argv[i]
+            v = sys.argv[i+1]
         argDict[k] = v
         
     msgs = getMessages(argDict)
