@@ -73,17 +73,18 @@ def evaluate_reward_models(analyzer, output_dir, cluster_rwds_file=None, datapoi
                               os.path.join(output_dir, 'nominal-weights.csv'), rwd_vectors[0].names)
 
     # calculates eval metrics for each player policy against nominal and cluster-based policies
+    num_states = analyzer.num_trajectories * analyzer.length
     rwd_weights = OrderedDict(REWARD_MODELS)
     if cluster_rwds_file is not None and os.path.isfile(cluster_rwds_file):
         rwd_weights.update(
             {'Cluster {}'.format(k): v for k, v in load_cluster_reward_weights(cluster_rwds_file).items()})
     eval_matrix = cross_evaluation(
         trajectories, agent_names, rwd_vectors, list(rwd_weights.values()),
-        AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes)
+        AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes, num_states, analyzer.seed)
 
     # saves confusion matrix for cross-evaluation of each metric
-    x_labels = list(rwd_weights.keys())
-    y_labels = [analyzer.get_player_name(filename) for filename in file_names]
+    x_labels = [analyzer.get_player_name(filename) for filename in file_names]
+    y_labels = list(rwd_weights.keys())
     for metric_name, matrix in eval_matrix.items():
         file_path = os.path.join(output_dir, '{}-cross-eval-matrix.{}'.format(
             metric_name.lower().replace(' ', '-'), analyzer.img_format))
@@ -97,7 +98,7 @@ def evaluate_reward_models(analyzer, output_dir, cluster_rwds_file=None, datapoi
     for i, filename in enumerate(file_names):
         eval_matrix = cross_evaluation(
             [trajectories[i]], [agent_names[i]], [rwd_vectors[i]], [analyzer.results[filename].stats[THETA_STR]],
-            AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes)
+            AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes, num_states, analyzer.seed + i)
 
         # organizes by metric name and then by player
         player_name = analyzer.get_player_name(filename)
