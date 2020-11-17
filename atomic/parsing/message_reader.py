@@ -341,17 +341,18 @@ class msgreader(object):
             vz = vloc[2]
             vrm = ''
             # first check if victim block is in same room as player:
-            for r in self.rooms:
-                if r.in_room(vx,vz):
-                    vrm = r.name
-            if vrm == m.mdict['room_name']: # only add if victim in same room
-                if b['type'] == 'block_victim_1':
+            for v in self.victims:
+                if v.x == vx and v.z == vz:
+                    vrm = v.room
+                    vvcolor = v.color # extra check that block_type & victim color match
+            if vrm == m.mdict['room_name']: # only add if victim in player room
+                if b['type'] == 'block_victim_1' and vvcolor == 'Green':
                     if self.verbose:
                         vcolor = 'Green '+str(vloc)+' '+vrm
                     else:
                         vcolor = 'Green'
                     victim_arr.append(vcolor)
-                elif b['type'] == 'block_victim_2':
+                elif b['type'] == 'block_victim_2' and vvcolor == 'Gold':
                     if self.verbose:
                         vcolor = 'Gold '+str(vloc)+' '+vrm
                     else:
@@ -383,7 +384,6 @@ class msgreader(object):
                 vcolor = 'Gold'
                 victim_arr.append(goldstr)
         return victim_arr
-
 
     def make_victims_msg(self,line,vmsg):
         psychsim_tags = ['sub_type','message_type', 'mission_victim_list']
