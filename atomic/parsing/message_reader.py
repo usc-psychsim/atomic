@@ -21,6 +21,8 @@ class room(object):
 
         self.xrange = range(x0,x1+1) 
         self.zrange = range(z0,z1+1)
+        self.doors = []
+        self.victims = []
 
     def in_room(self, _x, _z):
         if _x in self.xrange and _z in self.zrange:
@@ -91,6 +93,7 @@ class msgreader(object):
         else:
             self.load_rooms_semantic(room_list)
         self.load_doors(portal_list)
+        self.add_doors_to_rooms()
         #self.load_victims(victim_list)
         
     def load_fovs(self, fname):
@@ -121,52 +124,61 @@ class msgreader(object):
         jsonfile.close()
         return playername
 
-    # find closest portal (closest room may not be accessible)
+    def get_room_from_name(self,name):
+        rm = ''
+        for r in self.rooms:
+            if name == r.name:
+                rm = r
+                break
+        return rm
+
+    # find closest portal (closest room may not be accessible)--NOW FINDING ATTACHED ROOMS
     # then find the rooms that portal adjoins & select the one we're not already in
     # if no victim there just find closest victim
     def find_beep_room(self,m):
         x = int(m.mdict['beep_x'])
         z = int(m.mdict['beep_z'])
         best_dist = 99999
-        victim_room = ''
-        agent_room = self.curr_room
+        victim_room = 'NONE'
         vidx = 0
-        bestd = 0
+        bestd = -1
         didx = 0
-        bestd = 0
+        all_attached_rooms = []
+        attached_victim_rooms = []
+        agent_room = self.get_room_from_name(self.curr_room)
 
         # first check if player has changed rooms on this move (in case beep msg preceeds state observation msg)
         for r in self.rooms:
             if r.in_room(x,z) and self.curr_room != r.name: # agent moved, need to add event:location message
               self.make_location_event(m.mdict['mission_timer'],r.name,m.mdict['timestamp']) # adds msg, changes agent room
-              agent_room = r.name
+              agent_room = r
               break
 
-        for d in self.doors: # find closest portal
-            dx = d.center[0]
-            dz = d.center[1]
-            distance = math.sqrt(pow((dx-x),2) + pow((dz-z),2))
-            if distance < best_dist:
-                best_dist = distance
-                bestd = didx
-                # now choose whichever room not already in
-                if agent_room == d.room1:
-                    victim_room = d.room2
-                else:
-                    victim_room = d.room1
-            didx += 1
-        if victim_room in self.victim_rooms: 
-            return victim_room
-        else: # can't find in adjacent room so get whichever victim closest
-            best_dist = 99999
-            for v in self.victims:
-                if v.room != agent_room: # can't be room player already in
-                    distance = math.sqrt(pow((v.x-x),2) + pow((v.z-z),2))
-                    if distance < best_dist:
-                        best_dist = distance
-                        bestv = vidx
-                        victim_room = v.room
-                vidx += 1
+        # get list of attached rooms containing victims
+        for d in agent_room.doors:
+            if d.room1 != agent_room.name: # and d.room1 in self.victim_rooms:
+                all_attached_rooms.append(self.get_room_from_name(d.room1))
+                #attached_victim_rooms.append(self.get_room_from_name(d.room2))
+            else:
+                all_attached_rooms.append(self.get_room_from_name(d.room2))
+        
+        # for each attatched room, if has victims add, otherwise check for parent
+        for ar in all_attached_rooms:
+            if len(ar.victims) > 0:
+                attached_victim_rooms.append(ar)
+            else:
+                if ar.name.find('kco') > -1 and 'kco2' in self.victim_rooms: # hack until proper parent list
+                    attached_victim_rooms.append(self.get_room_from_name('kco2')) # replace with parent
+                elif ar.name.replace('h','') in self.victim_rooms: # parent is a victim room
+                    attached_victim_rooms.append(self.get_room_from_name(ar.name.replace('h','')))
+                
+        # for each victim in each attached room, find closest
+        for r in attached_victim_rooms:
+            for v in r.victims: # maybe don't need? just iterate thru full victim list skip adding victims to rooms
+                distance = math.sqrt(pow((v.x-x),2) + pow((v.z-z),2))
+                if distance < best_dist:
+                    best_dist = distance
+                    victim_room = v.room
         return victim_room
 
     def get_obs_timer(self,fmessage):
@@ -188,7 +200,7 @@ class msgreader(object):
         fmessage.mdict.update({'mission_timer':timer, 'x':obsx, 'z':obsz, 'timestamp':ts})
         r = self.add_room_obs(fmessage.mdict)
         fmessage.mdict.update({'room_name':r})
-        #del fmessage.mdict['x']
+        # del fmessage.mdict['x']
         # del fmessage.mdict['z']
 
     def get_obs_timer_ts(self,fmessage):
@@ -278,6 +290,7 @@ class msgreader(object):
                 self.add_door_rooms(m.mdict,m.mtype)
             elif m.mtype == 'Mission:VictimList':
                 self.make_victims_msg(jtxt,m)
+                self.add_victims_to_rooms()
             elif m.mtype == 'Event:Beep':
                 room_name = self.find_beep_room(m)
                 if not self.verbose:
@@ -449,6 +462,9 @@ class msgreader(object):
         del msgdict[xkey]
         del msgdict[zkey]
         msgdict.update({'room_name':room_name})
+        if self.curr_room != room_name:
+            self.make_location_event(msgdict['mission_timer'], room_name, msgdict['timestamp'])
+            self.curr_room = room_name
 
     def add_room_obs(self, msgdict):
         x = 0
@@ -579,9 +595,26 @@ class msgreader(object):
                 if line_count == 0:
                     line_count += 1
                 else:
+                    if row[5] == '109h':  # HACK TO FIX MISMATCH IN PORTAL MAPS FILE
+                        row[5] = 'r109h'
+                    if row[6] == '109h': 
+                        row[6] = 'r109h'
                     d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]))
                     self.doors.append(d)
                     line_count += 1
+
+    def add_doors_to_rooms(self):
+        for d in self.doors:
+            for r in self.rooms:
+                if d.room1 == r.name or d.room2 == r.name and d not in r.doors:
+                    r.doors.append(d)
+
+    def add_victims_to_rooms(self):
+        for v in self.victims:
+            for r in self.rooms:
+                if v.room == r.name:
+                    r.victims.append(v)
+
 
 def get_rescues(msgfile):
     num_rescues = 0
@@ -638,7 +671,7 @@ def getMessages(args):
     ## Defaults
     msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
     room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
-    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_OCN.csv'
+    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
     victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     fov_file = ''
     msgdir = ''
@@ -741,3 +774,5 @@ if __name__ == "__main__":
         argDict[k] = v
         
     msgs = getMessages(argDict)
+    for m in msgs:
+        print(str(m))
