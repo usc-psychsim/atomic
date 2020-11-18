@@ -18,7 +18,7 @@ rh4,,rh3,r108h,
 rh5,rh6,,r107h,chb2
 rh6,rh7,rh5,r106h,
 rh7,rh8,rh6,r105h,chm2
-rh8,rh9,rh7,r104h,cht2
+rh8,rh9s,rh7,r104h,cht2
 rh9s,rh9,rh8,r103h,r102h
 rh9,,rh9s,,
 chb1,mb1,,chb2,lh4
@@ -60,9 +60,9 @@ hcr,cht1,chm2,,
 r101,,,r101h,
 r101h,,cht2,,r101
 r102,,r102h,,
-r102h,r102,,rh9,
+r102h,r102,,rh9s,
 r103,,r103h,,
-r103h,r103,,,rh9
+r103h,r103,,,rh9s
 r104,,r104h,,
 r104h,r104,,,rh8
 r105,,r105h,,
