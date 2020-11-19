@@ -16,10 +16,9 @@ logging.root.setLevel(logging.DEBUG)
 
 logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
-    format='%(message)s', level=logging.DEBUG)
+    format='%(message)s', level=logging.ERROR)
 
-######### Get Map Data
-small = False
+######## Get Map Data
 mapName = 'FalconEasy'
 SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
 SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])

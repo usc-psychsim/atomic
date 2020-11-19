@@ -24,6 +24,7 @@ class ProcessParsedJson(object):
         self.world_map = world_map
         self.victimsObj = victimsObj
         self.logger = logger
+        self.verbose = False
                 
         self.lastParsedLoc = None
         self.lastParsedClrInFOV = None
@@ -73,22 +74,24 @@ class ProcessParsedJson(object):
             self.actions.append(newRoom) 
             self.lastParsedLoc = newRoom
             self.logger.debug('moved to %s at %s' % (self.lastParsedLoc, ts))
-            return
+            return 0
         
         # Add one or more move actions
         mv = self.world_map.getMoveAction(self.human, self.lastParsedLoc, newRoom)
         if mv == []:
             self.logger.error('unreachable %s to %s at %s' % (self.lastParsedLoc, newRoom, ts))
             self.lastParsedLoc = newRoom
-            return
+            return 1
 
-        for m in mv:
-            self.actions.append([MOVE, mv, msgIdx, ts]) 
+        if len(mv) > 1:
+            self.logger.error('multiple steps from %s to %s at %s' % (self.lastParsedLoc, newRoom, ts))
+        for mAct in mv:
+            self.actions.append([MOVE, [mAct], msgIdx, ts]) 
         self.logger.debug('moved to %s at %s' % (newRoom, ts))
         self.lastParsedLoc = newRoom
         ## Clear the last seen victim color!
         self.lastParsedClrInFOV = 'none'
-        
+        return 0
 
     def parseLight(self, loc, msgIdx, ts):
         action = self.world_map.lightActions[self.human]
@@ -183,7 +186,7 @@ class ProcessParsedJson(object):
                 if vicColor == 'Yellow':
                     vicColor = 'Gold'
                 if m['room_name'] != self.lastParsedLoc:
-                    self.logger.error('Triaging in ' + m['room_name'] + ' but I am in ' + self.lastParsedLoc + ' at ' + mtime)
+                    self.logger.error('Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'],self.lastParsedLoc))
                     
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(vicColor, ts)
@@ -194,7 +197,9 @@ class ProcessParsedJson(object):
                     triageInProgress = False
                     
             elif mtype == 'Event:Beep':                
-                self.parseBeep(m, SandRVics, numMsgs, ts)
+                ret = self.parseBeep(m, SandRVics, numMsgs, ts)
+                if ret > 0:
+                    self.logger.error('That was msg %d' % (numMsgs))
                     
             elif mtype == 'FoV':
                 ## Ignore 'looking' at victims while you're triaging
@@ -206,7 +211,9 @@ class ProcessParsedJson(object):
                     self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
                     triageInProgress = False
                 loc = m['room_name']
-                self.parseMove(loc, numMsgs, ts)
+                ret = self.parseMove(loc, numMsgs, ts)                
+                if ret > 0:
+                    self.logger.error('That was msg %d' % (numMsgs))
                 
             elif mtype == 'Event:Lever':
                 if triageInProgress:
@@ -257,6 +264,7 @@ class ProcessParsedJson(object):
             ## Force no beeps (unless overwritten later)
             selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
             if act not in world.agents[self.human].getLegalActions():
+                self.logger.error('Illegal %s' %(act))
                 raise ValueError('Illegal action!')
                 
             if actType == MOVE:
