@@ -595,10 +595,6 @@ class msgreader(object):
                 if line_count == 0:
                     line_count += 1
                 else:
-                    if row[5] == '109h':  # HACK TO FIX MISMATCH IN PORTAL MAPS FILE
-                        row[5] = 'r109h'
-                    if row[6] == '109h': 
-                        row[6] = 'r109h'
                     d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]))
                     self.doors.append(d)
                     line_count += 1
