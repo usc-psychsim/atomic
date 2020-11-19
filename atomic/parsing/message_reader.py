@@ -156,21 +156,10 @@ class msgreader(object):
 
         # get list of attached rooms containing victims
         for d in agent_room.doors:
-            if d.room1 != agent_room.name: # and d.room1 in self.victim_rooms:
-                all_attached_rooms.append(self.get_room_from_name(d.room1))
-                #attached_victim_rooms.append(self.get_room_from_name(d.room2))
-            else:
-                all_attached_rooms.append(self.get_room_from_name(d.room2))
-        
-        # for each attatched room, if has victims add, otherwise check for parent
-        for ar in all_attached_rooms:
-            if len(ar.victims) > 0:
-                attached_victim_rooms.append(ar)
-            else:
-                if ar.name.find('kco') > -1 and 'kco2' in self.victim_rooms: # hack until proper parent list
-                    attached_victim_rooms.append(self.get_room_from_name('kco2')) # replace with parent
-                elif ar.name.replace('h','') in self.victim_rooms: # parent is a victim room
-                    attached_victim_rooms.append(self.get_room_from_name(ar.name.replace('h','')))
+            if d.room1 != agent_room.name and d.room1 in self.victim_rooms:
+                attached_victim_rooms.append(self.get_room_from_name(d.room1))
+            elif d.room2 != agent_room.name and d.room2 in self.victim_rooms:
+                attached_victim_rooms.append(self.get_room_from_name(d.room2))
                 
         # for each victim in each attached room, find closest
         for r in attached_victim_rooms:
@@ -293,11 +282,13 @@ class msgreader(object):
                 self.add_victims_to_rooms()
             elif m.mtype == 'Event:Beep':
                 room_name = self.find_beep_room(m)
-                if not self.verbose:
+                if room_name == 'NONE': #for now filtering if not in psychsim room
+                    add_msg = False
+                elif not self.verbose:
                     del m.mdict['beep_x']
                     del m.mdict['beep_z']
-                m.mdict.update({'room_name':room_name})
-                m.mdict.update({'playername':self.playername})
+                    m.mdict.update({'room_name':room_name})
+                    m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
                 victim_arr = []
                 self.get_obs_timer(m) # do at end??
