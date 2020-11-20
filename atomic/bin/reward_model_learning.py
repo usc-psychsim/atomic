@@ -4,7 +4,7 @@ import logging
 import os
 from atomic.definitions import victims, world_map
 from model_learning.util import str2bool
-from model_learning.util.io import create_clear_dir, get_files_with_extension
+from model_learning.util.io import create_clear_dir, get_files_with_extension, change_log_handler
 from atomic.model_learning.linear.post_process.evaluation import evaluate_reward_models
 from atomic.model_learning.linear.post_process.players_data import process_players_data
 from atomic.model_learning.linear.post_process.clustering import cluster_reward_weights
@@ -19,15 +19,50 @@ __desc__ = 'Loads several log files containing the information about different p
            'Maximum Entropy Inverse Reinforcement Learning algorithm (MaxEnt IRL). Statistics about the learned ' \
            'rewards models are also gathered and saved in the output directory.'
 
+CMDS_JSON_FILE = 'cmds.json'
+
+# relevant cmd line flags
+REPLAYS_FLAG = '--replays'
+SAVE_COMMANDS_FLAG = '--save-commands'
+
 # TODO hacks to avoid stochastic beep and lights
 victims.PROB_NO_BEEP = 0
 world_map.MODEL_LIGHTS = False
+
+
+def _save_commands():
+    scripts_args = []
+    for file in files:
+        args_dict = vars(args)
+        cmd_args = []
+        for a in parser._actions:
+            arg_str = a.option_strings[-1]
+            if a.dest not in args_dict or arg_str == SAVE_COMMANDS_FLAG:
+                continue
+            if arg_str == REPLAYS_FLAG:
+                args_dict[a.dest] = file  # replace with file
+            if isinstance(a, argparse._StoreTrueAction):
+                if args_dict[a.dest]:
+                    cmd_args.append(arg_str)
+            elif isinstance(a, argparse._CountAction):
+                cmd_args.extend([arg_str for _ in range(args_dict[a.dest])])
+            else:
+                cmd_args.extend([arg_str, str(args_dict[a.dest])])
+        scripts_args.append('python -m atomic.bin.reward_model_learning {}'.format(' '.join(cmd_args)))
+
+    with open(os.path.join(args.output, CMDS_JSON_FILE), 'w') as fp:
+        json.dump(dict(commands=scripts_args), fp, indent=4)
+
+
+def _none_or_int(value):
+    return None if value.lower() == 'none' else int(value)
+
 
 if __name__ == '__main__':
     # parse command-line arguments
     parser = argparse.ArgumentParser(description=__desc__)
 
-    parser.add_argument('-r', '--replays', required=True, type=str,
+    parser.add_argument('-r', '%s' % REPLAYS_FLAG, required=True, type=str,
                         help='Directory containing the replay logs or single replay file to process.')
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_DIR, help='Directory in which to save results.')
     parser.add_argument('-c', '--clear', help='Whether to clear output directories before generating results.',
@@ -49,23 +84,21 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--diff', type=float, default=DIFF_THRESHOLD,
                         help='The termination threshold for the weight vector difference.')
 
-    parser.add_argument('-p', '--processes', type=int, default=PROCESSES,
+    parser.add_argument('-p', '--processes', type=_none_or_int, default=PROCESSES,
                         help='Number of processes/cores to use. If unspecified, all available cores will be used')
     parser.add_argument('-v', '--verbosity', action='count', default=0, help='Verbosity level.')
     parser.add_argument('--format', help='Format of images', default=IMG_FORMAT)
     parser.add_argument('-s', '--seed', type=int, default=SEED, help='Seed for random number generation.')
-    args = parser.parse_args()
 
-    # sets up log to file
-    log_level = logging.WARN if args.verbosity == 0 else logging.INFO if args.verbosity == 1 else logging.DEBUG
-    logging.basicConfig(format='%(message)s', level=log_level)
+    parser.add_argument('-pp', '--post-process', action='store_true',
+                        help='Whether to perform post-process over the data resulting from IRL.')
+    parser.add_argument(SAVE_COMMANDS_FLAG, action='store_true',
+                        help='Whether to save a json file containing a a list with python commands, one for each '
+                             'replay file to be processed, e.g., for parallelized deployment.')
+    args = parser.parse_args()
 
     # create output
     create_clear_dir(args.output, False)
-
-    # saves args
-    with open(os.path.join(args.output, 'args.json'), 'w') as fp:
-        json.dump(vars(args), fp, indent=4)
 
     # checks input files
     if os.path.isfile(args.replays):
@@ -74,6 +107,19 @@ if __name__ == '__main__':
         files = list(get_files_with_extension(args.replays, 'csv'))
     else:
         raise ValueError('Input path is not a valid file or directory: {}.'.format(args.replays))
+
+    # checks save commands file only, no need to actually process data
+    if args.save_commands:
+        _save_commands()
+        exit(0)
+
+    # sets up log to file
+    log_level = logging.WARN if args.verbosity == 0 else logging.INFO if args.verbosity == 1 else logging.DEBUG
+    logging.basicConfig(format='%(message)s', level=log_level)
+
+    # saves args
+    with open(os.path.join(args.output, 'args.json'), 'w') as fp:
+        json.dump(vars(args), fp, indent=4)
 
     # create replayer and process all files
     analyzer = RewardModelAnalyzer(
@@ -101,20 +147,24 @@ if __name__ == '__main__':
         logging.warning('Inexistent or incomplete results!')
         exit()
 
-    # performs post-processing of results
-    logging.info('Post-processing IRL data for the following {} files:'.format(len(analyzer.results)))
-    for filename in analyzer.results:
-        logging.info('\t{}, player: "{}", agent: "{}", map: "{}", {} steps'.format(
-            filename, analyzer.get_player_name(filename), analyzer.agent_names[filename],
-            analyzer.map_tables[filename]['name'], len(analyzer.trajectories[filename])))
+    if args.post_process:
 
-    # runs the different post-processors
-    output_dir = os.path.join(args.output, 'post-process')
-    logging.info('Saving post-process results in "{}"...'.format(len(analyzer.results), output_dir))
+        # performs post-processing of results
+        output_dir = os.path.join(args.output, 'post-process')
+        change_log_handler(os.path.join(output_dir, 'post-process.log'), args.verbosity)
 
-    process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
-    cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'), clear=args.clear, verbosity=args.verbosity)
-    evaluate_reward_models(analyzer, os.path.join(output_dir, 'evaluation'),
-                           os.path.join(output_dir, 'rewards', 'cluster-weights.csv'),
-                           os.path.join(output_dir, 'rewards', 'clusters.csv'),
-                           args.clear, args.verbosity)
+        logging.info('Post-processing IRL data for the following {} files:'.format(len(analyzer.results)))
+        for filename in analyzer.results:
+            logging.info('\t{}, player: "{}", agent: "{}", map: "{}", {} steps'.format(
+                filename, analyzer.get_player_name(filename), analyzer.agent_names[filename],
+                analyzer.map_tables[filename]['name'], len(analyzer.trajectories[filename])))
+
+        logging.info('Saving post-process results in "{}"...'.format(len(analyzer.results), output_dir))
+
+        process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
+        cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'),
+                               clear=args.clear, verbosity=args.verbosity)
+        evaluate_reward_models(analyzer, os.path.join(output_dir, 'evaluation'),
+                               os.path.join(output_dir, 'rewards', 'cluster-weights.csv'),
+                               os.path.join(output_dir, 'rewards', 'clusters.csv'),
+                               args.clear, args.verbosity)

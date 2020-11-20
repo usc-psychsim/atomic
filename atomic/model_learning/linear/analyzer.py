@@ -200,7 +200,8 @@ class RewardModelAnalyzer(Replayer):
 
         # create reward vector and optimize reward weights via MaxEnt IRL
         logging.info('=================================')
-        logging.info('Starting Maximum Entropy IRL optimization...')
+        logging.info('Starting Maximum Entropy IRL optimization using {} processes...'.format(
+            os.cpu_count() if self.processes is None else self.processes))
         rwd_vector = create_reward_vector(
             self.triage_agent, locations, self.world_map.moveActions[self.triage_agent.name])
         alg = MaxEntRewardLearning(
