@@ -31,13 +31,14 @@ class room(object):
             return False
 
 class door(object):
-    def __init__(self, x0, z0, x1, z1, room1, room2):
+    def __init__(self, x0, z0, x1, z1, room1, room2, ptype):
         self.room1 = room1
         self.room2 = room2
         self.x0 = x0
         self.x1 = x1
         self.z0 = z0
         self.z1 = z1
+        self.ptype = ptype
         self.center = [x0,z0] # default to corner
         self.xrange = range(x0,x1+1)
         self.zrange = range(z0,z1+1)
@@ -569,14 +570,14 @@ class msgreader(object):
                 if line_count == 0:
                     line_count += 1
                 else:
-                    d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]))
+                    d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]), row[7])
                     self.doors.append(d)
                     line_count += 1
 
     def add_doors_to_rooms(self):
         for d in self.doors:
             for r in self.rooms:
-                if d.room1 == r.name or d.room2 == r.name and d not in r.doors:
+                if d.room1 == r.name or d.room2 == r.name and d not in r.doors and d.ptype != 'Gap':
                     r.doors.append(d)
 
     def add_victims_to_rooms(self):
@@ -655,7 +656,7 @@ def getMessages(args):
     ## Defaults
     msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
     room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
-    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
+    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU_Type.csv'
     victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     msgdir = ''
     
