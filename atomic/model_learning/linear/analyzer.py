@@ -11,7 +11,7 @@ from model_learning.util.io import get_file_name_without_extension, create_clear
     load_object
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.definitions.map_utils import DEFAULT_MAPS
-from atomic.definitions.plotting import plot, plot_trajectories, plot_agent_location_frequencies, \
+from atomic.definitions.plotting import plot_environment, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.model_learning.parser import TrajectoryParser
@@ -98,6 +98,8 @@ class RewardModelAnalyzer(Replayer):
         self.map_tables = {}
         self.trial_conditions = {}
 
+        self._output_dir = None
+
     def _check_results(self):
 
         # checks already processed in this session
@@ -137,6 +139,15 @@ class RewardModelAnalyzer(Replayer):
         # checks results and avoids replaying episode
         if self._check_results():
             return
+
+        # create output
+        self._output_dir = os.path.join(self.output, get_file_name_without_extension(self.parser.filename))
+        create_clear_dir(self._output_dir, self.clear)
+
+        # sets up log to file
+        change_log_handler(os.path.join(self._output_dir, 'learning.log'), self.verbosity)
+
+        # replays trajectory
         super().replay(events, duration, logger)
 
     def get_player_name(self, filename):
@@ -161,13 +172,6 @@ class RewardModelAnalyzer(Replayer):
                 self.parser.filename))
             return
 
-        # create output
-        output_dir = os.path.join(self.output, get_file_name_without_extension(self.parser.filename))
-        create_clear_dir(output_dir, self.clear)
-
-        # sets up log to file
-        change_log_handler(os.path.join(output_dir, 'learning.log'), self.verbosity)
-
         # sets general random seeds
         random.seed(self.seed)
         np.random.seed(self.seed)
@@ -176,25 +180,26 @@ class RewardModelAnalyzer(Replayer):
         neighbors = self.map_table['adjacency']
         locations = list(self.map_table['rooms'])
         coordinates = self.map_table['coordinates']
-        plot(self.world, locations, neighbors, os.path.join(output_dir, 'env.{}'.format(self.img_format)), coordinates)
+        plot_environment(self.world, locations, neighbors,
+                         os.path.join(self._output_dir, 'env.{}'.format(self.img_format)), coordinates)
 
         logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
             self.parser.filename, self.parser.player_name(), len(trajectory), self.parser.data.shape[0]))
         plot_trajectories(self.triage_agent, [trajectory], locations, neighbors,
-                          os.path.join(output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
+                          os.path.join(self._output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
                           title='Player Trajectory')
         plot_agent_location_frequencies(
             self.triage_agent, [trajectory], locations,
-            os.path.join(output_dir, 'loc-frequencies.{}'.format(self.img_format)))
-        plot_agent_action_frequencies(
-            self.triage_agent, [trajectory], os.path.join(output_dir, 'action-frequencies.{}'.format(self.img_format)))
+            os.path.join(self._output_dir, 'loc-frequencies.{}'.format(self.img_format)))
+        plot_agent_action_frequencies(self.triage_agent, [trajectory],
+                                      os.path.join(self._output_dir, 'action-frequencies.{}'.format(self.img_format)))
 
         # collect sub-trajectories from player's trajectory
         trajectories = sample_spread_sub_trajectories(trajectory, self.num_trajectories, self.length)
         logging.info('Collected {} trajectories of length {} from original trajectory.'.format(
             self.num_trajectories, self.length))
         plot_trajectories(self.triage_agent, trajectories, locations, neighbors,
-                          os.path.join(output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
+                          os.path.join(self._output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
                           title='Training Sub-Trajectories')
         trajectories = [[(w.state, a) for w, a in t] for t in trajectories]
 
@@ -210,9 +215,9 @@ class RewardModelAnalyzer(Replayer):
         result = alg.learn(trajectories, self.parser.filename, self.verbosity > 0)
 
         # saves results/stats
-        alg.save_results(result, output_dir, self.img_format)
-        save_object(result, os.path.join(output_dir, RESULTS_FILE_NAME))
-        save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
+        alg.save_results(result, self._output_dir, self.img_format)
+        save_object(result, os.path.join(self._output_dir, RESULTS_FILE_NAME))
+        save_object(trajectory, os.path.join(self._output_dir, TRAJECTORY_FILE_NAME))
         self._register_results(
             self.file_name, trajectory, result, self.parser.player_name(), self.map_table, self.conditions)
 
@@ -224,7 +229,7 @@ class RewardModelAnalyzer(Replayer):
         with np.printoptions(precision=2, suppress=True):
             logging.info('Optimized reward weights: {}'.format(rwd_weights))
         plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $θ^*$',
-                 os.path.join(output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
+                 os.path.join(self._output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
         learner_r = next(iter(self.triage_agent.getReward().values()))
         logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
 

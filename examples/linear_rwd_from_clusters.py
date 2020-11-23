@@ -5,7 +5,7 @@ import random
 from model_learning.trajectory import generate_trajectory
 from model_learning.util.io import create_clear_dir, save_object, change_log_handler
 from atomic.definitions.plotting import plot_trajectories, plot_agent_location_frequencies, \
-    plot_agent_action_frequencies, plot
+    plot_agent_action_frequencies, plot_environment
 from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.scenarios.single_player import make_single_player_world
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     world, agent, observer, victims, world_map = \
         make_single_player_world(AGENT_NAME, init_loc, loc_neighbors, victims_color_locs, False, FULL_OBS)
-    plot(world, locations, loc_neighbors, os.path.join(OUTPUT_DIR, 'env.pdf'), coords)
+    plot_environment(world, locations, loc_neighbors, os.path.join(OUTPUT_DIR, 'env.pdf'), coords)
 
     # set agent params
     agent.setAttribute('horizon', HORIZON)

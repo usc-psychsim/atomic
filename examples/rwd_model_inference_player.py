@@ -1,7 +1,7 @@
 import logging
 import os
 import random
-from atomic.definitions.plotting import plot
+from atomic.definitions.plotting import plot_environment
 from atomic.inference import set_player_models
 from atomic.parsing.replayer import Replayer
 from atomic.scenarios.single_player import make_single_player_world
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     world, agent, observer, victims, world_map = \
         make_single_player_world(player_name, map_info['start'], neighbors, victims_locs, False, FULL_OBS)
 
-    plot(world, locations, neighbors, os.path.join(OUTPUT_DIR, 'map.pdf'), coords)
+    plot_environment(world, locations, neighbors, os.path.join(OUTPUT_DIR, 'map.pdf'), coords)
 
     model_list = [{'name': PREFER_NONE_MODEL, 'reward': {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
                    'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
