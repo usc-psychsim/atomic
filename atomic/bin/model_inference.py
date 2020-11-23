@@ -1,15 +1,20 @@
+import copy
 import itertools
 import os.path
 import logging
 from argparse import ArgumentParser
+
 from plotly import express as px
-from psychsim.pwl import WORLD, modelKey
+
+from psychsim.probability import Distribution
+from psychsim.pwl import WORLD, modelKey, stateKey
+
 from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.parsing.parser import DataParser
 from atomic.parsing.replayer import Replayer
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
-from atomic.model_learning.linear import load_cluster_reward_weights
-
+from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
+-
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)
@@ -29,13 +34,35 @@ class AnalysisParser(DataParser):
                           title='Prediction {}'.format(self.name))
             fig.show()
 
-    def pre_step(self, world):
-        player_name = self.player_name()
+    def next_victim(self, world):
+        """
+        Generate an expectation about what room the player will enter next
+        """
+        player = world.agents[self.player_name()]
         agent = world.agents['ATOMIC']
-        expectations = agent.expectation(player_name)
-        if len(expectations) > 1:
-            raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
-        self.expectation = next(iter(expectations.values()))
+        beliefs = agent.getBelief()
+        if len(beliefs) == 1:
+            agent_model, agent_beliefs = next(iter(beliefs.items()))
+        else:
+            raise NotImplementedError('Unable to generate predictions unless agent has unique model')
+        location = world.getState(player.name, 'loc', unique=True)
+        for player_model, player_model_prob in world.getModel(player.name, agent_beliefs).items():
+            player_beliefs = player.models[player_model]['beliefs']
+            fov = world.getState(player.name, 'vicInFOV', player_beliefs, unique=True)
+#            if fov != 'none':
+#                next_seen = Distribution({})
+            logging.info('{}: FOV {}'.format(player_model, fov))
+            logging.info('{}: Yellow {}'.format(player_model, world.getState(WORLD, 'ctr_{}_Gold'.format(location), player_beliefs)))
+            logging.info('{}: Green {}'.format(player_model, world.getState(WORLD, 'ctr_{}_Green'.format(location), player_beliefs)))
+        dist = Distribution({'Green': 1, 'Yellow': 0})
+        return dist
+ 
+    def pre_step(self, world):
+        t = world.getState(WORLD, 'seconds', unique=True)
+        entry = {'Timestep': t}
+        for color, prob in self.next_victim(world).items():
+            entry[color] = prob
+        self.prediction_data.append(entry)
 
     def post_step(self, world, act):
         t = world.getState(WORLD, 'seconds', unique=True)
@@ -45,6 +72,13 @@ class AnalysisParser(DataParser):
         # Store beliefs over player models
         beliefs = agent.getBelief()
         if len(beliefs) > 1:
+            b_list = list(beliefs.values())
+            for i in range(1, len(b_list)):
+                for k in sorted(b_list[0].keys()):
+                    if b_list[i][k] != b_list[0][k]:
+                        logging.error('{}: {} != {} ({})'.format(k, str(b_list[i][k]), str(b_list[0][k]), i))
+            else:
+                logging.info('Identical. Sigh.')
             raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
         beliefs = next(iter(beliefs.values()))
         player_model = world.getFeature(modelKey(player_name), beliefs)
@@ -55,17 +89,6 @@ class AnalysisParser(DataParser):
                 model = player.models[model]['parent']
             entry['Model'] = model[len(player_name) + 1:]
             self.inference_data.append(entry)
-        # Store prediction probability
-        if act is not None:
-            if len(act) > 1:
-                raise ValueError(
-                    'Unable to evaluate accuracy of predicted action over actual action: {}'.format(act.domain()))
-            act = act.first()
-            value = 0
-            for model, entry in self.expectation.items():
-                value += entry['decision']['action'].get(act) * entry['probability']
-            self.prediction_data.append({'Timestep': t, 'Accuracy': value})
-
 
 class Analyzer(Replayer):
     parser_class = AnalysisParser
