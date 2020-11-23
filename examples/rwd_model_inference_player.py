@@ -1,15 +1,15 @@
 import logging
 import os
 import random
+from atomic.definitions.plotting import plot
 from atomic.inference import set_player_models
+from atomic.parsing.replayer import Replayer
 from atomic.scenarios.single_player import make_single_player_world
 from psychsim.pwl import stateKey
 from model_learning.inference import track_reward_model_inference
 from model_learning.util.io import create_clear_dir, change_log_handler
 from model_learning.util.plot import plot_evolution
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims
 from atomic.model_learning.parser import TrajectoryParser
-from atomic.parsing.utils import get_participant_data_props as gpdp
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -22,7 +22,8 @@ __description__ = 'Perform reward model inference in the ASIST world based on hu
                   'belief over the models of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-DATA_FILE_IDX = 0
+DATA_FILE = 'data/glasgow/processed_20200724_Participant1_Cond1.csv'
+MAP = 'falcon'
 
 YELLOW_VICTIM = 'Gold'
 GREEN_VICTIM = 'Green'
@@ -63,26 +64,27 @@ if __name__ == '__main__':
     # initialize random seed
     random.seed(SEED)
 
-    # create output
+    # create output and log file
     create_clear_dir(OUTPUT_DIR)
-
-    pdp = gpdp()
-    pdp_itm = DATA_FILE_IDX
-    data_filename = pdp[pdp_itm]['fname']
-    traj_start = pdp[pdp_itm]['start']
-    traj_stop = pdp[pdp_itm]['stop']
-
-    # sets up log to file
     change_log_handler(os.path.join(OUTPUT_DIR, 'inference.log'), 2 if DEBUG else 1)
 
-    logging.info('Parsing data file {}...'.format(data_filename))
-    parser = TrajectoryParser(data_filename)
+    replayer = Replayer([DATA_FILE])
+    map_info = replayer.maps[MAP]
+    neighbors = map_info['adjacency']
+    locations = list(map_info['rooms'])
+    victims_locs = map_info['victims']
+    coords = map_info['coordinates']
+
+    logging.info('Parsing data file {}...'.format(DATA_FILE))
+    parser = TrajectoryParser(DATA_FILE)
     player_name = parser.player_name()
     logging.info('Got {} events for player "{}"'.format(parser.data.shape[0], player_name))
 
     # create world, agent and observer
     world, agent, observer, victims, world_map = \
-        make_single_player_world(player_name, 'BH2', getSandRMap(), getSandRVictims(), False, FULL_OBS)
+        make_single_player_world(player_name, map_info['start'], neighbors, victims_locs, False, FULL_OBS)
+
+    plot(world, locations, neighbors, os.path.join(OUTPUT_DIR, 'map.pdf'), coords)
 
     model_list = [{'name': PREFER_NONE_MODEL, 'reward': {GREEN_VICTIM: MEAN_VAL, YELLOW_VICTIM: MEAN_VAL},
                    'rationality': MODEL_RATIONALITY, 'selection': MODEL_SELECTION},
@@ -102,10 +104,7 @@ if __name__ == '__main__':
     aes, _ = parser.getActionsAndEvents(agent.name, victims, world_map, True, MAX_TRAJ_LENGTH)
     logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
 
-    if traj_stop == -1:
-        traj_stop = len(aes)
-
-    parser.runTimeless(world, agent.name, aes, traj_start, traj_stop, len(aes), prune_threshold=PRUNE_THRESHOLD)
+    parser.runTimeless(world, agent.name, aes, 0, len(aes), prune_threshold=PRUNE_THRESHOLD)
     logging.info('Recorded {} state-action pairs'.format(len(parser.trajectory)))
 
     # gets evolution of inference over reward models of the agent

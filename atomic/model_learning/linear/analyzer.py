@@ -1,20 +1,15 @@
 import logging
 import os
+import copy
 import random
-from collections import OrderedDict
-
 import numpy as np
+from collections import OrderedDict
 from model_learning.util.plot import plot_bar
-
-from psychsim.agent import Agent
-from psychsim.world import World
-from model_learning.metrics import evaluate_internal
-from model_learning.planning import get_policy
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
-from model_learning.trajectory import sample_sub_trajectories
+from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
-from atomic.parsing.replayer import Replayer
+from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.definitions.plotting import plot, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
@@ -99,55 +94,71 @@ class RewardModelAnalyzer(Replayer):
 
         self.results = {}
         self.trajectories = {}
+        self.agent_names = {}
+        self.map_tables = {}
+        self.trial_conditions = {}
 
-    def process_files(self, num_steps=0, fname=None):
-        # check results dir for each file, if results present, load them and don't reprocess
-        files = []
-        for file_name in self.files.copy():
-            if not self._check_results(file_name):
-                files.append(file_name)
-        self.files = files
-
-        if fname is None or fname in self.files:
-            super().process_files(num_steps, fname)
-
-    def _check_results(self, file_name):
+    def _check_results(self):
 
         # checks already processed in this session
-        if file_name in self.results and file_name in self.trajectories:
+        if self.file_name in self.results and self.file_name in self.trajectories and \
+                self.file_name in self.map_tables and self.file_name in self.agent_names:
             return True
 
         # checks if results file exists and tries to load it
-        output_dir = os.path.join(self.output, get_file_name_without_extension(file_name))
+        output_dir = os.path.join(self.output, get_file_name_without_extension(self.file_name))
         results_file = os.path.join(output_dir, RESULTS_FILE_NAME)
         trajectory_file = os.path.join(output_dir, TRAJECTORY_FILE_NAME)
         if os.path.isfile(results_file) and os.path.exists(results_file) and \
                 os.path.isfile(trajectory_file) and os.path.exists(trajectory_file):
             try:
-                self.results[file_name] = load_object(results_file)
+                result = load_object(results_file)
                 logging.info('Loaded valid results from {}'.format(results_file))
-                self.trajectories[file_name] = load_object(trajectory_file)
+                trajectory = load_object(trajectory_file)
                 logging.info('Loaded valid trajectory from {}'.format(trajectory_file))
+                self._register_results(
+                    self.file_name, trajectory, result, self.parser.player_name(), self.map_table, self.conditions)
                 return True
             except:
                 return False
 
-    def post_replay(self, world, agent, observer):
+    def _register_results(self, file_name, trajectory, results, agent_name, map_table, conditions):
+        self.trajectories[file_name] = trajectory
+        self.results[file_name] = results
+        self.agent_names[file_name] = agent_name
+        self.map_tables[file_name] = map_table
+        self.trial_conditions[file_name] = copy.deepcopy(conditions)
+
+    def pre_replay(self, map_name, logger=logging):
+        # check results and avoids creating stuff
+        return False if self._check_results() else super().pre_replay(map_name, logger)
+
+    def replay(self, events, duration, logger):
+        # checks results and avoids replaying episode
+        if self._check_results():
+            return
+        super().replay(events, duration, logger)
+
+    def get_player_name(self, filename):
+        # get player name if possible from the conditions dict
+        conditions = self.trial_conditions[filename]
+        if SUBJECT_ID_TAG in conditions and COND_MAP_TAG in conditions:
+            return '{}-{}'.format(conditions[SUBJECT_ID_TAG], conditions[COND_MAP_TAG][0])
+        return self.agent_names[filename]
+
+    def post_replay(self):
         """
         Performs linear reward model learning using the Maximum Entropy IRL algorithm.
-        :param World world: the PsychSim world.
-        :param Agent agent: the player agent.
-        :param Agent observer: the observer / ASIST agent.
-        :return:
         """
-        # checks result data, ignore if exists
-        if self._check_results(self.parser.filename):
+        # checks result and avoids performing IRL
+        if self._check_results():
             return
 
         # checks trajectory
         trajectory = self.parser.trajectory
         if len(trajectory) <= self.length + self.num_trajectories - 1:
-            logging.info('Could not process datapoint, empty or very short trajectory.')
+            logging.info('Could not process datapoint, empty or very short trajectory: {}'.format(
+                self.parser.filename))
             return
 
         # create output
@@ -165,72 +176,57 @@ class RewardModelAnalyzer(Replayer):
         neighbors = self.map_table['adjacency']
         locations = list(self.map_table['rooms'])
         coordinates = self.map_table['coordinates']
-        plot(world, locations, neighbors, os.path.join(output_dir, 'env.{}'.format(self.img_format)), coordinates)
+        plot(self.world, locations, neighbors, os.path.join(output_dir, 'env.{}'.format(self.img_format)), coordinates)
 
         logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
             self.parser.filename, self.parser.player_name(), len(trajectory), self.parser.data.shape[0]))
-        plot_trajectories(agent, [trajectory], locations, neighbors,
+        plot_trajectories(self.triage_agent, [trajectory], locations, neighbors,
                           os.path.join(output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
                           title='Player Trajectory')
         plot_agent_location_frequencies(
-            agent, [trajectory], locations, os.path.join(output_dir, 'loc-frequencies.{}'.format(self.img_format)))
+            self.triage_agent, [trajectory], locations,
+            os.path.join(output_dir, 'loc-frequencies.{}'.format(self.img_format)))
         plot_agent_action_frequencies(
-            agent, [trajectory], os.path.join(output_dir, 'action-frequencies.{}'.format(self.img_format)))
+            self.triage_agent, [trajectory], os.path.join(output_dir, 'action-frequencies.{}'.format(self.img_format)))
 
         # collect sub-trajectories from player's trajectory
-        trajectories = sample_sub_trajectories(trajectory, self.num_trajectories, self.length, seed=self.seed)
+        trajectories = sample_spread_sub_trajectories(trajectory, self.num_trajectories, self.length)
         logging.info('Collected {} trajectories of length {} from original trajectory.'.format(
             self.num_trajectories, self.length))
-        plot_trajectories(agent, trajectories, locations, neighbors,
+        plot_trajectories(self.triage_agent, trajectories, locations, neighbors,
                           os.path.join(output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
                           title='Training Sub-Trajectories')
         trajectories = [[(w.state, a) for w, a in t] for t in trajectories]
 
         # create reward vector and optimize reward weights via MaxEnt IRL
         logging.info('=================================')
-        logging.info('Starting Maximum Entropy IRL optimization...')
-        rwd_vector = create_reward_vector(agent, locations, self.world_map.moveActions[agent.name])
+        logging.info('Starting Maximum Entropy IRL optimization using {} processes...'.format(
+            os.cpu_count() if self.processes is None else self.processes))
+        rwd_vector = create_reward_vector(
+            self.triage_agent, locations, self.world_map.moveActions[self.triage_agent.name])
         alg = MaxEntRewardLearning(
-            'max-ent', agent, rwd_vector, self.processes, self.normalize, self.learn_rate, self.epochs, self.diff, True,
-            self.prune, self.horizon, self.seed)
+            'max-ent', self.triage_agent, rwd_vector, self.processes, self.normalize, self.learn_rate, self.epochs,
+            self.diff, True, self.prune, self.horizon, self.seed)
         result = alg.learn(trajectories, self.parser.filename, self.verbosity > 0)
 
         # saves results/stats
         alg.save_results(result, output_dir, self.img_format)
         save_object(result, os.path.join(output_dir, RESULTS_FILE_NAME))
-        self.results[self.parser.filename] = result
         save_object(trajectory, os.path.join(output_dir, TRAJECTORY_FILE_NAME))
-        self.trajectories[self.parser.filename] = trajectory
+        self._register_results(
+            self.file_name, trajectory, result, self.parser.player_name(), self.map_table, self.conditions)
 
         logging.info('=================================')
 
         # gets optimal reward function
         rwd_weights = result.stats[THETA_STR]
-        rwd_vector.set_rewards(agent, rwd_weights)
+        rwd_vector.set_rewards(self.triage_agent, rwd_weights)
         with np.printoptions(precision=2, suppress=True):
             logging.info('Optimized reward weights: {}'.format(rwd_weights))
-        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights ($θ$)',
+        plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $θ^*$',
                  os.path.join(output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
-        learner_r = next(iter(agent.getReward().values()))
+        learner_r = next(iter(self.triage_agent.getReward().values()))
         logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
-
-        logging.info('=================================')
-
-        # player's observed "policy"
-        logging.info('Collecting observed player policy...')
-        player_states = [w.state for w, _ in trajectory]
-        player_pi = [a for _, a in trajectory]
-
-        # compute learner's policy
-        logging.info('Computing policy with learned reward for {} states...'.format(len(player_states)))
-        agent.setAttribute('rationality', AGENT_RATIONALITY)
-        learner_pi = get_policy(agent, player_states, None, self.horizon, 'distribution', self.prune, self.processes)
-
-        logging.info('Computing evaluation metrics...')
-        metrics = evaluate_internal(player_pi, learner_pi)
-        logging.info('Results:')
-        for name, metric in metrics.items():
-            logging.info('\t{}: {:.3f}'.format(name, metric))
 
         logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')

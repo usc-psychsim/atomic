@@ -1,9 +1,10 @@
-from psychsim.action import Action, ActionSet
 from psychsim.agent import Agent
 from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, noChangeMatrix, \
     addFeatureMatrix, rewardKey, WORLD
 from atomic.definitions import Directions
 from atomic.definitions.world import SearchAndRescueWorld
+
+MODEL_LIGHTS = True
 
 
 class WorldMap(object):
@@ -39,9 +40,10 @@ class WorldMap(object):
         self.all_locations = list(locations)
         
         ## Create light status feature per location
-        for loc in self.all_locations:
-            self.world.defineState(WORLD, 'light' + str(loc), bool, description='Location light on or off')
-            self.world.setState(WORLD, 'light' + str(loc), True)
+        if MODEL_LIGHTS:
+            for loc in self.all_locations:
+                self.world.defineState(WORLD, 'light' + str(loc), bool, description='Location light on or off')
+                self.world.setState(WORLD, 'light' + str(loc), True)
 
     def makePlayerLocation(self, agent, initLoc=None):
         self.world.defineState(agent, 'loc', list, list(self.all_locations))
@@ -58,8 +60,8 @@ class WorldMap(object):
         # Make move actions
         self._makeMoveActions(agent)
         
-        # Make laction to toggle light switch
-        if len(self.sharedLights) > 0:
+        # Make action to toggle light switch
+        if MODEL_LIGHTS and len(self.sharedLights) > 0:
             self._makeLightToggleAction(agent)
         
     def _makeLightToggleAction(self, agent):
@@ -89,6 +91,14 @@ class WorldMap(object):
         
         
         self.lightActions[agent.name] = action
+        
+    def makeMoveResetFOV(self, agent):        
+        fovKey = stateKey(agent.name, 'vicInFOV')
+        for direction in range(4):
+            action = self.moveActions[agent.name][direction]
+            ## Reset FoV            
+            tree = setToConstantMatrix(fovKey, 'none')
+            self.world.setDynamics(fovKey, action, makeTree(tree))
 
     def _makeMoveActions(self, agent):
         """
@@ -116,6 +126,7 @@ class WorldMap(object):
             for il, loc in enumerate(lstlocsWithNbrs):
                 tree[il] = setToConstantMatrix(locKey, self.neighbors[direction.value][loc])
             self.world.setDynamics(locKey, action, makeTree(tree))
+            
 
             # A move sets the seen flag of the location we moved to
             for dest in self.all_locations:

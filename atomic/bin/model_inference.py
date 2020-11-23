@@ -14,7 +14,7 @@ from atomic.parsing.parser import DataParser
 from atomic.parsing.replayer import Replayer
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
--
+
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)

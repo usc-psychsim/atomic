@@ -7,6 +7,12 @@ from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.parser import DataParser
 from atomic.scenarios.single_player import make_single_player_world
 
+COND_MAP_TAG = 'CondWin'
+COND_TRAIN_TAG = 'CondBtwn'
+SUBJECT_ID_TAG = 'Member'
+TRIAL_TAG = 'Trial'
+
+
 def accumulate_files(files):
     """
     Accumulate a list of files from a given list of names of files and directories
@@ -18,11 +24,12 @@ def accumulate_files(files):
         if os.path.isdir(fname):
             # We have a directory full of log files to process
             result += [os.path.join(fname, name) for name in os.listdir(fname)
-                           if os.path.splitext(name)[1] == '.csv' and os.path.join(fname, name) not in result]
+                       if os.path.splitext(name)[1] == '.csv' and os.path.join(fname, name) not in result]
         elif fname not in result:
             # We have a lonely single log file (that is not already in the list)
             result.append(fname)
     return result
+
 
 class Replayer(object):
     """
@@ -39,17 +46,28 @@ class Replayer(object):
         self.files = accumulate_files(files)
         self.logger = logger
 
+        # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
+        self.world = None
+        self.triage_agent = None
+        self.observer = None
+        self.victims = None
+        self.world_map = None
+        self.map_table = None
+        self.parser = None
+        self.conditions = None
+        self.file_name = None
+
         # Extract maps
         if maps is None:
             maps = DEFAULT_MAPS
-        for map_name, self.map_table in maps.items():
+        for map_name, map_table in maps.items():
             logger = self.logger.getLogger(map_name)
-            self.map_table['adjacency'] = getSandRMap(fname=self.map_table['room_file'], logger=logger)
-            self.map_table['rooms'] = set(self.map_table['adjacency'].keys())
-            self.map_table['victims'] = getSandRVictims(fname=self.map_table['victim_file'])
-            self.map_table['coordinates'] = getSandRCoords(fname=self.map_table['coords_file'])
-            self.map_table['start'] = next(iter(self.map_table['adjacency'].keys()))
-            self.map_table['name'] = map_name
+            map_table['adjacency'] = getSandRMap(fname=map_table['room_file'], logger=logger)
+            map_table['rooms'] = set(map_table['adjacency'].keys())
+            map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
+            map_table['coordinates'] = getSandRCoords(fname=map_table['coords_file'])
+            map_table['start'] = next(iter(map_table['adjacency'].keys()))
+            map_table['name'] = map_name
         self.maps = maps
 
         # Set player models for observer agent
@@ -69,15 +87,24 @@ class Replayer(object):
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
 
-    def get_map(self, parser, logger=logging):
-        # Determine which map we're using
-        for map_name, self.map_table in self.maps.items():
-            if set(self.parser.locations) <= self.map_table['rooms']:
+    def get_map(self, logger=logging):
+        # try to get map name directly from conditions dictionary
+        try:
+            map_name = self.conditions['CondWin'][0]
+            map_table = self.maps[map_name]
+            return map_name, map_table
+        except KeyError:
+            # Map not given in filename, try to find fallback
+            pass
+
+        # Determine which map we're using from the number of rooms
+        for map_name, map_table in self.maps.items():
+            if set(self.parser.locations) <= map_table['rooms']:
                 # This map contains all of the rooms from this log
-                return map_name, self.map_table
+                return map_name, map_table
             else:
                 logger.debug('Map "{}" missing rooms {}'.format(map_name, ','.join(
-                    sorted(set(self.parser.locations) - self.map_table['rooms']))))
+                    sorted(set(self.parser.locations) - map_table['rooms']))))
 
         logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(self.parser.locations)))))
         return None, None
@@ -92,7 +119,7 @@ class Replayer(object):
             try:
                 index = term.index('-')
                 key = term[:index]
-                result[key] = term[index+1:].split('-')
+                result[key] = term[index + 1:].split('-')
                 if len(result[key]) == 1:
                     result[key] = result[key][0]
             except ValueError:
@@ -112,9 +139,10 @@ class Replayer(object):
             files = [fname]
         # Get to work
         for fname in files:
+            self.file_name = fname
             logger = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
             logger.debug('Full path: {}'.format(fname))
-            conditions = self.read_filename(os.path.splitext(os.path.basename(fname))[0])
+            self.conditions = self.read_filename(os.path.splitext(os.path.basename(fname))[0])
 
             # Parse events from log file
             try:
@@ -124,12 +152,7 @@ class Replayer(object):
                 logger.error('Unable to parse log file')
                 continue
 
-            try:
-                map_name = conditions['CondWin'][0]
-                self.map_table = self.maps[map_name]
-            except KeyError:
-                # Map not given in filename, try to find fallback
-                map_name, self.map_table = self.get_map(self.parser, logger)
+            map_name, self.map_table = self.get_map(logger)
             if map_name is None or self.map_table is None:
                 continue
 
@@ -178,8 +201,9 @@ class Replayer(object):
                         if not isinstance(model[dimension], dict):
                             if features is None:
                                 import atomic.model_learning.linear.rewards as rewards
-                                features = rewards.create_reward_vector(self.triage_agent, self.world_map.all_locations, 
-                                    self.world_map.moveActions[triage_agent.name])
+                                features = rewards.create_reward_vector(
+                                    self.triage_agent, self.world_map.all_locations,
+                                    self.world_map.moveActions[self.triage_agent.name])
                             model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
         if len(self.model_list) > 0:
             set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
@@ -188,7 +212,8 @@ class Replayer(object):
 
     def replay(self, events, duration, logger):
         try:
-            self.parser.runTimeless(self.world, self.triage_agent.name, events, 0, duration, len(events), permissive=True)
+            self.parser.runTimeless(self.world, self.triage_agent.name, events, 0, duration, len(events),
+                                    permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')

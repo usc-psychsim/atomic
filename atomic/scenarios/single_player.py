@@ -25,6 +25,7 @@ def make_single_player_world(
     
     world_map.makePlayerLocation(triage_agent, init_loc)
     victims.setupTriager(triage_agent)
+    world_map.makeMoveResetFOV(triage_agent)
     victims.createTriageActions(triage_agent)
     if not full_obs:
         if use_unobserved:

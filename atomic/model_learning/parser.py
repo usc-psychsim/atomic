@@ -11,6 +11,7 @@ class TrajectoryParser(DataParser):
         super().__init__(filename, maxDist, logger)
         self.trajectory = []
         self.prev_world = None
+        self._player_name = None
 
     def pre_step(self, world):
         self.prev_world = copy_world(world)
