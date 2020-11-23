@@ -66,7 +66,7 @@ class msg(object):
         self.linenum = 0
 
 class msgreader(object):
-    def __init__(self, fname, room_list, portal_list, victim_list, fov_file, verbose=False):
+    def __init__(self, fname, room_list, portal_list, victim_list, verbose=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
@@ -75,11 +75,7 @@ class msgreader(object):
         self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
-        self.fov_file = fov_file
-        if self.fov_file == '': # no fov file, will use fov messages in metadata
-            self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep', 'FoV','state']
-        else:
-            self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV']
         self.messages = []
         self.mission_running = False
         self.locations = []
@@ -237,19 +233,6 @@ class msgreader(object):
                 self.add_message(line,nlines)
             nlines += 1
             
-        if self.fov_file != '': #have fov file load from there
-            self.load_fovs(fov_file)
-            for fmsg in self.fov_messages:
-                self.get_obs_timer(fmsg)
-                # has matching obs AND is in a room that has a victim
-                if fmsg.mdict['mission_timer'] != '' and fmsg.mdict['room_name'] in self.victim_rooms:
-                    if not self.verbose:
-                        del fmsg.mdict['x']
-                        del fmsg.mdict['z']
-                        del fmsg.mdict['observation']
-                        del fmsg.mdict['room_name']
-                    self.messages.append(fmsg)
-            self.messages = sorted(self.messages, key = lambda i: (i.mdict['timestamp']))
         jsonfile.close()
 
     # adds single message to msgreader.messages list
@@ -625,6 +608,7 @@ def get_rescues(msgfile):
         print("TOTAL RESCUED : "+str(num_rescues))
 
 def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
+    print("hereee room list is : "+room_list)
     file_list = tmpdir+'/metafiles.txt'
     cmd = 'gsutil ls gs://studies.aptima.com/'+gcdir+'/'+prefix+'*metadata > '+file_list
     print("getting file list from:: "+cmd)
@@ -638,7 +622,7 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
         cmd = 'gsutil cp '+line.strip()+' '+tmpdir # fetch file
         print("processing file:: "+fname)
         subprocess.getstatusoutput(cmd)
-        reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file)
+        reader = msgreader(msgfile, room_list, portal_list, victim_list)
         reader.add_all_messages(msgfile)
         # write msgs to file
         msgout = open(outfile,'w')
@@ -651,6 +635,19 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
         cpcnt += 1
     metafile.close()
 
+def proc_msg_file(msgfile, room_list, portal_list, victim_list, psychsimdir):
+    reader = msgreader(msgfile, room_list, portal_list, victim_list)
+    reader.add_all_messages(msgfile)
+    outname = msgfile.split('/')
+    outfile = psychsimdir+'/'+outname[len(outname)-1]+'.json'
+    print("writing to "+outfile)
+    # write msgs to file
+    msgout = open(outfile,'w')
+    for m in reader.messages:
+        del m.mdict['timestamp']
+        json.dump(m.mdict,msgout)
+        msgout.write('\n')
+    msgout.close()
 
 # MAIN
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
@@ -660,10 +657,9 @@ def getMessages(args):
     room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
     victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
-    fov_file = ''
     msgdir = ''
     
-    psychsimdir = '/var/tmp/'    
+    psychsimdir = '.'
     gcdir = 'study-1_2020.08'
     gcprefix = ''
     
@@ -685,16 +681,8 @@ def getMessages(args):
             msgdir = args[a]
         elif a == '--portalfile':
             portal_list = args[a]
-        elif a == '--victimfile': # no longer allow victim file?
-            victim_list = args[a]
-        elif a == '--fovfile':
-            fov_file = args[a]
-        elif a == '--gcprefix':
-            gcprefix = args[a]
-            files_from_gc = True
         elif a == '--psychsimdir':
             psychsimdir = args[a]
-            files_from_gc = True
         elif a == '--verbose':
             verbose = True
         elif a == '--help':
@@ -704,14 +692,13 @@ def getMessages(args):
             print("--msgfile <trial messages file>")
             print("--roomfile <.json or .csv list of rooms>")
             print("--portalfile <list of portals>")
-            print("--victimfile <list of victims .csv>")
             print("--multitrial <directory with message files to be processed>")
             print("--verbose : will provide extra info for each message, e.g. x/z coords") 
             print("--gcprefix <prefix>: prefix for files you want to pull from the google cloud in studies.aptima.com/study-1_2020.08")
             print("--psychsimdir <directory to store processed message files>")
             exit()
 
-    # If reading a directory and writing to files
+    # If reading from a google cloud a directory and writing to files (syncs dir)
     if files_from_gc:
         if gcdir == '':
             gcdir = 'HSRData_TrialMessages'
@@ -719,7 +706,7 @@ def getMessages(args):
         return None
     
     # if ONLY getting number of rescues
-    if print_rescues:
+    elif print_rescues:
         if multitrial:
             if msgdir == '':
                 print("ERROR: must provide message directory --multitrial <directory>")
@@ -735,31 +722,52 @@ def getMessages(args):
                 print("ERROR: must provide --msgfile <filename>")
                 exit()
             get_rescues(msgfile)
-        return None
-    
-    # If returning a list of dictionaries
-    reader = msgreader(msgfile, room_list, portal_list, victim_list, fov_file, verbose)
-    reader.add_all_messages(msgfile)
-    for m in reader.messages:
-        if not reader.verbose:
-            del m.mdict['timestamp']
-    allMs = [m.mdict for m in reader.messages]
-    return allMs
+        exit()
+
+    # if running message reader on a directory -- will write results to cwd
+    elif multitrial: 
+        if msgdir == '':
+            print("ERROR: must provide message directory --multitrial <directory>")
+            exit()
+        file_arr = os.listdir(msgdir)
+        filecnt = 1
+        for f in file_arr:
+            full_path = os.path.join(msgdir,f)
+            if os.path.isfile(full_path):
+                print("processing file "+str(filecnt)+" of "+str(len(file_arr))+" :: "+str(full_path))
+                proc_msg_file(full_path, room_list, portal_list, victim_list, psychsimdir)
+                filecnt += 1
+        exit()
+
+    # default to procesing single file, returning a list of dictionaries
+    else:
+        reader = msgreader(msgfile, room_list, portal_list, victim_list, verbose)
+        reader.add_all_messages(msgfile)
+        for m in reader.messages:
+            if not reader.verbose:
+                del m.mdict['timestamp']
+            allMs = [m.mdict for m in reader.messages]
+        return allMs
 
 if __name__ == "__main__":
     argDict = {}
-    for i in range(1, len(sys.argv), 2):
+    for i in range(1, len(sys.argv)):
+        print("arg["+str(i)+"] = "+sys.argv[i])
         if sys.argv[i] == '--verbose':
             k = '--verbose'
             v = True
         elif sys.argv[i] == '--rescues':
             k = '--rescues'
             v = True
-        else:
+        elif sys.argv[i] == '--help':
+            k = '--help'
+            v = True
+        elif i+1<len(sys.argv):
             k = sys.argv[i]
             v = sys.argv[i+1]
         argDict[k] = v
         
     msgs = getMessages(argDict)
-    for m in msgs:
-        print(str(m))
+    if len(msgs) > 0:
+        for m in msgs:
+            print(str(m))
