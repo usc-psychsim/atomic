@@ -752,7 +752,6 @@ def getMessages(args):
 if __name__ == "__main__":
     argDict = {}
     for i in range(1, len(sys.argv)):
-        print("arg["+str(i)+"] = "+sys.argv[i])
         if sys.argv[i] == '--verbose':
             k = '--verbose'
             v = True
@@ -768,6 +767,6 @@ if __name__ == "__main__":
         argDict[k] = v
         
     msgs = getMessages(argDict)
-    if len(msgs) > 0:
-        for m in msgs:
-            print(str(m))
+    for m in msgs:
+        print(str(m))
+        
