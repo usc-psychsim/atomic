@@ -76,7 +76,7 @@ class RewardModelAnalyzer(Replayer):
             maps = DEFAULT_MAPS
         super().__init__(replays, maps, {})
 
-        self_all_replays = replays
+        self._all_replays = replays
         self.output = output
         self.clear = clear
         self.num_trajectories = num_trajectories

@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # parse command-line arguments
     parser = argparse.ArgumentParser(description=__desc__)
 
-    parser.add_argument('-r', '%s' % REPLAYS_FLAG, required=True, type=str,
+    parser.add_argument('-r', REPLAYS_FLAG, required=True, type=str,
                         help='Directory containing the replay logs or single replay file to process.')
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_DIR, help='Directory in which to save results.')
     parser.add_argument('-c', '--clear', help='Whether to clear output directories before generating results.',
