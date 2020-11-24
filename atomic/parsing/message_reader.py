@@ -570,7 +570,7 @@ class msgreader(object):
                 if line_count == 0:
                     line_count += 1
                 else:
-                    d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]), row[7])
+                    d = door(int(row[0]), int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]))
                     self.doors.append(d)
                     line_count += 1
 
@@ -748,7 +748,7 @@ def getMessages(args):
             if not reader.verbose:
                 del m.mdict['timestamp']
             allMs = [m.mdict for m in reader.messages]
-        return allMs
+        return allMs, reader.playername
 
 if __name__ == "__main__":
     argDict = {}
