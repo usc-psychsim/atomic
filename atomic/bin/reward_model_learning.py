@@ -2,9 +2,9 @@ import argparse
 import json
 import logging
 import os
-from atomic.definitions import victims, world_map
-from model_learning.util import str2bool
+from model_learning.util.cmd_line import str2bool, none_or_int
 from model_learning.util.io import create_clear_dir, get_files_with_extension, change_log_handler
+from atomic.definitions import victims, world_map
 from atomic.model_learning.linear.post_process.evaluation import evaluate_reward_models
 from atomic.model_learning.linear.post_process.players_data import process_players_data
 from atomic.model_learning.linear.post_process.clustering import cluster_reward_weights
@@ -54,10 +54,6 @@ def _save_commands():
         json.dump(dict(commands=scripts_args), fp, indent=4)
 
 
-def _none_or_int(value):
-    return None if value.lower() == 'none' else int(value)
-
-
 if __name__ == '__main__':
     # parse command-line arguments
     parser = argparse.ArgumentParser(description=__desc__)
@@ -84,7 +80,7 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--diff', type=float, default=DIFF_THRESHOLD,
                         help='The termination threshold for the weight vector difference.')
 
-    parser.add_argument('-p', '--processes', type=_none_or_int, default=PROCESSES,
+    parser.add_argument('-p', '--processes', type=none_or_int, default=PROCESSES,
                         help='Number of processes/cores to use. If unspecified, all available cores will be used')
     parser.add_argument('-v', '--verbosity', action='count', default=0, help='Verbosity level.')
     parser.add_argument('--format', help='Format of images', default=IMG_FORMAT)
