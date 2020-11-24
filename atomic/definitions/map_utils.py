@@ -5,7 +5,7 @@ from collections import OrderedDict
 from atomic.definitions import Directions
 
 FALCON_COORDS_FILE = 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU-coords'
-mapDir = '../maps/Falcon_EMH_PsychSim/'
+FALCON_MAP_DIR = '../maps/Falcon_EMH_PsychSim/'
 
 DEFAULT_MAPS = {'sparky': {'room_file': 'sparky_adjacency',
                            'victim_file': 'sparky_vic_locs',
@@ -13,14 +13,14 @@ DEFAULT_MAPS = {'sparky': {'room_file': 'sparky_adjacency',
                 'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
                            'victim_file': 'falcon_vic_locs_v1.1_OCN',
                            'coords_file': FALCON_COORDS_FILE},
-                'FalconEasy': {'room_file': mapDir + 'falcon_easy_adjacency',
-                               'victim_file': mapDir + 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
+                'FalconEasy': {'room_file': FALCON_MAP_DIR + 'falcon_easy_adjacency',
+                               'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
                                'coords_file': FALCON_COORDS_FILE},
                 'FalconMed': {'room_file': 'falcon_medium_adjacency',
-                              'victim_file': mapDir + 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
+                              'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
                               'coords_file': FALCON_COORDS_FILE},
                 'FalconHard': {'room_file': 'falcon_hard_adjacency',
-                               'victim_file': mapDir + 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
+                               'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
                                'coords_file': FALCON_COORDS_FILE},
                 }
 
