@@ -107,6 +107,14 @@ class Victims(object):
         yDistr = {'2': 1 - PROB_NO_BEEP, 'none': PROB_NO_BEEP}
         gDistr = {'1': 1 - PROB_NO_BEEP, 'none': PROB_NO_BEEP}
 
+        if PROB_NO_BEEP == 0:
+            tree = {'if': thresholdRow(nbrYCt, 0),
+                    True: setToConstantMatrix(beepKey, '2'),
+                    False: {'if': thresholdRow(nbrGCt, 0),
+                            True: setToConstantMatrix(beepKey, '1'),
+                            False: setToConstantMatrix(beepKey, 'none')}}
+            return tree
+
         tree = {'if': thresholdRow(nbrYCt, 0),
                 True: {'distribution': [(setToConstantMatrix(beepKey, c), p) for c, p in yDistr.items()]},
                 False: {'if': thresholdRow(nbrGCt, 0),

@@ -21,7 +21,6 @@ logging.basicConfig(
 ######## Get Map Data
 mapName = 'FalconEasy'
 SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
-SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
 
 ## Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
 shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
@@ -32,15 +31,27 @@ for shr,num in shared.items():
         lightMap[shr + '1'].append(shr + str(i))
 
 
+allMs, playerName = getMessages({})
+
 #use_unobserved=True, full_obs=False, logger=logging):
-playerName = 'Research_Account'
+SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(playerName, None, SandRLocs, SandRVics, False, True, lightMap)
 
-allMs = getMessages({})
-
 jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
-### Process the message into actions and events
+### Process the list of dicts into psychsim actions
 jsonPrpcessor.processJson(iter(allMs), SandRVics, 9999)
-### Replay sequence of actions and events
+### Replay sequence of actions 
 jsonPrpcessor.runTimeless(world, 0, 9999, 9999)
 
+
+### Replay sequence of actions and events
+#maxDist = 5
+#try:
+#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data', sys.argv[1]), maxDist, logging)
+#except IndexError:
+#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data',
+#                                     'processed_20200728_Participant3_Cond1.csv'),
+#                        maxDist, logging)
+#aes, data = parser.getActionsAndEvents(triageAgent.name, victimsObj, world_map, True, 350)
+#DataParser.runTimeless(world, triageAgent.name, aes,  0, 148, 0)
+#

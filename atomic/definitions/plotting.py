@@ -49,8 +49,8 @@ COLORS = {GOLD_STR: 'Goldenrod',  # (255, 215, 0),
           WHITE_STR: 'Gray40'}  # (176, 196, 222)}
 
 
-def plot(world, locations, neighbors, output_img, coordinates=None,
-         state=None, title='Search & Rescue World', draw_victims=True, show=False):
+def plot_environment(world, locations, neighbors, output_img, coordinates=None,
+                     state=None, title='Search & Rescue World', draw_victims=True, show=False):
     """
     Generates and saves a graph plot of the environment, including each location and connection.
     :param World world: the world we want to plot.

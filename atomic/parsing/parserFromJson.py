@@ -6,7 +6,6 @@ Created on Thu Apr  2 20:35:23 2020
 @author: mostafh
 """
 import logging
-import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.definitions import Directions
@@ -35,11 +34,22 @@ class ProcessParsedJson(object):
 #######  Message handlers
 ###############################################
 
+    def injectFOVIfNeeded(self, vicColor, ts):
+        ## If color in FOV not what you're trying to triage, inject a FoV message
+        if self.lastParsedClrInFOV != vicColor:
+            self.logger.error('Injecting search action to look before triage at %s at %s' %(vicColor, ts))
+            self.parseFOV([vicColor], -1, ts)
+
+
     def parseTriageStart(self, vicColor, ts):
+        self.injectFOVIfNeeded(vicColor, ts)
         self.logger.debug('triage started of %s at %s' % (vicColor, ts))
         self.triageStartTime = ts
+        
     
     def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
+        self.injectFOVIfNeeded(vicColor, ts)
+        
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
         originalDuration = (ts[0]*60 + ts[1]) - (self.triageStartTime[0]*60 + self.triageStartTime[1])
 
@@ -64,6 +74,10 @@ class ProcessParsedJson(object):
                 duration = min(originalDuration, 7)
             else:
                 duration = min(originalDuration, 14)
+        
+        ## Update the parser's version of victims in each room
+        if isSuccessful:
+            self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
         
         triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
         ## Record it as happening at self.triageStartTime
@@ -97,18 +111,18 @@ class ProcessParsedJson(object):
         action = self.world_map.lightActions[self.human]
         self.actions.append([TOGGLE_LIGHT, [action], msgIdx, ts])        
         
-    def parseBeep(self, msg, SandRVics, msgIdx, ts):
+    def parseBeep(self, msg, msgIdx, ts):
         numBeeps= len(msg['message'].split())
         targetRoom = msg['room_name']
         
-        if targetRoom not in SandRVics.keys():
+        if targetRoom not in self.roomToVicDict.keys():
             self.logger.error('%d Beeps from %s but no victims at %s' % (numBeeps, targetRoom, ts))
             return 1
-        
-        cond1 = (numBeeps == 1) and 'Green' in SandRVics[targetRoom] and 'Gold' not in SandRVics[targetRoom]
-        cond2 = (numBeeps == 2) and 'Gold' in SandRVics[targetRoom]        
+        victims  = self.roomToVicDict[targetRoom]
+        cond1 = (numBeeps == 1) and 'Green' in victims and 'Gold' not in victims
+        cond2 = (numBeeps == 2) and 'Gold' in victims
         if not (cond1 or cond2):
-            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, SandRVics[targetRoom]))
+            self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, victims))
             return 1
         
         direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
@@ -124,7 +138,12 @@ class ProcessParsedJson(object):
         self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
         return 0
 
-    def parseFOV(self, colors, msgIdx, ts):
+    def parseFOV(self, origColors, msgIdx, ts):
+        ## Filter our victims that are no longer in the room
+        colors = [c for c in origColors if c in self.roomToVicDict[self.lastParsedLoc]]
+        if len(colors) < len(origColors):
+            self.logger.error('%s in FOV but not in %s at %s idx %d' %(origColors, self.lastParsedLoc, ts, msgIdx))
+        
         ## TODO what if multiple victims in FOV
         if len(colors) > 0:
             found = colors[0]
@@ -161,6 +180,7 @@ class ProcessParsedJson(object):
 ###############################################
         
     def processJson(self, jsonMsgIter, SandRVics, ffwd = 0, maxActions = -1):
+        self.roomToVicDict = dict(SandRVics)
         numMsgs = 0
         m = next(jsonMsgIter)
         ignore = ['Mission:VictimList', 'Event:Door']
@@ -197,7 +217,7 @@ class ProcessParsedJson(object):
                     triageInProgress = False
                     
             elif mtype == 'Event:Beep':                
-                ret = self.parseBeep(m, SandRVics, numMsgs, ts)
+                ret = self.parseBeep(m, numMsgs, ts)
                 if ret > 0:
                     self.logger.error('That was msg %d' % (numMsgs))
                     
@@ -249,8 +269,9 @@ class ProcessParsedJson(object):
             start = 1
 
         t = start
+        timeKey = stateKey(WORLD, 'seconds')
         while True:
-            if t == end:
+            if (t == end) or (t >= len(self.actions)):
                 break
             
             actStruct = self.actions[t]            
@@ -258,11 +279,13 @@ class ProcessParsedJson(object):
             act = actStruct[1][0]
             testbedMsgId = actStruct[-2]
             trueTime = actStruct[-1]
+            timeInSec = 600 - (trueTime[0]*60) - trueTime[1]
             
             self.logger.info('%d) Running msg %d: %s' % (t + start, testbedMsgId, ','.join(map(str, actStruct[1]))))
                 
             ## Force no beeps (unless overwritten later)
             selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
+#            selDict[timeKey] = timeInSec
             if act not in world.agents[self.human].getLegalActions():
                 self.logger.error('Illegal %s' %(act))
                 raise ValueError('Illegal action!')
@@ -297,7 +320,7 @@ class ProcessParsedJson(object):
                     
             selDict = {k: world.value2float(k, v) for k,v in selDict.items()}
             self.pre_step(world)
-            world.step(act, select=selDict, threshold=prune_threshold)                    
+            world.step(act, select=selDict, threshold=prune_threshold) #, recurse=True)                    
             self.post_step(world, None if act is None else world.getAction(self.human))
             self.summarizeState(world, trueTime)
             
