@@ -13,7 +13,6 @@ from atomic.definitions.map_utils import DEFAULT_MAPS
 from atomic.parsing.parser import DataParser
 from atomic.parsing.replayer import Replayer
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
-from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
 
 class AnalysisParser(DataParser):
     def __init__(self, filename, maxDist=5, logger=logging):
@@ -30,7 +29,7 @@ class AnalysisParser(DataParser):
                           title='Inference {}'.format(self.name))
             fig.show()
         if self.prediction_data:
-            fig = px.line(self.prediction_data, x='Timestep', y='Accuracy', range_y=[0, 1],
+            fig = px.line(self.prediction_data, x='Timestep', y='Belief', color='Color', range_y=[0, 1],
                           title='Prediction {}'.format(self.name))
             fig.show()
 
@@ -39,6 +38,14 @@ class AnalysisParser(DataParser):
         Generate an expectation about what room the player will enter next
         """
         player = world.agents[self.player_name()]
+        action = world.getAction(player.name, unique=True)
+        if action['verb'] == 'triage_Green':
+            # Triaging green as we speak
+            return Distribution({'Green': 1})
+        elif action['verb'] == 'triage_Gold':
+            # Triaging yellow as we speak
+            return Distribution({'Yellow': 1})
+        # Not so obvious who will be next
         agent = world.agents['ATOMIC']
         beliefs = agent.getBelief()
         if len(beliefs) == 1:
@@ -46,23 +53,34 @@ class AnalysisParser(DataParser):
         else:
             raise NotImplementedError('Unable to generate predictions unless agent has unique model')
         location = world.getState(player.name, 'loc', unique=True)
+        prediction = None
         for player_model, player_model_prob in world.getModel(player.name, agent_beliefs).items():
             player_beliefs = player.models[player_model]['beliefs']
             fov = world.getState(player.name, 'vicInFOV', player_beliefs, unique=True)
-#            if fov != 'none':
-#                next_seen = Distribution({})
-            logging.info('{}: FOV {}'.format(player_model, fov))
-            logging.info('{}: Yellow {}'.format(player_model, world.getState(WORLD, 'ctr_{}_Gold'.format(location), player_beliefs)))
-            logging.info('{}: Green {}'.format(player_model, world.getState(WORLD, 'ctr_{}_Green'.format(location), player_beliefs)))
-        dist = Distribution({'Green': 1, 'Yellow': 0})
-        return dist
+            if fov in {'Yellow', 'Green'}:
+                # The next victim found is the one the player is looking at now
+                next_seen = Distribution({fov: 1})
+            else:
+                # The next victim found is one in the player's current location
+                next_seen = {'Yellow': world.getState(WORLD, 'ctr_{}_Gold'.format(location), player_beliefs).expectation(),
+                    'Gren': world.getState(WORLD, 'ctr_{}_Green'.format(location), player_beliefs).expectation()}
+                if sum(next_seen.values()) == 0:
+                    # No victim in the current room
+                    next_seen = {'Yellow': 1, 'Green': 1}
+                next_seen = Distribution(next_seen)
+                next_seen.normalize()
+            if prediction is None:
+                prediction = next_seen.scale_prob(player_model_prob) 
+            else:
+                prediction = prediction.__class__({color: prob+next_seen[color]*player_model_prob 
+                    for color, prob in prediction.items()})
+        return prediction
  
     def pre_step(self, world):
         t = world.getState(WORLD, 'seconds', unique=True)
-        entry = {'Timestep': t}
         for color, prob in self.next_victim(world).items():
-            entry[color] = prob
-        self.prediction_data.append(entry)
+            entry = {'Timestep': t, 'Belief': prob, 'Color': color}
+            self.prediction_data.append(entry)
 
     def post_step(self, world, act):
         t = world.getState(WORLD, 'seconds', unique=True)
@@ -72,13 +90,6 @@ class AnalysisParser(DataParser):
         # Store beliefs over player models
         beliefs = agent.getBelief()
         if len(beliefs) > 1:
-            b_list = list(beliefs.values())
-            for i in range(1, len(b_list)):
-                for k in sorted(b_list[0].keys()):
-                    if b_list[i][k] != b_list[0][k]:
-                        logging.error('{}: {} != {} ({})'.format(k, str(b_list[i][k]), str(b_list[0][k]), i))
-            else:
-                logging.info('Identical. Sigh.')
             raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
         beliefs = next(iter(beliefs.values()))
         player_model = world.getFeature(modelKey(player_name), beliefs)
@@ -139,8 +150,10 @@ if __name__ == '__main__':
     # Look for reward file
     ignore = [dimension for dimension in DEFAULT_MODELS if args['ignore_{}'.format(dimension)]]
     if args['reward_file']:
+        import atomic.model_learning.linear.post_process.clustering as clustering
+
         DEFAULT_MODELS['reward'] = {'cluster{}'.format(cluster): vector 
-            for cluster, vector in load_cluster_reward_weights(args['reward_file']).items()}
+            for cluster, vector in clustering.load_cluster_reward_weights(args['reward_file']).items()}
     replayer = Analyzer(args['fname'], DEFAULT_MAPS, DEFAULT_MODELS, ignore, logging)
     if args['1']:
         replayer.process_files(args['number'], replayer.files[0])
