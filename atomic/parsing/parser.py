@@ -11,7 +11,7 @@ import numpy as np
 import os.path
 from psychsim.action import ActionSet
 from psychsim.agent import Agent
-from psychsim.pwl import stateKey
+from psychsim.pwl import stateKey, isStateKey, state2feature
 from psychsim.world import WORLD
 from atomic.definitions.victims import Victims
 from atomic.definitions.world_map import WorldMap
@@ -337,17 +337,18 @@ class DataParser(object):
                 if act not in legal_choices:
                     raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(act, t+start, 
                         ', '.join(sorted(map(str, legal_choices)))))
+                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if isStateKey(k) and state2feature(k)[:6] == 'sensor'}
                 if len(actEvent[1]) > 1:
                     dur = actEvent[1][1]
                     # This is a triage action with an associated duration
                     clock = stateKey(WORLD, 'seconds')
                     curTime = world.getState(WORLD, 'seconds', unique=True)
                     newTime = curTime + dur
-                    selDict = {clock: newTime}
+                    selDict[clock] = newTime
                     self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
-                    world.step(act, select=selDict, threshold=prune_threshold)
-                else:
-                    world.step(act, threshold=prune_threshold)
+                self.logger.info('Action: {}'.format(','.join(map(str, sorted(selDict.keys())))))
+                world.step(act, select=selDict, threshold=prune_threshold)
+                world.modelGC()
 
             elif actEvent[0] == SET_FLG:
                 [var, val] = actEvent[1]
@@ -357,11 +358,12 @@ class DataParser(object):
                     if val not in world.getFeature(key, world.agents[human].models[model]['beliefs']).domain():
                         raise ValueError('Unbelievable data point at time %s: %s=%s' % (actEvent[2], var, val))
                     world.agents[human].models[model]['beliefs'][key] = world.value2float(key, val)
+                self.logger.info('Set: {}'.format(key))
 
             elif actEvent[0] == SEARCH:
                 act, color = actEvent[1][0], actEvent[1][1]
-                k = stateKey(human, 'vicInFOV')
-                selDict = {k: world.value2float(k, color)}
+                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if isStateKey(k) and state2feature(k)[:6] == 'sensor'}
+                selDict[stateKey(human, 'vicInFOV')] = world.value2float(stateKey(human, 'vicInFOV'), color)
                 loc = world.getState(human, 'loc', unique=True)
                 if permissive and color != 'none' and world.getState(WORLD, 'ctr_{}_{}'.format(loc, color),
                                                                      unique=True) == 0:
@@ -369,9 +371,10 @@ class DataParser(object):
                     self.logger.warning('In {}, a nonexistent {} victim entered the FOV'.format(loc, color))
                     continue
                 else:
+                    self.logger.info('Search: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                     world.step(act, select=selDict, threshold=prune_threshold)
+                    world.modelGC()
             summarizeState(world, human, self.logger)
-
             self.post_step(world, None if act is None else world.getAction(human))
 
     def player_name(self):
