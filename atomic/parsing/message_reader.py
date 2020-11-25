@@ -703,7 +703,7 @@ def getMessages(args):
         if gcdir == '':
             gcdir = 'HSRData_TrialMessages'
         proc_gc_files(gcdir,gcprefix, psychsimdir+"/")
-        return None
+        return None, None
     
     # if ONLY getting number of rescues
     elif print_rescues:
@@ -722,7 +722,7 @@ def getMessages(args):
                 print("ERROR: must provide --msgfile <filename>")
                 exit()
             get_rescues(msgfile)
-        exit()
+        return None, None
 
     # if running message reader on a directory -- will write results to cwd
     elif multitrial: 
@@ -747,7 +747,7 @@ def getMessages(args):
             if not reader.verbose:
                 del m.mdict['timestamp']
             allMs = [m.mdict for m in reader.messages]
-        return allMs
+        return allMs, reader.playername
 
 if __name__ == "__main__":
     argDict = {}
@@ -766,7 +766,7 @@ if __name__ == "__main__":
             v = sys.argv[i+1]
         argDict[k] = v
         
-    msgs = getMessages(argDict)
+    msgs, _ = getMessages(argDict)
     for m in msgs:
         print(str(m))
         
