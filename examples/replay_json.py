@@ -10,7 +10,6 @@ import sys
 from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS
 from atomic.parsing.parserFromJson import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world
-from atomic.parsing.message_reader import getMessages
 
 logging.root.setLevel(logging.DEBUG)
 
@@ -30,28 +29,19 @@ for shr,num in shared.items():
     for i in range(1,num+1):
         lightMap[shr + '1'].append(shr + str(i))
 
-
-allMs, playerName = getMessages({})
-
 #use_unobserved=True, full_obs=False, logger=logging):
 SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
-world, triageAgent, agent, victimsObj, world_map = make_single_player_world(playerName, None, SandRLocs, SandRVics, False, True, lightMap)
+fname = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+parser = ProcessParsedJson(fname, logger=logging)
 
-jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
+world, triageAgent, agent, victimsObj, world_map = make_single_player_world(parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
+
+maxNumEvents = 350
+runStartsAt = 0
+runEndsAt = 20
+fastFwdTo = 9999
+
 ### Process the list of dicts into psychsim actions
-jsonPrpcessor.processJson(iter(allMs), SandRVics, 9999)
+parser.getActionsAndEvents(victimsObj, world_map, SandRVics, maxNumEvents)
 ### Replay sequence of actions 
-jsonPrpcessor.runTimeless(world, 0, 9999, 9999)
-
-
-### Replay sequence of actions and events
-#maxDist = 5
-#try:
-#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data', sys.argv[1]), maxDist, logging)
-#except IndexError:
-#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data',
-#                                     'processed_20200728_Participant3_Cond1.csv'),
-#                        maxDist, logging)
-#aes, data = parser.getActionsAndEvents(triageAgent.name, victimsObj, world_map, True, 350)
-#DataParser.runTimeless(world, triageAgent.name, aes,  0, 148, 0)
-#
+parser.runTimeless(world, runStartsAt, runEndsAt, fastFwdTo)

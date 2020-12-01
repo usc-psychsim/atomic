@@ -4,7 +4,7 @@ import os.path
 import traceback
 from atomic.definitions.map_utils import getSandRMap, getSandRVictims, getSandRCoords, DEFAULT_MAPS
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
-from atomic.parsing.parser import DataParser
+from atomic.parsing.parser import ProcessCSV
 from atomic.scenarios.single_player import make_single_player_world
 
 COND_MAP_TAG = 'CondWin'
@@ -34,12 +34,12 @@ def accumulate_files(files):
 class Replayer(object):
     """
     Base class for replaying log files
-    :cvar parser_class: Class of parser to instantiate for each file (default is DataParser)
+    :cvar parser_class: Class of parser to instantiate for each file (default is ProcessCSV)
     :ivar files: List of names of the log files to process
     :type files: List(str)
     """
 
-    parser_class = DataParser
+    parser_class = ProcessCSV
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, logger=logging):
         # Extract files to process
@@ -162,16 +162,16 @@ class Replayer(object):
 
             # Replay actions from log file
             try:
-                aes, _ = self.parser.getActionsAndEvents(self.triage_agent.name, self.victims, self.world_map)
+                self.parser.getActionsAndEvents(self.victims, self.world_map)
             except:
                 logger.error(traceback.format_exc())
                 logger.error('Unable to extract actions/events')
                 continue
             if num_steps == 0:
-                last = len(aes)
+                last = len(self.parser.actions)
             else:
                 last = num_steps + 1
-            self.replay(aes, last, logger)
+            self.replay(last, logger)
             self.post_replay()
             self.world_map.clear()
 
@@ -207,13 +207,12 @@ class Replayer(object):
                             model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
         if len(self.model_list) > 0:
             set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
-        self.parser.victimsObj = self.victims
+#        self.parser.victimsObj = self.victims
         return True
 
-    def replay(self, events, duration, logger):
+    def replay(self, duration, logger):
         try:
-            self.parser.runTimeless(self.world, self.triage_agent.name, events, 0, duration, len(events),
-                                    permissive=True)
+            self.parser.runTimeless(self.world, 0, duration, len(self.parser.actions), permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')

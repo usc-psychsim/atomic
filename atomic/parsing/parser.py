@@ -10,22 +10,20 @@ import pandas as pd
 import numpy as np
 import os.path
 from psychsim.action import ActionSet
-from psychsim.agent import Agent
 from psychsim.pwl import stateKey, isStateKey, state2feature
 from psychsim.world import WORLD
-from atomic.definitions.victims import Victims
-from atomic.definitions.world_map import WorldMap
 
 ACTION = 0
 SET_FLG = 1
 SEARCH = 3
 
 
-class DataParser(object):
+class ProcessCSV(object):
 
     def __init__(self, filename, maxDist=5, logger=logging):
         self.maxDist = maxDist
         self.filename = filename
+        self.actions = []
         if os.path.splitext(filename)[1] == '.xlsx':
             self.data = pd.read_excel(filename)
         elif os.path.splitext(filename)[1] == '.csv':
@@ -119,7 +117,7 @@ class DataParser(object):
                     break
                 self.data.loc[idx, 'victim_' + str(vi) + '_in_FOV'] = (vicInCH == thisID)
 
-    def parseFOV(self, row, newRoom, prevRow, human, victims, searchActs):
+    def parseFOV(self, row, newRoom, prevRow, victims, searchActs):
         ''' For each victim, if in distance range, add approach action        
         '''
         someoneInFOV = row['isAVicInFOV']
@@ -131,7 +129,7 @@ class DataParser(object):
 
             if newRoom or (not prevFOV):
                 if inFov:  # this dude just got into my FOV because of a search action
-                    searchActs.append([victims.getSearchAction(human), color])
+                    searchActs.append([victims.getSearchAction(self.human), color])
                     self.logger.debug('Searched and found %s' % (color))
             else:  # same room and previously in FOV
                 # Either remain in FOV ==> noop
@@ -144,7 +142,7 @@ class DataParser(object):
         else:
             prevSomeone = prevRow['isAVicInFOV']
         if prevSomeone and (not someoneInFOV) and (not newRoom):
-            searchActs.append([victims.getSearchAction(human), 'none'])
+            searchActs.append([victims.getSearchAction(self.human), 'none'])
             self.logger.debug('Searched and found none')
 
     def getFOVColor(self, row):
@@ -172,7 +170,7 @@ class DataParser(object):
                 duration = 15
         return duration
 
-    def getActionsAndEvents(self, human, victims, world_map, printTrace=False, maxEvents=-1):
+    def getActionsAndEvents(self, victims, world_map, maxEvents=-1):
         """
         Gets actions and events from this parser's log for the given agent.
         :param Agent human: the PsychSim agent for which we are going to parse data.
@@ -182,7 +180,10 @@ class DataParser(object):
         :param int maxEvents: the maximum number of events to be parsed.
         :return:
         """
-        self.pData = self.data.loc[self.data['player_ID'] == human]
+        
+        ## Assume we're only interested in the player appearing on the first row
+        self.human = self.player_name()
+        self.pData = self.data.loc[self.data['player_ID'] == self.human]
 
         locs = sorted([l for l in self.data['Room_in'].unique() if not l in world_map.all_locations])
         if len(locs) > 0:
@@ -202,10 +203,9 @@ class DataParser(object):
 
         prev = pd.Series()
         lastLoc = None
-        actsAndEvents = []
         attemptID = 0
         for ir, row in self.pData.iterrows():
-            if (maxEvents > 0) and (len(actsAndEvents) > maxEvents):
+            if (maxEvents > 0) and (len(self.actions) > maxEvents):
                 break
             triageActs = []
             events = []
@@ -222,7 +222,7 @@ class DataParser(object):
                     moveActs = [row['Room_in']]
                 else:
                     # Add a move action
-                    mv = world_map.getMoveAction(human, lastLoc, row['Room_in'])
+                    mv = world_map.getMoveAction(self.human, lastLoc, row['Room_in'])
                     if mv == []:
                         self.logger.warning('unreachable %s %s %s' % (lastLoc, row['Room_in'], row['dtime']))
                         #                        ## Transport player to new location by force
@@ -234,19 +234,19 @@ class DataParser(object):
                 lastLoc = row['Room_in']
                 self.logger.debug('moved to %s %s' % (lastLoc, stamp))
 
-                self.parseFOV(row, True, prev, human, victims, searchActs)
+                self.parseFOV(row, True, prev, victims, searchActs)
 
                 # Is a TIP in this new room? 
                 if row['triage_in_progress']:
                     ## event_triage_victim_id
                     fovColor = self.getFOVColor(row)
-                    triageAct = victims.getTriageAction(human, fovColor)
+                    triageAct = victims.getTriageAction(self.human, fovColor)
                     triageActs.append([triageAct, duration])
                     self.logger.debug('triage started in new room')
 
             # same room. Compare flag values to know what changed!
             else:
-                self.parseFOV(row, False, prev, human, victims, searchActs)
+                self.parseFOV(row, False, prev, victims, searchActs)
 
                 # If TIP changed
                 tip = 'triage_in_progress'
@@ -254,7 +254,7 @@ class DataParser(object):
                 if (row[tip] != prev[tip]) or (row[tstatus] != prev[tstatus]):
                     if row[tip]:
                         fovColor = self.getFOVColor(row)
-                        triageAct = victims.getTriageAction(human, fovColor)
+                        triageAct = victims.getTriageAction(self.human, fovColor)
                         triageActs.append([triageAct, duration])
                         self.logger.debug('triage started')
                     if prev[tip]:
@@ -267,18 +267,18 @@ class DataParser(object):
                 if i == 0:
                     dur = duration
                     duration = 0
-                actsAndEvents.append([ACTION, [mact], stamp, dur, attemptID])
+                self.actions.append([ACTION, [mact], stamp, dur, attemptID])
             for i, sact in enumerate(searchActs):
                 dur = 0
                 if i == 0:
                     dur = duration
                     duration = 0
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                actsAndEvents.append([SEARCH, sact, stamp, dur, attemptID])
+                self.actions.append([SEARCH, sact, stamp, dur, attemptID])
             # acts = triage 
             for i, act in enumerate(triageActs):
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                actsAndEvents.append([ACTION, act, stamp, duration, attemptID])
+                self.actions.append([ACTION, act, stamp, duration, attemptID])
                 duration = 0
 
             for ev in events:
@@ -286,14 +286,9 @@ class DataParser(object):
                 if i == 0:
                     dur = duration
                     duration = 0
-                actsAndEvents.append([SET_FLG, ev, stamp, dur, attemptID])
+                self.actions.append([SET_FLG, ev, stamp, dur, attemptID])
 
             prev = row
-        return actsAndEvents, self.pData
-
-    def getTimelessAttempt(world, human, actsAndEvents, attemptID):
-        attemptRows = [ae for ae in actsAndEvents if ae[-1] == attemptID]
-        return attemptRows
 
     def pre_step(self, world):
         pass
@@ -301,31 +296,31 @@ class DataParser(object):
     def post_step(self, world, act):
         pass
 
-    def runTimeless(self, world, human, actsAndEvents, start, end, ffwdTo=0, prune_threshold=None, permissive=False):
+    def runTimeless(self, world, start, end, ffwdTo=0, prune_threshold=None, permissive=False):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
 
-        self.logger.debug(actsAndEvents[start])
+        self.logger.debug(self.actions[start])
         if start == 0:
-            [actOrEvFlag, actEv, stamp, duration, attempt] = actsAndEvents[0]
+            [actOrEvFlag, actEv, stamp, duration, attempt] = self.actions[0]
             if actOrEvFlag == SET_FLG:
                 varName = actEv[0]
                 varValue = actEv[1]
-                world.setState(human, varName, varValue)
-                world.agents[human].setBelief(stateKey(human, varName), varValue)
+                world.setState(self.human, varName, varValue)
+                world.agents[self.human].setBelief(stateKey(self.human, varName), varValue)
             else:
                 # This first action can be an actual action or an initial location
                 if type(actEv) == ActionSet:
                     world.step(actEv)
                 else:
-                    world.setState(human, 'loc', actEv[0])
-                    world.agents[human].setBelief(stateKey(human, 'loc'), actEv[0])
-                    world.setState(human, 'locvisits_' + actEv[0], 1)
-                    world.agents[human].setBelief(stateKey(human, 'locvisits_' + actEv[0]), 1)
+                    world.setState(self.human, 'loc', actEv[0])
+                    world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
+                    world.setState(self.human, 'locvisits_' + actEv[0], 1)
+                    world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
             start = 1
 
-        for t, actEvent in enumerate(actsAndEvents[start:end]):
+        for t, actEvent in enumerate(self.actions[start:end]):
             self.pre_step(world)
             act = None
             self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actEvent[1]))))
@@ -333,7 +328,7 @@ class DataParser(object):
                 input('press any key.. ')
             if actEvent[0] == ACTION:
                 act = actEvent[1][0]
-                legal_choices = world.agents[human].getLegalActions() 
+                legal_choices = world.agents[self.human].getLegalActions() 
                 if act not in legal_choices:
                     raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(act, t+start, 
                         ', '.join(sorted(map(str, legal_choices)))))
@@ -348,23 +343,23 @@ class DataParser(object):
                     self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
                 self.logger.info('Action: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                 world.step(act, select=selDict, threshold=prune_threshold)
-                world.modelGC()
+#                world.modelGC()
 
             elif actEvent[0] == SET_FLG:
                 [var, val] = actEvent[1]
-                key = stateKey(human, var)
+                key = stateKey(self.human, var)
                 world.state[key] = world.value2float(key, val)
-                for model in world.getModel(human).domain():
-                    if val not in world.getFeature(key, world.agents[human].models[model]['beliefs']).domain():
+                for model in world.getModel(self.human).domain():
+                    if val not in world.getFeature(key, world.agents[self.human].models[model]['beliefs']).domain():
                         raise ValueError('Unbelievable data point at time %s: %s=%s' % (actEvent[2], var, val))
-                    world.agents[human].models[model]['beliefs'][key] = world.value2float(key, val)
+                    world.agents[self.human].models[model]['beliefs'][key] = world.value2float(key, val)
                 self.logger.info('Set: {}'.format(key))
 
             elif actEvent[0] == SEARCH:
                 act, color = actEvent[1][0], actEvent[1][1]
                 selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if isStateKey(k) and state2feature(k)[:6] == 'sensor'}
-                selDict[stateKey(human, 'vicInFOV')] = world.value2float(stateKey(human, 'vicInFOV'), color)
-                loc = world.getState(human, 'loc', unique=True)
+                selDict[stateKey(self.human, 'vicInFOV')] = world.value2float(stateKey(self.human, 'vicInFOV'), color)
+                loc = world.getState(self.human, 'loc', unique=True)
                 if permissive and color != 'none' and world.getState(WORLD, 'ctr_{}_{}'.format(loc, color),
                                                                      unique=True) == 0:
                     # Observed a victim who should not be here
@@ -374,8 +369,23 @@ class DataParser(object):
                     self.logger.info('Search: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                     world.step(act, select=selDict, threshold=prune_threshold)
                     world.modelGC()
-            summarizeState(world, human, self.logger)
-            self.post_step(world, None if act is None else world.getAction(human))
+            self.summarizeState(world)
+            self.post_step(world, None if act is None else world.getAction(self.human))
+
+
+    def summarizeState(self, world):
+        loc = world.getState(self.human, 'loc', unique=True)
+        time = world.getState(WORLD, 'seconds', unique=True)
+        self.logger.info('Time: %d' % (time))
+    
+        self.logger.info('Player location: %s' % (loc))
+        clrs = ['Green', 'Gold', 'Red', 'White']
+        for clr in clrs:
+            self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
+        self.logger.info('FOV: %s' % (world.getState(self.human, 'vicInFOV', unique=True)))
+        self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))
+        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
+        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
 
     def player_name(self):
         """
@@ -388,18 +398,3 @@ class DataParser(object):
 def printAEs(aes, logger=logging):
     for ae in aes:
         logger.info('%s %s' % (ae[2], ae[1]))
-
-
-def summarizeState(world, human, logger=logging):
-    loc = world.getState(human, 'loc', unique=True)
-    time = world.getState(WORLD, 'seconds', unique=True)
-    logger.info('Time: %d' % (time))
-
-    logger.info('Player location: %s' % (loc))
-    clrs = ['Green', 'Gold', 'Red', 'White']
-    for clr in clrs:
-        logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
-    logger.info('FOV: %s' % (world.getState(human, 'vicInFOV', unique=True)))
-    logger.info('Visits: %d' % (world.getState(human, 'locvisits_' + loc, unique=True)))
-    logger.info('JustSavedGr: %s' % (world.getState(human, 'numsaved_Green', unique=True)))
-    logger.info('JustSavedGd: %s' % (world.getState(human, 'numsaved_Gold', unique=True)))

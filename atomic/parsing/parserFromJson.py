@@ -9,6 +9,7 @@ import logging
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.definitions import Directions
+from atomic.parsing.message_reader import getMessages
 
 MOVE = 0
 TRIAGE = 1
@@ -18,17 +19,20 @@ BEEP = 4
 
 class ProcessParsedJson(object):
 
-    def __init__(self, humanName, world_map, victimsObj, logger=logging):
-        self.human = humanName
-        self.world_map = world_map
-        self.victimsObj = victimsObj
-        self.logger = logger
-        self.verbose = False
-                
+    def __init__(self, filename, logger=logging, unusedMaxDist=0):        
+        self.logger = logger                
         self.lastParsedLoc = None
         self.lastParsedClrInFOV = None
         self.triageStartTime = 0
         self.actions = []
+        self.locations = set()
+        inputFiles = {'--msgfile':filename}
+        self.allMs, self.human = getMessages(inputFiles)
+        self.human = self.allMs[1]['playername']
+        
+        
+    def player_name(self):
+        return self.human
 
 ###############################################
 #######  Message handlers
@@ -84,6 +88,7 @@ class ProcessParsedJson(object):
         self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
     
     def parseMove(self, newRoom, msgIdx, ts):
+        self.locations.add(newRoom)
         if self.lastParsedLoc == None:
             self.actions.append(newRoom) 
             self.lastParsedLoc = newRoom
@@ -178,8 +183,11 @@ class ProcessParsedJson(object):
 ###############################################
 #######  Processing the json messages
 ###############################################
-        
-    def processJson(self, jsonMsgIter, SandRVics, ffwd = 0, maxActions = -1):
+    
+    def getActionsAndEvents(self, victims, world_map, SandRVics, ffwd = 0, maxActions=-1):
+        jsonMsgIter = iter(self.allMs)
+        self.world_map = world_map
+        self.victimsObj = victims
         self.roomToVicDict = dict(SandRVics)
         numMsgs = 0
         m = next(jsonMsgIter)
@@ -247,6 +255,7 @@ class ProcessParsedJson(object):
             
             m = next(jsonMsgIter, None)
             numMsgs = numMsgs + 1
+        self.locations = list(self.locations)
 
 ###############################################
 #######  Running the actions we collected
@@ -271,7 +280,7 @@ class ProcessParsedJson(object):
         t = start
         timeKey = stateKey(WORLD, 'seconds')
         while True:
-            if (t == end) or (t >= len(self.actions)):
+            if (t >= end) or (t >= len(self.actions)):
                 break
             
             actStruct = self.actions[t]            
@@ -285,7 +294,6 @@ class ProcessParsedJson(object):
                 
             ## Force no beeps (unless overwritten later)
             selDict = {stateKey(self.human, 'sensor_'+d.name):'none' for d in Directions}
-#            selDict[timeKey] = timeInSec
             if act not in world.agents[self.human].getLegalActions():
                 self.logger.error('Illegal %s' %(act))
                 raise ValueError('Illegal action!')
@@ -320,7 +328,7 @@ class ProcessParsedJson(object):
                     
             selDict = {k: world.value2float(k, v) for k,v in selDict.items()}
             self.pre_step(world)
-            world.step(act, select=selDict, threshold=prune_threshold) #, recurse=True)                    
+            world.step(act, select=selDict, threshold=prune_threshold)
             self.post_step(world, None if act is None else world.getAction(self.human))
             self.summarizeState(world, trueTime)
             
