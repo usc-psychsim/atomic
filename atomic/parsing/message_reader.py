@@ -676,6 +676,8 @@ def getMessages(args):
             msgfile = args[a]
         elif a == '--roomfile':
             room_list = args[a]
+        elif a == '--victimfile':
+            victim_list = args[a]
         elif a == '--multitrial':
             multitrial = True
             msgdir = args[a]
