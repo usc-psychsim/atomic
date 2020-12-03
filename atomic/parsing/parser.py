@@ -295,10 +295,10 @@ class DataParser(object):
         attemptRows = [ae for ae in actsAndEvents if ae[-1] == attemptID]
         return attemptRows
 
-    def pre_step(self, world):
+    def pre_step(self, world, log_entry=None):
         pass
 
-    def post_step(self, world, act):
+    def post_step(self, world, act, log_entry=None):
         pass
 
     def runTimeless(self, world, human, actsAndEvents, start, end, ffwdTo=0, prune_threshold=None, permissive=False):
@@ -326,7 +326,7 @@ class DataParser(object):
             start = 1
 
         for t, actEvent in enumerate(actsAndEvents[start:end]):
-            self.pre_step(world)
+            self.pre_step(world, actEvent)
             act = None
             self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actEvent[1]))))
             if t + start >= ffwdTo:
@@ -375,7 +375,7 @@ class DataParser(object):
                     world.step(act, select=selDict, threshold=prune_threshold)
                     world.modelGC()
             summarizeState(world, human, self.logger)
-            self.post_step(world, None if act is None else world.getAction(human))
+            self.post_step(world, None if act is None else world.getAction(human), actEvent)
 
     def player_name(self):
         """
