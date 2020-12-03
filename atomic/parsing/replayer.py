@@ -109,23 +109,6 @@ class Replayer(object):
         logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(self.parser.locations)))))
         return None, None
 
-    def read_filename(self, fname):
-        """
-        Follows the ASIST file naming convention to extract key/value pairs out of the given filename
-        """
-        elements = fname.split('_')
-        result = {}
-        for term in elements:
-            try:
-                index = term.index('-')
-                key = term[:index]
-                result[key] = term[index + 1:].split('-')
-                if len(result[key]) == 1:
-                    result[key] = result[key][0]
-            except ValueError:
-                continue
-        return result
-
     def process_files(self, num_steps=0, fname=None):
         """
         :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
@@ -142,7 +125,7 @@ class Replayer(object):
             self.file_name = fname
             logger = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
             logger.debug('Full path: {}'.format(fname))
-            self.conditions = self.read_filename(os.path.splitext(os.path.basename(fname))[0])
+            self.conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
 
             # Parse events from log file
             try:
@@ -220,3 +203,24 @@ class Replayer(object):
 
     def post_replay(self):
         pass
+
+
+    def read_filename(self, fname):
+        raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
+
+def filename_to_condition(fname):
+    """
+    Follows the ASIST file naming convention to extract key/value pairs out of the given filename
+    """
+    elements = fname.split('_')
+    result = {}
+    for term in elements:
+        try:
+            index = term.index('-')
+            key = term[:index]
+            result[key] = term[index + 1:].split('-')
+            if len(result[key]) == 1:
+                result[key] = result[key][0]
+        except ValueError:
+            continue
+    return result
