@@ -5,6 +5,7 @@ from atomic.definitions.victims import Victims
 from atomic.definitions.world import SearchAndRescueWorld
 from atomic.inference import make_observer
 
+OBSERVER_NAME = 'ATOMIC'
 COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
 COLOR_FOV_P = {'Green': 0.2, 'Gold': 0.2, 'Red': 0.2, 'White': 0.4}
 COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
@@ -12,7 +13,7 @@ COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
 
 def make_single_player_world(
         player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False,
-        light_neighbors={}, logger=logging):
+        light_neighbors={}, create_observer=True, logger=logging):
     # create world and map
     world = SearchAndRescueWorld()
     world_map = WorldMap(world, loc_neighbors, light_neighbors)
@@ -44,12 +45,13 @@ def make_single_player_world(
     world.setOrder([{triage_agent.name}])
 
     # observer agent
-    observer = make_observer(world, [triage_agent.name], 'ATOMIC')
+    observer = make_observer(world, [triage_agent.name], OBSERVER_NAME) if create_observer else None
 
     # adjust agent's beliefs and observations
     triage_agent.resetBelief()
     triage_agent.omega = [key for key in world.state.keys()
-                          if not ((key in {modelKey(observer.name), rewardKey(triage_agent.name)})
+                          if not ((key in {modelKey(observer.name if observer is not None else ''),
+                                           rewardKey(triage_agent.name)})
                                   or (key.find('unobs') > -1))]
 
     return world, triage_agent, observer, victims, world_map
@@ -57,7 +59,6 @@ def make_single_player_world(
 
 if __name__ == '__main__':
     # Create a world using the simple map and save the file out
-    import os.path
     import sys
     import atomic.definitions.map_utils as utils
     import atomic.inference as inference

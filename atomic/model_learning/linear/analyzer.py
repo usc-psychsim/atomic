@@ -74,7 +74,7 @@ class RewardModelAnalyzer(Replayer):
         """
         if maps is None:
             maps = get_default_maps()
-        super().__init__(replays, maps, {})
+        super().__init__(replays, maps, {}, create_observer=False)
 
         self._all_replays = replays
         self.output = output
@@ -171,6 +171,11 @@ class RewardModelAnalyzer(Replayer):
             logging.info('Could not process datapoint, empty or very short trajectory: {}'.format(
                 self.parser.filename))
             return
+
+        # delete observer if present
+        if self.observer is not None:
+            del self.world.agents[self.observer.name]
+            logging.info('Removed observer agent from PsychSim world.')
 
         # sets general random seeds
         random.seed(self.seed)

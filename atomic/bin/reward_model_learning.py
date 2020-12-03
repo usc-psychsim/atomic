@@ -147,15 +147,16 @@ if __name__ == '__main__':
 
         # performs post-processing of results
         output_dir = os.path.join(args.output, 'post-process')
+        create_clear_dir(output_dir, False)
         change_log_handler(os.path.join(output_dir, 'post-process.log'), args.verbosity)
 
         logging.info('Post-processing IRL data for the following {} files:'.format(len(analyzer.results)))
         for filename in analyzer.results:
             logging.info('\t{}, player: "{}", agent: "{}", map: "{}", {} steps'.format(
                 filename, analyzer.get_player_name(filename), analyzer.agent_names[filename],
-                analyzer.map_tables[filename]['name'], len(analyzer.trajectories[filename])))
+                analyzer.map_tables[filename].name, len(analyzer.trajectories[filename])))
 
-        logging.info('Saving post-process results in "{}"...'.format(len(analyzer.results), output_dir))
+        logging.info('Saving post-process results in "{}"...'.format(output_dir))
 
         process_players_data(analyzer, os.path.join(output_dir, 'player_behavior'), args.clear, args.verbosity)
         cluster_reward_weights(analyzer, os.path.join(output_dir, 'rewards'),

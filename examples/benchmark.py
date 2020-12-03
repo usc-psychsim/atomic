@@ -47,7 +47,7 @@ class BenchmarkReplayer(Replayer):
     parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None):
-        super().__init__(replays, maps, {})
+        super().__init__(replays, maps, {}, create_observer=False)
 
         self.timings = {}
         self.subject_ids = {}
@@ -148,7 +148,8 @@ if __name__ == '__main__':
         # create world, agent and observer
         map_table = default_maps[args.map_name]
         world, agent, observer, victims, world_map = make_single_player_world(
-            PLAYER_NAME, map_table.init_loc, map_table.adjacency, map_table.victims, False, FULL_OBS)
+            PLAYER_NAME, map_table.init_loc, map_table.adjacency, map_table.victims,
+            False, FULL_OBS, create_observer=False)
 
         # agent params
         agent.setAttribute('rationality', args.rationality)

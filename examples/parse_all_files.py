@@ -22,7 +22,7 @@ class TrajectoryAnalyzer(Replayer):
     parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None):
-        super().__init__(replays, maps, {})
+        super().__init__(replays, maps, {}, create_observer=False)
 
         self.trajectories = {}
         self.subject_ids = {}

@@ -41,9 +41,10 @@ class Replayer(object):
 
     parser_class = ProcessCSV
 
-    def __init__(self, files=[], maps=None, models=None, ignore_models=None, logger=logging):
+    def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
+        self.create_observer = create_observer
         self.logger = logger
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
@@ -165,7 +166,7 @@ class Replayer(object):
             self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
                 make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
                                          self.map_table.adjacency, self.map_table.victims, False, True, {},
-                                         logger.getChild('make_single_player_world'))
+                                         self.create_observer, logger.getChild('make_single_player_world'))
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to create world')
