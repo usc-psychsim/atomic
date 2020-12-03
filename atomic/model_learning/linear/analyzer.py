@@ -10,6 +10,7 @@ from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
+from atomic.definitions import victims
 from atomic.definitions.map_utils import get_default_maps
 from atomic.definitions.plotting import plot_environment, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
@@ -172,6 +173,10 @@ class RewardModelAnalyzer(Replayer):
                 self.parser.filename))
             return
 
+        # todo hack
+        prob_no_beep = victims.PROB_NO_BEEP
+        victims.PROB_NO_BEEP = 0
+
         # delete observer if present
         if self.observer is not None:
             del self.world.agents[self.observer.name]
@@ -240,3 +245,6 @@ class RewardModelAnalyzer(Replayer):
 
         logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')
+
+        # todo hack
+        victims.PROB_NO_BEEP = prob_no_beep

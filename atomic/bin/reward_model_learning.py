@@ -4,7 +4,7 @@ import logging
 import os
 from model_learning.util.cmd_line import str2bool, none_or_int
 from model_learning.util.io import create_clear_dir, get_files_with_extension, change_log_handler
-from atomic.definitions import victims, world_map
+from atomic.definitions import world_map
 from atomic.model_learning.linear.post_process.evaluation import evaluate_reward_models
 from atomic.model_learning.linear.post_process.players_data import process_players_data
 from atomic.model_learning.linear.post_process.clustering import cluster_reward_weights
@@ -25,8 +25,7 @@ CMDS_JSON_FILE = 'cmds.json'
 REPLAYS_FLAG = '--replays'
 SAVE_COMMANDS_FLAG = '--save-commands'
 
-# TODO hacks to avoid stochastic beep and lights
-victims.PROB_NO_BEEP = 0
+# TODO hack to avoid lights
 world_map.MODEL_LIGHTS = False
 
 
