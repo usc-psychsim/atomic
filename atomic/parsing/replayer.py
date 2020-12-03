@@ -2,7 +2,7 @@ import itertools
 import logging
 import os.path
 import traceback
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims, getSandRCoords, DEFAULT_MAPS
+from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.parser import ProcessCSV
 from atomic.scenarios.single_player import make_single_player_world
@@ -58,17 +58,7 @@ class Replayer(object):
         self.file_name = None
 
         # Extract maps
-        if maps is None:
-            maps = DEFAULT_MAPS
-        for map_name, map_table in maps.items():
-            logger = self.logger.getLogger(map_name)
-            map_table['adjacency'] = getSandRMap(fname=map_table['room_file'], logger=logger)
-            map_table['rooms'] = set(map_table['adjacency'].keys())
-            map_table['victims'] = getSandRVictims(fname=map_table['victim_file'])
-            map_table['coordinates'] = getSandRCoords(fname=map_table['coords_file'])
-            map_table['start'] = next(iter(map_table['adjacency'].keys()))
-            map_table['name'] = map_name
-        self.maps = maps
+        self.maps = get_default_maps(logger) if maps is None else maps
 
         # Set player models for observer agent
         if models is None:
@@ -97,16 +87,8 @@ class Replayer(object):
             # Map not given in filename, try to find fallback
             pass
 
-        # Determine which map we're using from the number of rooms
-        for map_name, map_table in self.maps.items():
-            if set(self.parser.locations) <= map_table['rooms']:
-                # This map contains all of the rooms from this log
-                return map_name, map_table
-            else:
-                logger.debug('Map "{}" missing rooms {}'.format(map_name, ','.join(
-                    sorted(set(self.parser.locations) - map_table['rooms']))))
-
-        logger.error('Unable to find matching map for rooms: {}'.format(','.join(sorted(set(self.parser.locations)))))
+        # todo to be retro-compatible would have to determine the map some other way..
+        logger.error('Unable to find matching map')
         return None, None
 
     def read_filename(self, fname):
@@ -154,9 +136,10 @@ class Replayer(object):
 
             map_name, self.map_table = self.get_map(logger)
             if map_name is None or self.map_table is None:
+                # could not determine map
                 continue
 
-            if not self.pre_replay(map_name, logger=logger.getChild('pre_replay')):
+            if not self.pre_replay(logger=logger.getChild('pre_replay')):
                 # Failure in creating world
                 continue
 
@@ -175,13 +158,13 @@ class Replayer(object):
             self.post_replay()
             self.world_map.clear()
 
-    def pre_replay(self, map_name, logger=logging):
+    def pre_replay(self, logger=logging):
         # Create PsychSim model
-        logger.info('Creating world with "{}" map'.format(map_name))
+        logger.info('Creating world with "{}" map'.format(self.map_table.name))
         try:
             self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
-                make_single_player_world(self.parser.player_name(), self.map_table['start'],
-                                         self.map_table['adjacency'], self.map_table['victims'], False, True, {},
+                make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
+                                         self.map_table.adjacency, self.map_table.victims, False, True, {},
                                          logger.getChild('make_single_player_world'))
         except:
             logger.error(traceback.format_exc())
@@ -207,7 +190,7 @@ class Replayer(object):
                             model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
         if len(self.model_list) > 0:
             set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
-#        self.parser.victimsObj = self.victims
+        #        self.parser.victimsObj = self.victims
         return True
 
     def replay(self, duration, logger):

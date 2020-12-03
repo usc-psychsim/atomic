@@ -64,7 +64,7 @@ def evaluate_reward_models(analyzer, output_dir, cluster_rwds_file=None, datapoi
     trajectories = [analyzer.trajectories[filename] for filename in file_names]
     agent_names = [analyzer.agent_names[filename] for filename in file_names]
     agents = [trajectories[i][-1][0].agents[agent_names[i]] for i in range(len(trajectories))]
-    map_locs = [list(analyzer.map_tables[filename]['rooms']) for filename in file_names]
+    map_locs = [analyzer.map_tables[filename].rooms_list for filename in file_names]
     rwd_vectors = [create_reward_vector(agents[i], map_locs[i], WorldMap.get_move_actions(agents[i]))
                    for i in range(len(agents))]
 

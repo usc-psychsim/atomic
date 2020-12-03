@@ -9,8 +9,7 @@ from atomic.definitions.plotting import plot_trajectories, plot_agent_location_f
 from atomic.model_learning.linear.post_process.clustering import load_cluster_reward_weights
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.scenarios.single_player import make_single_player_world
-from atomic.parsing.parser import summarizeState
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS, getSandRCoords
+from atomic.definitions.map_utils import get_default_maps
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -18,7 +17,7 @@ __description__ = 'Loads the results of linear reward vector clustering and sets
                   'first cluster.'
 
 CLUSTERS_FILE = 'data/rewards/linear/hackathon_cluster_weights.csv'
-MAP_TABLE = DEFAULT_MAPS['sparky']
+MAP_TABLE = get_default_maps()['sparky']
 OUTPUT_DIR = 'output/linear_rwd_from_clusters'
 DEBUG = False
 FULL_OBS = True
@@ -47,14 +46,12 @@ if __name__ == '__main__':
         logging.info('\tCluster {}: {}'.format(cluster, cluster_weights[cluster]))
 
     # create world and agent
-    loc_neighbors = getSandRMap(fname=MAP_TABLE['room_file'])
-    locations = list(loc_neighbors.keys())
-    victims_color_locs = getSandRVictims(fname=MAP_TABLE['victim_file'])
-    coords = getSandRCoords(fname=MAP_TABLE['coords_file'])
-    init_loc = random.sample(locations, 1)[0]
+    loc_neighbors = MAP_TABLE.adjacency
+    locations = MAP_TABLE.rooms_list
+    coords = MAP_TABLE.coordinates
 
     world, agent, observer, victims, world_map = \
-        make_single_player_world(AGENT_NAME, init_loc, loc_neighbors, victims_color_locs, False, FULL_OBS)
+        make_single_player_world(AGENT_NAME, MAP_TABLE.init_loc, loc_neighbors, MAP_TABLE.victims, False, FULL_OBS)
     plot_environment(world, locations, loc_neighbors, os.path.join(OUTPUT_DIR, 'env.pdf'), coords)
 
     # set agent params
@@ -65,12 +62,12 @@ if __name__ == '__main__':
     # set agent rwd function
     rwd_vector = create_reward_vector(agent, locations, world_map.moveActions[agent.name])
     rwd_weights = random.sample(list(cluster_weights.values()), 1)[0]
-    rwd_vector.set_rewards(agent, rwd_weights, model=None)
+    rwd_vector.set_rewards(agent, rwd_weights)
     logging.info('Set reward vector: {}'.format(dict(zip(rwd_vector.names, rwd_weights))))
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
-    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=lambda: summarizeState(world, agent.name))
+    trajectory = generate_trajectory(agent, NUM_STEPS)
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # print stats

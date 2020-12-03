@@ -8,7 +8,7 @@ Created on Sun Apr  5 17:00:50 2020
 import logging
 import os.path
 import sys
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS
+from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.parser import ProcessCSV
 from atomic.scenarios.single_player import make_single_player_world
 
@@ -31,8 +31,9 @@ except IndexError:
 
 ######### Get Map Data
 mapName = 'FalconEasy'
-SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
-SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
+DEFAULT_MAPS = get_default_maps()
+SandRLocs = DEFAULT_MAPS[mapName].adjacency
+SandRVics = DEFAULT_MAPS[mapName].victims
 
 ## Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
 shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
@@ -44,7 +45,8 @@ for shr,num in shared.items():
 
 
 #use_unobserved=True, full_obs=False, logger=logging):
-world, triageAgent, agent, victimsObj, world_map = make_single_player_world(parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
+world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
+    parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
 
 
 maxNumEvents = 350

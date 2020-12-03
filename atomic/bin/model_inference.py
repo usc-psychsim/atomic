@@ -9,12 +9,11 @@ from plotly import express as px
 from psychsim.probability import Distribution
 from psychsim.pwl import WORLD, modelKey, stateKey
 
-from atomic.definitions.map_utils import DEFAULT_MAPS
-from atomic.parsing.parser import DataParser
+from atomic.parsing.parser import ProcessCSV
 from atomic.parsing.replayer import Replayer
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
 
-class AnalysisParser(DataParser):
+class AnalysisParser(ProcessCSV):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)
         self.name = os.path.splitext(os.path.basename(filename))[0]
@@ -154,7 +153,7 @@ if __name__ == '__main__':
 
         DEFAULT_MODELS['reward'] = {'cluster{}'.format(cluster): vector 
             for cluster, vector in clustering.load_cluster_reward_weights(args['reward_file']).items()}
-    replayer = Analyzer(args['fname'], DEFAULT_MAPS, DEFAULT_MODELS, ignore, logging)
+    replayer = Analyzer(args['fname'], None, DEFAULT_MODELS, ignore, logging)
     if args['1']:
         replayer.process_files(args['number'], replayer.files[0])
     else:

@@ -7,7 +7,7 @@ import multiprocessing as mp
 from collections import OrderedDict
 from timeit import default_timer as timer
 from atomic.definitions import victims, world_map
-from atomic.definitions.map_utils import DEFAULT_MAPS, getSandRMap, getSandRVictims, getSandRCoords
+from atomic.definitions.map_utils import get_default_maps
 from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.scenarios.single_player import make_single_player_world
@@ -47,17 +47,15 @@ class BenchmarkReplayer(Replayer):
     parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None):
-        if maps is None:
-            maps = DEFAULT_MAPS
         super().__init__(replays, maps, {})
 
         self.timings = {}
         self.subject_ids = {}
         self.trajectories = {}
 
-    def replay(self, events, duration, logger):
+    def replay(self, duration, logger):
         start = timer()
-        super(BenchmarkReplayer, self).replay(events, duration, logger)
+        super(BenchmarkReplayer, self).replay(duration, logger)
         elapsed = timer() - start
         self.logger.info('Parsed {} in {:.3f}s'.format(self.parser.filename, elapsed))
         self.subject_ids[self.parser.filename] = \
@@ -105,7 +103,6 @@ if __name__ == '__main__':
         json.dump(vars(args), fp, indent=4)
 
     # TODO hacks to avoid stochastic beep and lights
-    victims.PROB_NO_BEEP = args.no_beep
     world_map.MODEL_LIGHTS = args.lights
 
     # checks input files
@@ -138,22 +135,20 @@ if __name__ == '__main__':
         plot_bar(OrderedDict(zip(subject_ids, lengths)), 'Trajectory Lengths',
                  os.path.join(args.output, 'parse-lengths.pdf'))
 
-    if args.trajectories == 0 or args.map_name not in DEFAULT_MAPS:
+    # generate trajectories
+    victims.PROB_NO_BEEP = args.no_beep  # otherwise agent will reason about 'none' values (non-zero prob)
+    default_maps = get_default_maps()
+    if args.trajectories == 0 or args.map_name not in default_maps:
         msg = 'Skipping generation benchmark. '
-        if args.map_name not in DEFAULT_MAPS:
+        if args.map_name not in default_maps:
             msg += 'Map name {} not in default maps.'.format(args.map_name)
         logging.info(msg)
 
     else:
         # create world, agent and observer
-        map_table = DEFAULT_MAPS[args.map_name]
-        neighbors = getSandRMap(fname=map_table['room_file'])
-        locations = list(set(neighbors.keys()))
-        victims_locs = getSandRVictims(fname=map_table['victim_file'])
-        coords = getSandRCoords(fname=map_table['coords_file'])
-        start_loc = next(iter(neighbors.keys()))
-        world, agent, observer, victims, world_map = \
-            make_single_player_world(PLAYER_NAME, start_loc, neighbors, victims_locs, False, FULL_OBS)
+        map_table = default_maps[args.map_name]
+        world, agent, observer, victims, world_map = make_single_player_world(
+            PLAYER_NAME, map_table.init_loc, map_table.adjacency, map_table.victims, False, FULL_OBS)
 
         # agent params
         agent.setAttribute('rationality', args.rationality)
@@ -170,4 +165,4 @@ if __name__ == '__main__':
 
         elapsed = timer() - start
         logging.info('(mean: {:.3f}s per trajectory, {:.3f}s per step)'.format(
-            elapsed, elapsed / args.trajectories, elapsed / (args.trajectories * args.length)))
+            elapsed / args.trajectories, elapsed / (args.trajectories * args.length)))

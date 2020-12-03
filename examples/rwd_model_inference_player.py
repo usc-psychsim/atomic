@@ -70,10 +70,10 @@ if __name__ == '__main__':
 
     replayer = Replayer([DATA_FILE])
     map_info = replayer.maps[MAP]
-    neighbors = map_info['adjacency']
-    locations = list(map_info['rooms'])
-    victims_locs = map_info['victims']
-    coords = map_info['coordinates']
+    neighbors = map_info.adjacency
+    locations = list(map_info.rooms)
+    victims_locs = map_info.victims
+    coords = map_info.coordinates
 
     logging.info('Parsing data file {}...'.format(DATA_FILE))
     parser = TrajectoryParser(DATA_FILE)

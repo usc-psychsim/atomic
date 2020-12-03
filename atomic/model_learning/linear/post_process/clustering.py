@@ -75,7 +75,7 @@ def cluster_reward_weights(analyzer, output_dir,
     # gets rwd feature names with dummy info
     agent_name = analyzer.agent_names[file_names[0]]
     agent = analyzer.trajectories[file_names[0]][-1][0].agents[agent_name]
-    locations = analyzer.map_tables[file_names[0]]['rooms']
+    locations = analyzer.map_tables[file_names[0]].rooms_list
     rwd_feat_names = create_reward_vector(agent, locations, WorldMap.get_move_actions(agent)).names
 
     # overall weight mean

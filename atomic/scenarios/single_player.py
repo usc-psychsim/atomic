@@ -11,7 +11,8 @@ COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
 
 
 def make_single_player_world(
-        player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False, light_neighbors={}, logger=logging):
+        player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False,
+        light_neighbors={}, logger=logging):
     # create world and map
     world = SearchAndRescueWorld()
     world_map = WorldMap(world, loc_neighbors, light_neighbors)
@@ -22,7 +23,7 @@ def make_single_player_world(
 
     # create (single) triage agent
     triage_agent = world.addAgent(player_name)
-    
+
     world_map.makePlayerLocation(triage_agent, init_loc)
     victims.setupTriager(triage_agent)
     world_map.makeMoveResetFOV(triage_agent)
@@ -53,6 +54,7 @@ def make_single_player_world(
 
     return world, triage_agent, observer, victims, world_map
 
+
 if __name__ == '__main__':
     # Create a world using the simple map and save the file out
     import os.path
@@ -60,8 +62,9 @@ if __name__ == '__main__':
     import atomic.definitions.map_utils as utils
     import atomic.inference as inference
 
-    adjacency = utils.getSandRMap(fname=os.path.join(os.path.dirname(__file__), '..', '..', 'maps', 'simple_adjacency'))
-    victims = utils.getSandRVictims(fname=os.path.join(os.path.dirname(__file__), '..', '..', 'maps', 'simple_victims'))
-    world, triage_agent, observer, victims, world_map = make_single_player_world('player', 'a', adjacency, victims, False)
-    inference.set_player_models(world, observer.name, triage_agent.name, victims, [{'name': 'player0', 'reward': {'Green': 1, 'Gold': 3}}])
+    map_data = utils.get_default_maps()['FalconEasy']
+    world, triage_agent, observer, victims, world_map = make_single_player_world(
+        'player', map_data.init_loc, map_data.adjacency, map_data.victims, False)
+    inference.set_player_models(world, observer.name, triage_agent.name, victims,
+                                [{'name': 'player0', 'reward': {'Green': 1, 'Gold': 3}}])
     world.save('world.psy' if len(sys.argv) == 1 else sys.argv[1])
