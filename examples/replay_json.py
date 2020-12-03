@@ -7,7 +7,7 @@ Created on Sun Apr  5 17:00:50 2020
 """
 import logging
 import sys
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS
+from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.parserFromJson import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world
 
@@ -18,23 +18,25 @@ logging.basicConfig(
     format='%(message)s', level=logging.ERROR)
 
 ######## Get Map Data
+DEFAULT_MAPS = get_default_maps()
 mapName = 'FalconEasy'
-SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
+SandRLocs = DEFAULT_MAPS[mapName].adjacency
 
 ## Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
-shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
-lightMap = {k:[k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
-for shr,num in shared.items():
+shared = {'lh': 8, 'rh': 9, 'mb': 5, 'wb': 5}
+lightMap = {k: [k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
+for shr, num in shared.items():
     lightMap[shr + '1'] = []
-    for i in range(1,num+1):
+    for i in range(1, num + 1):
         lightMap[shr + '1'].append(shr + str(i))
 
-#use_unobserved=True, full_obs=False, logger=logging):
-SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
-fname = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
-parser = ProcessParsedJson(fname, logger=logging)
+# use_unobserved=True, full_obs=False, logger=logging):
+SandRVics = DEFAULT_MAPS[mapName].victims
+fname = '../data/ASU_DATA/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+parser = ProcessParsedJson(fname, DEFAULT_MAPS[mapName], logger=logging)
 
-world, triageAgent, agent, victimsObj, world_map = make_single_player_world(parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
+world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
+    parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
 
 maxNumEvents = 350
 runStartsAt = 0
