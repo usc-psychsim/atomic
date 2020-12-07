@@ -60,8 +60,8 @@ if __name__ == '__main__':
     import atomic.definitions.map_utils as utils
     import atomic.inference as inference
 
-    adjacency = utils.getSandRMap(fname=os.path.join(os.path.dirname(__file__), '..', '..', 'maps', 'simple_adjacency'))
-    victims = utils.getSandRVictims(fname=os.path.join(os.path.dirname(__file__), '..', '..', 'maps', 'simple_victims'))
+    adjacency = utils.getSandRMap(fname='simple_adjacency')
+    victims = utils.getSandRVictims(fname='simple_victims')
     world, triage_agent, observer, victims, world_map = make_single_player_world('player', 'a', adjacency, victims, False)
     inference.set_player_models(world, observer.name, triage_agent.name, victims, [{'name': 'player0', 'reward': {'Green': 1, 'Gold': 3}}])
     world.save('world.psy' if len(sys.argv) == 1 else sys.argv[1])
