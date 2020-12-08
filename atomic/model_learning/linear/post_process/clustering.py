@@ -16,8 +16,8 @@ from atomic.model_learning.linear.analyzer import RewardModelAnalyzer
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
-DEF_DIST_THRESHOLD = .6
-DEF_STDS = 3
+DEF_DIST_THRESHOLD = 1 # .8  # .6
+DEF_STDS = 1.5  # 3
 DEF_LINKAGE = 'ward'
 
 
@@ -88,7 +88,7 @@ def cluster_reward_weights(analyzer, output_dir,
     clusters, cluster_weights = get_clusters_means(clustering, thetas)
     logging.info('Found {} clusters at max. distance: {:.2f}'.format(
         clustering.n_clusters_, clustering.distance_threshold))
-    for cluster in sorted(cluster_weights):
+    for cluster in sorted(cluster_weights.keys()):
         idxs = clusters[cluster]
         data = cluster_weights[cluster]
         data[1] = data[1] / len(idxs)
@@ -99,15 +99,22 @@ def cluster_reward_weights(analyzer, output_dir,
                  os.path.join(output_dir, 'weights-mean-{}.{}'.format(cluster, analyzer.img_format)),
                  plot_mean=False)
 
-    player_names = [analyzer.get_player_name(file_name) for file_name in file_names]
+    subject_ids = [analyzer.get_player_name(file_name) for file_name in file_names]
+    player_names = [analyzer.agent_names[file_name] for file_name in file_names]
     save_mean_cluster_weights(cluster_weights, os.path.join(output_dir, 'cluster-weights.csv'), rwd_feat_names)
-    save_clusters_info(clustering, OrderedDict({'Player name': player_names, 'Filename': file_names}),
+    extra_info = OrderedDict({
+        'Internal subject ID': subject_ids, 'File name': file_names, 'Game player name': player_names})
+    save_clusters_info(clustering, extra_info,
                        thetas, os.path.join(output_dir, 'clusters.csv'), rwd_feat_names)
+
+    # cluster sizes
+    cluster_sizes = OrderedDict({str(cluster): len(clusters[cluster]) for cluster in sorted(clusters.keys())})
+    plot_bar(cluster_sizes, 'Clusters Size', os.path.join(output_dir, 'sizes.{}'.format(analyzer.img_format)))
 
     # dendrogram
     plot_clustering_dendrogram(
-        clustering, os.path.join(output_dir, 'weights-dendrogram.{}'.format(analyzer.img_format)),
-        player_names)
+        clustering, os.path.join(output_dir, 'weights-dendrogram.{}'.format(analyzer.img_format)))
+    # player_names)
     plot_clustering_distances(
         clustering, os.path.join(output_dir, 'weights-distance.{}'.format(analyzer.img_format)))
 

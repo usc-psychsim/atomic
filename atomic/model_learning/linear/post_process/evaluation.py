@@ -60,7 +60,6 @@ def evaluate_reward_models(analyzer, output_dir, cluster_rwds_file=None, datapoi
     logging.info('Performing cross-evaluation of reward functions for {} results...'.format(len(file_names)))
 
     # first gets data needed to compute players' "observed" policies
-    # trajectories = [analyzer.trajectories[filename] for filename in file_names]
     trajectories = [analyzer.trajectories[filename] for filename in file_names]
     agent_names = [analyzer.agent_names[filename] for filename in file_names]
     agents = [trajectories[i][-1][0].agents[agent_names[i]] for i in range(len(trajectories))]
@@ -96,9 +95,10 @@ def evaluate_reward_models(analyzer, output_dir, cluster_rwds_file=None, datapoi
     # calculates eval metrics for each player policy against its optimal reward weights discovered via IRL (self-eval)
     metrics_values = {}
     for i, filename in enumerate(file_names):
+        n_states = min(num_states, len(trajectories[i]))
         eval_matrix = cross_evaluation(
             [trajectories[i]], [agent_names[i]], [rwd_vectors[i]], [analyzer.results[filename].stats[THETA_STR]],
-            AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes, num_states, analyzer.seed + i)
+            AGENT_RATIONALITY, analyzer.horizon, analyzer.prune, analyzer.processes, n_states, analyzer.seed + i)
 
         # organizes by metric name and then by player
         player_name = analyzer.get_player_name(filename)
