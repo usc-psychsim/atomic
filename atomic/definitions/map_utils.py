@@ -1,28 +1,57 @@
 import logging
-import os.path
+import pathlib
 import pandas as pd
 from collections import OrderedDict
 from atomic.definitions import Directions
 
-FALCON_COORDS_FILE = 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU-coords'
-FALCON_MAP_DIR = '../maps/Falcon_EMH_PsychSim/'
+MAPS_DIR = (pathlib.Path(__file__).parent / '..' / '..' / 'maps').resolve()
+FALCON_MAP_DIR = MAPS_DIR / 'Falcon_EMH_PsychSim'
+FALCON_COORDS_FILE = str(MAPS_DIR / 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU-coords.csv')
+FALCON_PORTALS_FILE = str(MAPS_DIR / 'ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv')
+FALCON_ROOMS_FILE = str(MAPS_DIR / 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv')
 
-DEFAULT_MAPS = {'sparky': {'room_file': 'sparky_adjacency',
-                           'victim_file': 'sparky_vic_locs',
-                           'coords_file': 'sparky_coords'},
-                'falcon': {'room_file': 'falcon_adjacency_v1.1_OCN',
-                           'victim_file': 'falcon_vic_locs_v1.1_OCN',
-                           'coords_file': FALCON_COORDS_FILE},
-                'FalconEasy': {'room_file': FALCON_MAP_DIR + 'falcon_easy_adjacency',
-                               'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU',
-                               'coords_file': FALCON_COORDS_FILE},
-                'FalconMed': {'room_file': 'falcon_medium_adjacency',
-                              'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU',
-                              'coords_file': FALCON_COORDS_FILE},
-                'FalconHard': {'room_file': 'falcon_hard_adjacency',
-                               'victim_file': FALCON_MAP_DIR + 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU',
-                               'coords_file': FALCON_COORDS_FILE},
-                }
+
+class MapData(object):
+    def __init__(self, name, adjacency_file, room_file, victim_file, coords_file, portals_file, logger=logging):
+        self.name = name
+        self.adjacency_file = adjacency_file
+        self.room_file = room_file
+        self.victim_file = victim_file
+        self.coords_file = coords_file
+        self.portals_file = portals_file
+
+        # gets map data from the different files
+        self.adjacency = getSandRMap(fname=adjacency_file, logger=logger)
+        self.rooms = set(self.adjacency.keys())
+        self.rooms_list = list(self.rooms)
+        self.victims = getSandRVictims(fname=victim_file)
+        self.coordinates = getSandRCoords(fname=coords_file)
+        self.init_loc = self.rooms_list[0]
+
+
+def get_default_maps(logger=logging):
+    return {
+        'sparky': MapData('sparky', str(MAPS_DIR / 'sparky_adjacency.csv'), None,
+                          str(MAPS_DIR / 'sparky_vic_locs.csv'),
+                          str(MAPS_DIR / 'sparky_coords.csv'), None, logger),
+        'falcon': MapData('falcon', str(MAPS_DIR / 'falcon_adjacency_v1.1_OCN.csv'), None,
+                          str(MAPS_DIR / 'falcon_vic_locs_v1.1_OCN.csv'),
+                          FALCON_COORDS_FILE, None, logger),
+        'FalconEasy': MapData('FalconEasy',
+                              str(FALCON_MAP_DIR / 'falcon_easy_adjacency.csv'), FALCON_ROOMS_FILE,
+                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'),
+                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+        'FalconMed': MapData('FalconMed',
+                             str(FALCON_MAP_DIR / 'falcon_medium_adjacency.csv'), FALCON_ROOMS_FILE,
+                             str(FALCON_MAP_DIR / 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU.csv'),
+                             FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+        'FalconHard': MapData('FalconHard',
+                              str(FALCON_MAP_DIR / 'falcon_hard_adjacency.csv'), FALCON_ROOMS_FILE,
+                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU.csv'),
+                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+        'simple': MapData('simple',
+            str(MAPS_DIR / 'simple_adjacency.csv'), None, str(MAPS_DIR / 'simple_victims.csv'), None, None, logger),
+    }
 
 
 def checkSRMap(SRMap, logger=logging):
@@ -35,7 +64,7 @@ def checkSRMap(SRMap, logger=logging):
 
     for x in SRMap:
         #  input("press key to continue...")
-#        logger.debug("########## Checking room %s" % (x))
+        #        logger.debug("########## Checking room %s" % (x))
         #  print("room: ",x," neighbors: ", SRMap[x])
         for d in range(4):
             try:
@@ -57,19 +86,19 @@ def checkSRMap(SRMap, logger=logging):
     return True
 
 
-def getSandRMap(small=False, fldr="../../maps", fname="sparky_adjacency", logger=logging):
+def getSandRMap(small=False, fname="sparky_adjacency", logger=logging):
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
     DW = Directions.W
     dirs = {"N": DN, "S": DS, "E": DE, "W": DW}
 
+    if not fname.endswith(".csv"):
+        fname = fname + ".csv"
     if small:
-        file = os.path.abspath(os.path.join(os.path.dirname(__file__), fldr, fname + "_small.csv"))
-    else:
-        file = os.path.abspath(os.path.join(os.path.dirname(__file__), fldr, fname + ".csv"))
-    conn_df = pd.read_csv(file, sep=None, engine='python')
-    print('-----------------', file)
+        fname = fname[:-4] + "_small.csv"
+    conn_df = pd.read_csv(fname, sep=None, engine='python')
+    print('-----------------', fname)
     num_col = len(conn_df.columns)
     SandRLocs = OrderedDict()
     for key, row in conn_df.iterrows():
@@ -80,7 +109,7 @@ def getSandRMap(small=False, fldr="../../maps", fname="sparky_adjacency", logger
             neighbor = row[direction]
             if type(neighbor) is str:
                 SandRLocs[row["Room"]][dirs[direction]] = neighbor
-    
+
     checkmap = checkSRMap(SandRLocs, logger)
     ## Bug here: checkSRMap always returns True!
     if checkmap:
@@ -89,13 +118,13 @@ def getSandRMap(small=False, fldr="../../maps", fname="sparky_adjacency", logger
         logger.error("map contains errors")
 
 
-def getSandRVictims(small=False, fldr="../../maps", fname="sparky_vic_locs"):
+def getSandRVictims(small=False, fname="sparky_vic_locs"):
     # Victims and triage actions
+    if not fname.endswith(".csv"):
+        fname = fname + ".csv"
     if small:
-        file = os.path.join(os.path.dirname(__file__), fldr, fname + "_small.csv")
-    else:
-        file = os.path.join(os.path.dirname(__file__), fldr, fname + ".csv")
-    vic_df = pd.read_csv(file, sep=None, engine='python')
+        fname = fname[:-4] + "_small.csv"
+    vic_df = pd.read_csv(fname, sep=None, engine='python')
     SandRVics = {}
     for key, row in vic_df.iterrows():
         if row['Victim Location'] not in SandRVics.keys():
@@ -106,15 +135,15 @@ def getSandRVictims(small=False, fldr="../../maps", fname="sparky_vic_locs"):
     return SandRVics
 
 
-def getSandRCoords(small=False, fldr="../../maps", fname="sparky_coords"):
+def getSandRCoords(small=False, fname="sparky_coords"):
     if fname is None:
         return None
+    if not fname.endswith(".csv"):
+        fname = fname + ".csv"
     if small:
-        file = os.path.join(os.path.dirname(__file__), fldr, fname + "_small.csv")
-    else:
-        file = os.path.join(os.path.dirname(__file__), fldr, fname + ".csv")
+        fname = fname[:-4] + "_small.csv"
     coords = {}
-    with open(file, 'r') as f:
+    with open(fname, 'r') as f:
         lines = f.readlines()
         for line in lines:
             coord = line.split(',')

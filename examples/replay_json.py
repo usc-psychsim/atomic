@@ -7,10 +7,9 @@ Created on Sun Apr  5 17:00:50 2020
 """
 import logging
 import sys
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims, DEFAULT_MAPS
+from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.parserFromJson import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world
-from atomic.parsing.message_reader import getMessages
 
 logging.root.setLevel(logging.DEBUG)
 
@@ -19,39 +18,32 @@ logging.basicConfig(
     format='%(message)s', level=logging.ERROR)
 
 ######## Get Map Data
+DEFAULT_MAPS = get_default_maps()
 mapName = 'FalconEasy'
-SandRLocs = getSandRMap(fname=DEFAULT_MAPS[mapName]['room_file'], logger=logging)
+SandRLocs = DEFAULT_MAPS[mapName].adjacency
 
 ## Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
-shared = {'lh':8, 'rh':9, 'mb':5, 'wb':5}
-lightMap = {k:[k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
-for shr,num in shared.items():
+shared = {'lh': 8, 'rh': 9, 'mb': 5, 'wb': 5}
+lightMap = {k: [k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
+for shr, num in shared.items():
     lightMap[shr + '1'] = []
-    for i in range(1,num+1):
+    for i in range(1, num + 1):
         lightMap[shr + '1'].append(shr + str(i))
 
+# use_unobserved=True, full_obs=False, logger=logging):
+SandRVics = DEFAULT_MAPS[mapName].victims
+fname = '../data/ASU_DATA/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+parser = ProcessParsedJson(fname, DEFAULT_MAPS[mapName], logger=logging)
 
-allMs, playerName = getMessages({})
+world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
+    parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
 
-#use_unobserved=True, full_obs=False, logger=logging):
-SandRVics = getSandRVictims(fname=DEFAULT_MAPS[mapName]['victim_file'])
-world, triageAgent, agent, victimsObj, world_map = make_single_player_world(playerName, None, SandRLocs, SandRVics, False, True, lightMap)
+maxNumEvents = 350
+runStartsAt = 0
+runEndsAt = 20
+fastFwdTo = 9999
 
-jsonPrpcessor = ProcessParsedJson(playerName, world_map, victimsObj, logger=logging)
 ### Process the list of dicts into psychsim actions
-jsonPrpcessor.processJson(iter(allMs), SandRVics, 9999)
+parser.getActionsAndEvents(victimsObj, world_map, SandRVics, maxNumEvents)
 ### Replay sequence of actions 
-jsonPrpcessor.runTimeless(world, 0, 9999, 9999)
-
-
-### Replay sequence of actions and events
-#maxDist = 5
-#try:
-#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data', sys.argv[1]), maxDist, logging)
-#except IndexError:
-#    parser = DataParser(os.path.join(os.path.dirname(__file__), '../data',
-#                                     'processed_20200728_Participant3_Cond1.csv'),
-#                        maxDist, logging)
-#aes, data = parser.getActionsAndEvents(triageAgent.name, victimsObj, world_map, True, 350)
-#DataParser.runTimeless(world, triageAgent.name, aes,  0, 148, 0)
-#
+parser.runTimeless(world, runStartsAt, runEndsAt, fastFwdTo)

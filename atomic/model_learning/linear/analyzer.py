@@ -10,7 +10,8 @@ from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
-from atomic.definitions.map_utils import DEFAULT_MAPS
+from atomic.definitions import victims
+from atomic.definitions.map_utils import get_default_maps
 from atomic.definitions.plotting import plot_environment, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
 from atomic.model_learning.linear.rewards import create_reward_vector
@@ -73,8 +74,8 @@ class RewardModelAnalyzer(Replayer):
         :param str img_format: the format/extension of result images to be saved.
         """
         if maps is None:
-            maps = DEFAULT_MAPS
-        super().__init__(replays, maps, {})
+            maps = get_default_maps()
+        super().__init__(replays, maps, {}, create_observer=False)
 
         self._all_replays = replays
         self.output = output
@@ -131,11 +132,11 @@ class RewardModelAnalyzer(Replayer):
         self.map_tables[file_name] = map_table
         self.trial_conditions[file_name] = copy.deepcopy(conditions)
 
-    def pre_replay(self, map_name, logger=logging):
+    def pre_replay(self, logger=logging):
         # check results and avoids creating stuff
-        return False if self._check_results() else super().pre_replay(map_name, logger)
+        return False if self._check_results() else super().pre_replay(logger)
 
-    def replay(self, events, duration, logger):
+    def replay(self, duration, logger):
         # checks results and avoids replaying episode
         if self._check_results():
             return
@@ -148,7 +149,7 @@ class RewardModelAnalyzer(Replayer):
         change_log_handler(os.path.join(self._output_dir, 'learning.log'), self.verbosity)
 
         # replays trajectory
-        super().replay(events, duration, logger)
+        super().replay(duration, logger)
 
     def get_player_name(self, filename):
         # get player name if possible from the conditions dict
@@ -172,14 +173,23 @@ class RewardModelAnalyzer(Replayer):
                 self.parser.filename))
             return
 
+        # todo hack
+        prob_no_beep = victims.PROB_NO_BEEP
+        victims.PROB_NO_BEEP = 0
+
+        # delete observer if present
+        if self.observer is not None:
+            del self.world.agents[self.observer.name]
+            logging.info('Removed observer agent from PsychSim world.')
+
         # sets general random seeds
         random.seed(self.seed)
         np.random.seed(self.seed)
 
         # print map
-        neighbors = self.map_table['adjacency']
-        locations = list(self.map_table['rooms'])
-        coordinates = self.map_table['coordinates']
+        neighbors = self.map_table.adjacency
+        locations = list(self.map_table.rooms)
+        coordinates = self.map_table.coordinates
         plot_environment(self.world, locations, neighbors,
                          os.path.join(self._output_dir, 'env.{}'.format(self.img_format)), coordinates)
 
@@ -235,3 +245,6 @@ class RewardModelAnalyzer(Replayer):
 
         logging.info('Finished processing {}!'.format(self.parser.filename))
         logging.info('=================================\n\n')
+
+        # todo hack
+        victims.PROB_NO_BEEP = prob_no_beep

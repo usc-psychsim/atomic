@@ -7,8 +7,7 @@ from model_learning.util.io import create_clear_dir, save_object, change_log_han
 from model_learning.util.plot import plot_evolution
 from atomic.inference import set_player_models
 from atomic.scenarios.single_player import make_single_player_world
-from atomic.parsing.parser import summarizeState
-from atomic.definitions.map_utils import getSandRMap, getSandRVictims
+from atomic.definitions.map_utils import get_default_maps
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -21,7 +20,7 @@ __description__ = 'Perform reward model inference in the ASIST world based on sy
                   'of the triaging agent via PsychSim inference. ' \
                   'A plot is show with the inference evolution.'
 
-EXPT = 'sparky'
+EXPT = 'FalconEasy'
 IS_SMALL = False
 NUM_STEPS = 5
 
@@ -81,24 +80,14 @@ if __name__ == '__main__':
     # sets up log to file
     change_log_handler(os.path.join(OUTPUT_DIR, 'inference.log'), 2 if DEBUG else 1)
 
-    if EXPT == 'falcon':
-        adj_fname = 'falcon_adjacency_v1.1_OCN'
-        vics_fname = 'falcon_vic_locs_v1.1_OCN'
-        start_room = 'el'
-        IS_SMALL = False
-    elif EXPT == 'sparky':
-        adj_fname = 'sparky_adjacency'
-        vics_fname = 'sparky_vic_locs'
-        start_room = 'CH4'
-    else:
+    maps = get_default_maps()
+    if EXPT not in maps:
         raise NameError(f'Experiment "{EXPT}" is not implemented yet')
 
-    sr_map = getSandRMap(small=IS_SMALL, fname=adj_fname)
-    sr_vics = getSandRVictims(small=IS_SMALL, fname=vics_fname)
-
     # create world, agent and observer
+    map_data = maps[EXPT]
     world, agent, observer, victims, world_map = \
-        make_single_player_world(AGENT_NAME, start_room, sr_map, sr_vics, False, FULL_OBS)
+        make_single_player_world(AGENT_NAME, map_data.init_loc, map_data.adjacency, map_data.victims, False, FULL_OBS)
     agent.setAttribute('horizon', HORIZON)
     agent.setAttribute('selection', AGENT_SELECTION)
     agent.resetBelief(ignore={modelKey(observer.name)})
@@ -107,7 +96,7 @@ if __name__ == '__main__':
 
     # generates trajectory
     logging.info('Generating trajectory of length {}...'.format(NUM_STEPS))
-    trajectory = generate_trajectory(agent, NUM_STEPS, verbose=lambda: summarizeState(world, agent.name))
+    trajectory = generate_trajectory(agent, NUM_STEPS)
     save_object(trajectory, os.path.join(OUTPUT_DIR, 'trajectory.pkl.gz'), True)
 
     # gets evolution of inference over reward models of the agent

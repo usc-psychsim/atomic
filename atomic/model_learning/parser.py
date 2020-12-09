@@ -1,12 +1,12 @@
 import logging
 from model_learning.trajectory import copy_world
-from atomic.parsing.parser import DataParser
+from atomic.parsing.parser import ProcessCSV
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
 
-class TrajectoryParser(DataParser):
+class TrajectoryParser(ProcessCSV):
     def __init__(self, filename, maxDist=5, logger=logging):
         super().__init__(filename, maxDist, logger)
         self.trajectory = []

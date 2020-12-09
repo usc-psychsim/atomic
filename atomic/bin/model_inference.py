@@ -16,15 +16,15 @@ from plotly import express as px
 from psychsim.probability import Distribution
 from psychsim.pwl import WORLD, modelKey, stateKey
 
-from atomic.definitions.map_utils import DEFAULT_MAPS
-from atomic.parsing.parser import DataParser
+from atomic.definitions.map_utils import get_default_maps
+from atomic.parsing.parser import ProcessCSV
 from atomic.parsing.replayer import Replayer, filename_to_condition
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
 
 def plot_data(data, color_field, title):
     return px.line(data, x='Timestep', y='Belief', color=color_field, range_y=[0, 1], title=title)
 
-class AnalysisParser(DataParser):
+class AnalysisParser(ProcessCSV):
     condition_dist = None
 
     def __init__(self, filename, maxDist=5, logger=logging):
@@ -137,7 +137,7 @@ class Analyzer(Replayer):
     parser_class = AnalysisParser
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, logger=logging):
-        super().__init__(files, maps, models, ignore_models, logger)
+        super().__init__(files, maps, models, ignore_models, True, logger)
 
         self.mission_times = mission_times
         # Set player models for observer agent
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], DEFAULT_MAPS, DEFAULT_MODELS, ignore, mission_times, logging)
+    replayer = Analyzer(args['fname'], get_default_maps(logging), DEFAULT_MODELS, ignore, mission_times, logging)
     if args['profile']:
         cProfile.run('replayer.process_files(args["number"])', sort=1)
     elif args['1']:

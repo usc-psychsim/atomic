@@ -1,8 +1,7 @@
 import argparse
 import os
 from collections import OrderedDict
-from atomic.definitions import victims, world_map
-from atomic.definitions.map_utils import DEFAULT_MAPS
+from atomic.definitions import world_map
 from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from model_learning.util.io import get_files_with_extension, create_clear_dir, change_log_handler
@@ -15,8 +14,7 @@ __desc__ = 'Simple test script that loads several player log files and creates a
 
 OUTPUT_DIR = 'output/parse-all-files'
 
-# TODO hacks to avoid stochastic beep and lights
-victims.PROB_NO_BEEP = 0
+# TODO hack to avoid lights
 world_map.MODEL_LIGHTS = False
 
 
@@ -24,9 +22,7 @@ class TrajectoryAnalyzer(Replayer):
     parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None):
-        if maps is None:
-            maps = DEFAULT_MAPS
-        super().__init__(replays, maps, {})
+        super().__init__(replays, maps, {}, create_observer=False)
 
         self.trajectories = {}
         self.subject_ids = {}

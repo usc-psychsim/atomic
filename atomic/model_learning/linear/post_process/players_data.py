@@ -34,19 +34,19 @@ def process_players_data(analyzer, output_dir, clear=False, verbosity=1):
     map_files = {}
     for file_name in file_names:
         map_table = analyzer.map_tables[file_name]
-        map_name = map_table['name'].lower()
+        map_name = map_table.name.lower()
         if map_name not in map_files:
             map_files[map_name] = []
         map_files[map_name].append(file_name)
 
     for map_name, files in map_files.items():
         map_table = analyzer.map_tables[files[0]]
-        locations = list(map_table['rooms'])
+        locations = map_table.rooms_list
         trajectories = [analyzer.trajectories[filename] for filename in files]
         agents = [trajectories[i][-1][0].agents[analyzer.agent_names[files[i]]] for i in range(len(files))]
 
         # saves mean location frequencies
-        location_data = [get_location_frequencies(agents[i], [trajectories[i]], map_table['rooms'])
+        location_data = [get_location_frequencies(agents[i], [trajectories[i]], map_table.rooms_list)
                          for i in range(len(files))]
         location_data = {loc: [np.mean([loc_freqs[loc] for loc_freqs in location_data]),
                                np.std([loc_freqs[loc] for loc_freqs in location_data]) / len(location_data)]
@@ -70,14 +70,14 @@ def process_players_data(analyzer, output_dir, clear=False, verbosity=1):
             'Mean Action Execution Frequencies')
 
         # saves all player trajectories
-        plot_trajectories(agents, trajectories, locations, map_table['adjacency'],
+        plot_trajectories(agents, trajectories, locations, map_table.adjacency,
                           os.path.join(output_dir, '{}-trajectories.{}'.format(map_name, analyzer.img_format)),
-                          map_table['coordinates'], title='Player Trajectories')
+                          map_table.coordinates, title='Player Trajectories')
 
     # saves trajectory length
     traj_len_data = OrderedDict(
         {analyzer.get_player_name(file_name): len(analyzer.trajectories[file_name]) for file_name in file_names})
-    traj_len_data = {name:traj_len_data[name] for name in sorted(traj_len_data)}
+    traj_len_data = {name: traj_len_data[name] for name in sorted(traj_len_data)}
     plot_bar(traj_len_data, 'Player Trajectory Length',
              os.path.join(output_dir, 'trajectory-length.{}'.format(analyzer.img_format)))
 
