@@ -6,6 +6,7 @@ Created on Thu Apr  2 20:35:23 2020
 @author: mostafh
 """
 import logging
+import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.definitions import Directions
@@ -27,13 +28,21 @@ class ProcessParsedJson(object):
         self.triageStartTime = 0
         self.actions = []
         self.locations = set()
-        inputFiles = {
-            '--msgfile': filename,
-            '--roomfile': map_data.room_file,
-            '--portalfile': map_data.portals_file,
-            '--victimfile' : map_data.victim_file
-        }
-        self.allMs, self.human = getMessages(inputFiles)
+        if len(filename) > 0:
+            inputFiles = {
+                '--msgfile': filename,
+                '--roomfile': map_data.room_file,
+                '--portalfile': map_data.portals_file,
+                '--victimfile' : map_data.victim_file
+            }
+            self.allMs, self.human = getMessages(inputFiles)
+            self.human = self.allMs[1]['playername']
+        
+    def useParsedFile(self, msgfile):
+        self.allMs = []
+        jsonfile = open(msgfile, 'rt')
+        for line in jsonfile.readlines():
+            self.allMs.append(json.loads(line))
         self.human = self.allMs[1]['playername']
 
     def player_name(self):
@@ -58,8 +67,7 @@ class ProcessParsedJson(object):
         self.injectFOVIfNeeded(vicColor, ts)
 
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
-        originalDuration = (ts[0] * 60 + ts[1]) - (self.triageStartTime[0] * 60 + self.triageStartTime[1])
-
+        
         ## IGNORE what I think about the duration being enough
         ## Adopt success/failure reported in message!
         #        duration, success = self.getTriageDuration(vicColor, originalDuration)
@@ -77,10 +85,7 @@ class ProcessParsedJson(object):
             self.lastParsedClrInFOV = 'White'
         ## Otherwise use actual duration capped by long enough duration
         else:
-            if vicColor == 'Green':
-                duration = min(originalDuration, 7)
-            else:
-                duration = min(originalDuration, 14)
+            duration = 5
 
         ## Update the parser's version of victims in each room
         if isSuccessful:
@@ -335,7 +340,7 @@ class ProcessParsedJson(object):
 
             selDict = {k: world.value2float(k, v) for k, v in selDict.items()}
             self.pre_step(world)
-            world.step(act, select=selDict, threshold=prune_threshold)
+            world.step(act, select=selDict, threshold=prune_threshold)            
             self.post_step(world, None if act is None else world.getAction(self.human))
             self.summarizeState(world, trueTime)
 
