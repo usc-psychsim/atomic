@@ -21,7 +21,7 @@ FOV_FEATURE = 'vicInFOV'
 
 # defaults
 COLOR_REWARDS = {'Green': 10, 'Gold': 200}
-COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
+COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.8}, 'Gold': {5: 0.2, 15: 0.8}}
 COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(7 * 60)}
 COLOR_PRIOR_P = {'Green': 0, 'Gold': 0}
 COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}

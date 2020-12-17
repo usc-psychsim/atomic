@@ -653,13 +653,19 @@ def proc_msg_file(msgfile, room_list, portal_list, victim_list, psychsimdir):
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
 def getMessages(args):    
     ## Defaults
-    msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
-    room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
-    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
-    victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
-    msgdir = ''
+    portal_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
+    room_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+    victim_list = '../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     
+    ## Local directory containing multiple json files, if multitrial
+    msgdir = ''
+    ## Single json file, if not multitrial
+    msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+    
+    ## Output directory to store parsed content if parsing more than 1 file
     psychsimdir = '.'
+    
+    ## Used if parsing files residing on Google Cloud
     gcdir = 'study-1_2020.08'
     gcprefix = ''
     
@@ -698,7 +704,7 @@ def getMessages(args):
             print("--verbose : will provide extra info for each message, e.g. x/z coords") 
             print("--gcprefix <prefix>: prefix for files you want to pull from the google cloud in studies.aptima.com/study-1_2020.08")
             print("--psychsimdir <directory to store processed message files>")
-            exit()
+            return
 
     # If reading from a google cloud a directory and writing to files (syncs dir)
     if files_from_gc:
@@ -712,7 +718,7 @@ def getMessages(args):
         if multitrial:
             if msgdir == '':
                 print("ERROR: must provide message directory --multitrial <directory>")
-                exit()
+                return
             file_arr = os.listdir(msgdir)
             for f in file_arr:
                 full_path = os.path.join(msgdir,f)
@@ -722,15 +728,14 @@ def getMessages(args):
         else: # just want rescues for single file
             if msgfile == '':
                 print("ERROR: must provide --msgfile <filename>")
-                exit()
+                return
             get_rescues(msgfile)
         return None, None
-
     # if running message reader on a directory -- will write results to cwd
     elif multitrial: 
         if msgdir == '':
             print("ERROR: must provide message directory --multitrial <directory>")
-            exit()
+            return
         file_arr = os.listdir(msgdir)
         filecnt = 1
         for f in file_arr:
@@ -739,7 +744,7 @@ def getMessages(args):
                 print("processing file "+str(filecnt)+" of "+str(len(file_arr))+" :: "+str(full_path))
                 proc_msg_file(full_path, room_list, portal_list, victim_list, psychsimdir)
                 filecnt += 1
-        exit()
+        return
 
     # default to procesing single file, returning a list of dictionaries
     else:

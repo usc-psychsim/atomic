@@ -17,33 +17,26 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
     format='%(message)s', level=logging.ERROR)
 
-######## Get Map Data
-DEFAULT_MAPS = get_default_maps()
+######### Get Map Data
 mapName = 'FalconEasy'
+DEFAULT_MAPS = get_default_maps()
 SandRLocs = DEFAULT_MAPS[mapName].adjacency
-
-## Fabricate a light switch map that maps each room with a switch to a list of rooms affected by the switch
-shared = {'lh': 8, 'rh': 9, 'mb': 5, 'wb': 5}
-lightMap = {k: [k] for k in SandRLocs.keys() if sum([k.startswith(shr) for shr in shared.keys()]) == 0}
-for shr, num in shared.items():
-    lightMap[shr + '1'] = []
-    for i in range(1, num + 1):
-        lightMap[shr + '1'].append(shr + str(i))
-
-# use_unobserved=True, full_obs=False, logger=logging):
 SandRVics = DEFAULT_MAPS[mapName].victims
-fname = '../data/ASU_DATA/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
+
+## use_unobserved=True, full_obs=False, logger=logging):
+fname = '../data/ASU_DATA/study-1_2020.08_HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-123_Team-na_Member-52_Vers-3.metadata'
+
 parser = ProcessParsedJson(fname, DEFAULT_MAPS[mapName], logger=logging)
-
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
-    parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
+    parser.player_name(), None, SandRLocs, SandRVics, False, True)
 
-maxNumEvents = 350
+maxNumEvents = 9999
 runStartsAt = 0
-runEndsAt = 20
-fastFwdTo = 9999
+runEndsAt = 9999
+parseFastFwdTo = 9999
+runFastFwdTo = 9999
 
-### Process the list of dicts into psychsim actions
-parser.getActionsAndEvents(victimsObj, world_map, SandRVics, maxNumEvents)
-### Replay sequence of actions 
-parser.runTimeless(world, runStartsAt, runEndsAt, fastFwdTo)
+#### Process the list of dicts into psychsim actions
+parser.getActionsAndEvents(victimsObj, world_map, SandRVics, parseFastFwdTo, maxNumEvents)
+#### Replay sequence of actions 
+parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
