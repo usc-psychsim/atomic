@@ -4,6 +4,8 @@ import copy
 import random
 import numpy as np
 from collections import OrderedDict
+
+from atomic.definitions.features import get_mission_seconds_key
 from model_learning.util.plot import plot_bar
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
 from model_learning.trajectory import sample_spread_sub_trajectories
@@ -177,7 +179,7 @@ class RewardModelAnalyzer(Replayer):
         prob_no_beep = victims.PROB_NO_BEEP
         victims.PROB_NO_BEEP = 0
 
-        # delete observer if present
+        # delete observer if present (not needed)
         if self.observer is not None:
             del self.world.agents[self.observer.name]
             logging.info('Removed observer agent from PsychSim world.')
@@ -186,32 +188,17 @@ class RewardModelAnalyzer(Replayer):
         random.seed(self.seed)
         np.random.seed(self.seed)
 
-        # print map
         neighbors = self.map_table.adjacency
-        locations = list(self.map_table.rooms)
+        locations = self.map_table.rooms_list
         coordinates = self.map_table.coordinates
+
+        # print map
         plot_environment(self.world, locations, neighbors,
                          os.path.join(self._output_dir, 'env.{}'.format(self.img_format)), coordinates)
 
-        logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
-            self.parser.filename, self.parser.player_name(), len(trajectory), self.parser.data.shape[0]))
-        plot_trajectories(self.triage_agent, [trajectory], locations, neighbors,
-                          os.path.join(self._output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
-                          title='Player Trajectory')
-        plot_agent_location_frequencies(
-            self.triage_agent, [trajectory], locations,
-            os.path.join(self._output_dir, 'loc-frequencies.{}'.format(self.img_format)))
-        plot_agent_action_frequencies(self.triage_agent, [trajectory],
-                                      os.path.join(self._output_dir, 'action-frequencies.{}'.format(self.img_format)))
+        self.plot_player_data(coordinates, locations, neighbors, trajectory)
 
-        # collect sub-trajectories from player's trajectory
-        trajectories = sample_spread_sub_trajectories(trajectory, self.num_trajectories, self.length)
-        logging.info('Collected {} trajectories of length {} from original trajectory.'.format(
-            self.num_trajectories, self.length))
-        plot_trajectories(self.triage_agent, trajectories, locations, neighbors,
-                          os.path.join(self._output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
-                          title='Training Sub-Trajectories')
-        trajectories = [[(w.state, a) for w, a in t] for t in trajectories]
+        trajectories = self.collect_sub_trajectories(coordinates, locations, neighbors, trajectory)
 
         # create reward vector and optimize reward weights via MaxEnt IRL
         logging.info('=================================')
@@ -219,10 +206,56 @@ class RewardModelAnalyzer(Replayer):
             os.cpu_count() if self.processes is None else self.processes))
         rwd_vector = create_reward_vector(
             self.triage_agent, locations, self.world_map.moveActions[self.triage_agent.name])
+
         alg = MaxEntRewardLearning(
-            'max-ent', self.triage_agent, rwd_vector, self.processes, self.normalize, self.learn_rate, self.epochs,
+            'max-ent', self.triage_agent.name, rwd_vector, self.processes, self.normalize, self.learn_rate, self.epochs,
             self.diff, True, self.prune, self.horizon, self.seed)
         result = alg.learn(trajectories, self.parser.filename, self.verbosity > 0)
+
+        self.save_results(alg, result, rwd_vector, trajectory)
+
+        logging.info('Finished processing {}!'.format(self.parser.filename))
+        logging.info('=================================\n\n')
+
+        # todo hack
+        victims.PROB_NO_BEEP = prob_no_beep
+
+    def plot_player_data(self, coordinates, locations, neighbors, trajectory):
+
+        # print trajectories and player data
+        logging.info('Parsed data file {} for player "{}" and got {} state-action pairs from {} events.'.format(
+            self.parser.filename, self.parser.player_name(), len(trajectory), self.parser.data.shape[0]))
+        plot_trajectories(
+            self.triage_agent, [trajectory], locations, neighbors,
+            os.path.join(self._output_dir, 'trajectory.{}'.format(self.img_format)), coordinates,
+            title='Player Trajectory')
+        plot_agent_location_frequencies(
+            self.triage_agent, [trajectory], locations,
+            os.path.join(self._output_dir, 'loc-frequencies.{}'.format(self.img_format)))
+        plot_agent_action_frequencies(
+            self.triage_agent, [trajectory],
+            os.path.join(self._output_dir, 'action-frequencies.{}'.format(self.img_format)))
+
+    def collect_sub_trajectories(self, coordinates, locations, neighbors, trajectory):
+        # only consider first half of mission
+        idx = 0
+        for idx in range(len(trajectory)):
+            secs = trajectory[idx][0].getFeature(get_mission_seconds_key(), unique=True)
+            if secs >= 5 * 60:
+                break
+
+        # collect sub-trajectories from player's trajectory
+        trajectories = sample_spread_sub_trajectories(trajectory[:idx], self.num_trajectories, self.length)
+
+        logging.info('Collected {} trajectories of length {} from original trajectory (length {}).'.format(
+            self.num_trajectories, self.length, idx + 1))
+        plot_trajectories(self.triage_agent, trajectories, locations, neighbors,
+                          os.path.join(self._output_dir, 'sub-trajectories.{}'.format(self.img_format)), coordinates,
+                          title='Training Sub-Trajectories')
+
+        return trajectories
+
+    def save_results(self, alg, result, rwd_vector, trajectory):
 
         # saves results/stats
         alg.save_results(result, self._output_dir, self.img_format)
@@ -240,11 +273,3 @@ class RewardModelAnalyzer(Replayer):
             logging.info('Optimized reward weights: {}'.format(rwd_weights))
         plot_bar(OrderedDict(zip(rwd_vector.names, rwd_weights)), 'Optimal Reward Weights $θ^*$',
                  os.path.join(self._output_dir, 'learner-theta.{}'.format(self.img_format)), plot_mean=False)
-        learner_r = next(iter(self.triage_agent.getReward().values()))
-        logging.info('Optimized PsychSim reward function:\n\n{}'.format(learner_r))
-
-        logging.info('Finished processing {}!'.format(self.parser.filename))
-        logging.info('=================================\n\n')
-
-        # todo hack
-        victims.PROB_NO_BEEP = prob_no_beep

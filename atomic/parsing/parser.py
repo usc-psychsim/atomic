@@ -352,7 +352,7 @@ class ProcessCSV(object):
                     self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
                 self.logger.info('Action: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                 world.step(act, select=selDict, threshold=prune_threshold)
-            #                world.modelGC()
+                world.modelGC()
 
             elif actOrEvFlag == SET_FLG:
                 [var, val] = actEv
@@ -378,7 +378,7 @@ class ProcessCSV(object):
                 else:
                     self.logger.info('Search: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                     world.step(act, select=selDict, threshold=prune_threshold)
-                    # world.modelGC()
+                    world.modelGC()
 
             self.summarizeState(world)
             self.post_step(world, None if act is None else world.getAction(self.human))
