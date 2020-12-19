@@ -1,10 +1,12 @@
-from psychsim.agent import Agent
-from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, noChangeMatrix, \
-    addFeatureMatrix, rewardKey, WORLD
+from psychsim.pwl import stateKey, makeTree, equalRow, setToConstantMatrix, makeFuture, incrementMatrix, \
+    noChangeMatrix, WORLD
 from atomic.definitions import Directions
 from atomic.definitions.world import SearchAndRescueWorld
 
 MODEL_LIGHTS = True
+
+# based on average times from parsing the data
+MOVE_TIME_INC = 3
 
 
 class WorldMap(object):
@@ -38,7 +40,7 @@ class WorldMap(object):
                 self.neighbors[d][room] = n
                 locations.add(n)
         self.all_locations = list(locations)
-        
+
         ## Create light status feature per location
         if MODEL_LIGHTS:
             for loc in self.all_locations:
@@ -59,11 +61,11 @@ class WorldMap(object):
 
         # Make move actions
         self._makeMoveActions(agent)
-        
+
         # Make action to toggle light switch
         if MODEL_LIGHTS and len(self.sharedLights) > 0:
             self._makeLightToggleAction(agent)
-        
+
     def _makeLightToggleAction(self, agent):
         """
         Action to toggle the light switch in a loc that has one.
@@ -76,23 +78,22 @@ class WorldMap(object):
                                  True: True,
                                  False: False})
         action = agent.addAction({'verb': 'toggleLight'}, makeTree(legalityTree))
-        
+
         ## Instead of iterating over locations, I'll iterate over those that have
         ## switches and create a tree for each affected room
-        for switch,affected in self.sharedLights.items():
+        for switch, affected in self.sharedLights.items():
             for aff in affected:
                 affFlag = stateKey(WORLD, 'light' + str(aff))
                 txnTree = {'if': equalRow(locKey, switch),
                            True: {'if': equalRow(affFlag, True),
                                   True: setToConstantMatrix(affFlag, False),
                                   False: setToConstantMatrix(affFlag, True)},
-                           False:noChangeMatrix(affFlag)}
+                           False: noChangeMatrix(affFlag)}
                 self.world.setDynamics(affFlag, action, makeTree(txnTree))
-        
-        
+
         self.lightActions[agent.name] = action
-        
-    def makeMoveResetFOV(self, agent):        
+
+    def makeMoveResetFOV(self, agent):
         fovKey = stateKey(agent.name, 'vicInFOV')
         for direction in range(4):
             action = self.moveActions[agent.name][direction]
@@ -126,9 +127,8 @@ class WorldMap(object):
             for il, loc in enumerate(lstlocsWithNbrs):
                 tree[il] = setToConstantMatrix(locKey, self.neighbors[direction.value][loc])
             self.world.setDynamics(locKey, action, makeTree(tree))
-            
 
-            # A move sets the seen flag of the location we moved to
+            # move increments the counter of the location we moved to
             for dest in self.all_locations:
                 destKey = stateKey(agent.name, 'locvisits_' + str(dest))
                 tree = makeTree({'if': equalRow(makeFuture(locKey), dest),
@@ -136,22 +136,8 @@ class WorldMap(object):
                                  False: noChangeMatrix(destKey)})
                 self.world.setDynamics(destKey, action, tree)
 
-    def makeExplorationBonus(self, agent, explore_bonus):
-        """
-        Adds an exploration reward (bonus) to the agent.
-        :param Agent agent: the agent to which we want to set the exploration reward.
-        :param float explore_bonus: the exploration bonus for moving to unseen locations.
-        :return:
-        """
-        if explore_bonus <= 0:
-            return
-        for dest in range(len(self.all_locations)):
-            bonus = makeTree({'if': equalRow(stateKey(agent.name, 'loc'), dest),
-                              True: {'if': equalRow(stateKey(agent.name, 'locvisits_' + str(dest)), 0),
-                                     True: addFeatureMatrix(rewardKey(agent.name), explore_bonus),
-                                     False: noChangeMatrix(rewardKey(agent.name))},
-                              False: noChangeMatrix(rewardKey(agent.name))})
-            agent.setReward(bonus, 1)
+            # increment time
+            self.world.setDynamics(self.world.time, action, makeTree(incrementMatrix(self.world.time, MOVE_TIME_INC)))
 
     def move(self, agent, direction):
         self.world.step(self.moveActions[agent.name][direction])

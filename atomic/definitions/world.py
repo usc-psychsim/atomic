@@ -29,10 +29,9 @@ class SearchAndRescueWorld(World):
         self.phase = self.defineState(WORLD, PHASE_FEATURE, list, MISSION_PHASES, description='The mission phase')
         self.setFeature(self.phase, START_STR)
 
-        self.setTimeDynamics()
+        self.set_phase_dynamics()
 
-    def setTimeDynamics(self):
-        self.setDynamics(self.time, True, makeTree(incrementMatrix(self.time, 1)))
+    def set_phase_dynamics(self):
 
         # updates mission phase
         tree = {'if': thresholdRow(self.time, MISSION_PHASE_END_TIMES),
