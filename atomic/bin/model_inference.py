@@ -84,28 +84,22 @@ class AnalysisParser(ProcessCSV):
                 next_seen = Distribution(next_seen)
                 next_seen.normalize()
             if prediction is None:
-                prediction = next_seen.scale_prob(player_model_prob) 
+                prediction = next_seen.scale_prob(player_model_prob)
             else:
-                prediction = prediction.__class__({color: prob+next_seen[color]*player_model_prob 
+                prediction = prediction.__class__({color: prob+next_seen[color]*player_model_prob
                     for color, prob in prediction.items()})
         return prediction
- 
-    def pre_step(self, world, log_entry=None):
-        if log_entry is None:
-            t = world.getState(WORLD, 'seconds', unique=True)
-        else:
-            t = log_entry[2]
+
+    def pre_step(self, world):
+        t = world.getState(WORLD, 'seconds', unique=True)
         if len(self.prediction_data) == 0 or self.prediction_data[-1]['Timestep'] != t:
             # No prediction for this timestep yet
             for color, prob in self.next_victim(world).items():
                 entry = {'Timestep': t, 'Belief': prob, 'Color': color}
                 self.prediction_data.append(entry)
 
-    def post_step(self, world, act, log_entry=None):
-        if log_entry is None:
-            t = world.getState(WORLD, 'seconds', unique=True)
-        else:
-            t = log_entry[2]
+    def post_step(self, world, act):
+        t = world.getState(WORLD, 'seconds', unique=True)
         if len(self.model_data) == 0 or self.model_data[-1]['Timestep'] != t:
             # Haven't made some inference for this timestep (maybe wait until last one?)
             player_name = self.player_name()
@@ -158,7 +152,7 @@ class Analyzer(Replayer):
         self.models = models
 
     def post_replay(self):
-        for data_type, data in {'models': self.parser.model_data, 'conditions': self.parser.condition_data, 
+        for data_type, data in {'models': self.parser.model_data, 'conditions': self.parser.condition_data,
             'predictions': self.parser.prediction_data}.items():
             for entry in data:
                 now = entry['Timestep'].to_pydatetime()
@@ -208,7 +202,7 @@ def load_clusters(fname):
 def apply_cluster_rewards(reward_weights, models=None):
     if models is None:
         models = DEFAULT_MODELS
-    models['reward'] = {'cluster{}'.format(cluster): vector 
+    models['reward'] = {'cluster{}'.format(cluster): vector
         for cluster, vector in reward_weights.items()}
 
 def model_to_cluster(model):

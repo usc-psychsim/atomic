@@ -17,6 +17,8 @@ ACTION = 0
 SET_FLG = 1
 SEARCH = 3
 
+MAX_MISSION_TIMER = 10 * 60  # max num seconds in game's timer
+
 
 class ProcessCSV(object):
 
@@ -38,7 +40,8 @@ class ProcessCSV(object):
             'isAVicInFOV',
             'event_triage_victim_id',
             'triage_in_progress',
-            'triage_result']
+            'triage_result',
+            'mission_timer']
 
         self.logger = logger
 
@@ -180,7 +183,7 @@ class ProcessCSV(object):
         :param int maxEvents: the maximum number of events to be parsed.
         :return:
         """
-        
+
         ## Assume we're only interested in the player appearing on the first row
         self.human = self.player_name()
         self.pData = self.data.loc[self.data['player_ID'] == self.human]
@@ -204,6 +207,7 @@ class ProcessCSV(object):
         prev = pd.Series()
         lastLoc = None
         attemptID = 0
+        start_stamp = None
         for ir, row in self.pData.iterrows():
             if (maxEvents > 0) and (len(self.actions) > maxEvents):
                 break
@@ -212,6 +216,7 @@ class ProcessCSV(object):
             moveActs = []
             searchActs = []
             stamp = row['dtime']
+            mission_timer = row['mission_timer']
             duration = row['duration']
             duration = self.getDurationIfTriaging(row, duration)
 
@@ -267,18 +272,18 @@ class ProcessCSV(object):
                 if i == 0:
                     dur = duration
                     duration = 0
-                self.actions.append([ACTION, [mact], stamp, dur, attemptID])
+                self.actions.append([ACTION, [mact], stamp, dur, attemptID, mission_timer])
             for i, sact in enumerate(searchActs):
                 dur = 0
                 if i == 0:
                     dur = duration
                     duration = 0
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                self.actions.append([SEARCH, sact, stamp, dur, attemptID])
+                self.actions.append([SEARCH, sact, stamp, dur, attemptID, mission_timer])
             # acts = triage 
             for i, act in enumerate(triageActs):
                 ## Enforce the value in the data on actions that don't otherwise affect approached victim                
-                self.actions.append([ACTION, act, stamp, duration, attemptID])
+                self.actions.append([ACTION, act, stamp, duration, attemptID, mission_timer])
                 duration = 0
 
             for ev in events:
@@ -286,55 +291,59 @@ class ProcessCSV(object):
                 if i == 0:
                     dur = duration
                     duration = 0
-                self.actions.append([SET_FLG, ev, stamp, dur, attemptID])
+                self.actions.append([SET_FLG, ev, stamp, dur, attemptID, mission_timer])
 
             prev = row
 
-    def pre_step(self, world, log_entry=None):
+    def pre_step(self, world):
         pass
 
-    def post_step(self, world, act, log_entry=None):
+    def post_step(self, world, act):
         pass
 
     def runTimeless(self, world, start, end, ffwdTo=0, prune_threshold=None, permissive=False):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-
         self.logger.debug(self.actions[start])
-        if start == 0:
-            [actOrEvFlag, actEv, stamp, duration, attempt] = self.actions[0]
-            if actOrEvFlag == SET_FLG:
-                varName = actEv[0]
-                varValue = actEv[1]
-                world.setState(self.human, varName, varValue)
-                world.agents[self.human].setBelief(stateKey(self.human, varName), varValue)
-            else:
-                # This first action can be an actual action or an initial location
-                if type(actEv) == ActionSet:
-                    world.step(actEv)
-                else:
-                    world.setState(self.human, 'loc', actEv[0])
-                    world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
-                    world.setState(self.human, 'locvisits_' + actEv[0], 1)
-                    world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
-            start = 1
+        for t in range(start, end):
+            actOrEvFlag, actEv, stamp, duration, attempt, mission_timer = self.actions[t]
 
-        for t, actEvent in enumerate(self.actions[start:end]):
-            self.pre_step(world, actEvent)
+            if t == 0:
+                if actOrEvFlag == SET_FLG:
+                    varName = actEv[0]
+                    varValue = actEv[1]
+                    world.setState(self.human, varName, varValue)
+                    world.agents[self.human].setBelief(stateKey(self.human, varName), varValue)
+                else:
+                    # This first action can be an actual action or an initial location
+                    if type(actEv) == ActionSet:
+                        world.step(actEv)
+                    else:
+                        world.setState(self.human, 'loc', actEv[0])
+                        world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
+                        world.setState(self.human, 'locvisits_' + actEv[0], 1)
+                        world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
+                continue
+
+            # manually sync the time feature with the game's time (invert timer)
+            world.setFeature(stateKey(WORLD, 'seconds'), MAX_MISSION_TIMER - mission_timer, recurse=True)
+
+            self.pre_step(world)
             act = None
-            self.logger.info('%d) Running: %s' % (t + start, ','.join(map(str, actEvent[1]))))
-            if t + start >= ffwdTo:
+            self.logger.info('%d) Running: %s' % (t, ','.join(map(str, actEv))))
+            if t >= ffwdTo:
                 input('press any key.. ')
-            if actEvent[0] == ACTION:
-                act = actEvent[1][0]
-                legal_choices = world.agents[self.human].getLegalActions() 
+            if actOrEvFlag == ACTION:
+                act = actEv[0]
+                legal_choices = world.agents[self.human].getLegalActions()
                 if act not in legal_choices:
-                    raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(act, t+start, 
-                        ', '.join(sorted(map(str, legal_choices)))))
-                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if isStateKey(k) and state2feature(k)[:6] == 'sensor'}
-                if len(actEvent[1]) > 1:
-                    dur = actEvent[1][1]
+                    raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(
+                        act, t, ', '.join(sorted(map(str, legal_choices)))))
+                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if
+                           isStateKey(k) and state2feature(k)[:6] == 'sensor'}
+                if len(actEv) > 1:
+                    dur = actEv[1]
                     # This is a triage action with an associated duration
                     clock = stateKey(WORLD, 'seconds')
                     curTime = world.getState(WORLD, 'seconds', unique=True)
@@ -343,21 +352,22 @@ class ProcessCSV(object):
                     self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
                 self.logger.info('Action: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                 world.step(act, select=selDict, threshold=prune_threshold)
-#                world.modelGC()
+            #                world.modelGC()
 
-            elif actEvent[0] == SET_FLG:
-                [var, val] = actEvent[1]
+            elif actOrEvFlag == SET_FLG:
+                [var, val] = actEv
                 key = stateKey(self.human, var)
                 world.state[key] = world.value2float(key, val)
                 for model in world.getModel(self.human).domain():
                     if val not in world.getFeature(key, world.agents[self.human].models[model]['beliefs']).domain():
-                        raise ValueError('Unbelievable data point at time %s: %s=%s' % (actEvent[2], var, val))
+                        raise ValueError('Unbelievable data point at time %s: %s=%s' % (stamp, var, val))
                     world.agents[self.human].models[model]['beliefs'][key] = world.value2float(key, val)
                 self.logger.info('Set: {}'.format(key))
 
-            elif actEvent[0] == SEARCH:
-                act, color = actEvent[1][0], actEvent[1][1]
-                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if isStateKey(k) and state2feature(k)[:6] == 'sensor'}
+            elif actOrEvFlag == SEARCH:
+                act, color = actEv[0], actEv[1]
+                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if
+                           isStateKey(k) and state2feature(k)[:6] == 'sensor'}
                 selDict[stateKey(self.human, 'vicInFOV')] = world.value2float(stateKey(self.human, 'vicInFOV'), color)
                 loc = world.getState(self.human, 'loc', unique=True)
                 if permissive and color != 'none' and world.getState(WORLD, 'ctr_{}_{}'.format(loc, color),
@@ -368,15 +378,17 @@ class ProcessCSV(object):
                 else:
                     self.logger.info('Search: {}'.format(','.join(map(str, sorted(selDict.keys())))))
                     world.step(act, select=selDict, threshold=prune_threshold)
-                    world.modelGC()
+                    # world.modelGC()
+
             self.summarizeState(world)
-            self.post_step(world, None if act is None else world.getAction(self.human), actEvent)
+            self.post_step(world, None if act is None else world.getAction(self.human))
 
     def summarizeState(self, world):
+        self.logger.info('_____________________________________')
         loc = world.getState(self.human, 'loc', unique=True)
         time = world.getState(WORLD, 'seconds', unique=True)
-        self.logger.info('Time: %d' % (time))
-    
+        self.logger.info('Time: %d (%s)' % (time, world.getState(WORLD, 'phase', unique=True)))
+
         self.logger.info('Player location: %s' % (loc))
         clrs = ['Green', 'Gold', 'Red', 'White']
         for clr in clrs:
