@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
+from model_learning.algorithms.max_entropy import THETA_STR
 from model_learning.clustering.evaluation import evaluate_clustering
 from model_learning.util.io import create_clear_dir, change_log_handler
 from model_learning.util.plot import plot_bar
@@ -16,7 +17,7 @@ from atomic.model_learning.linear.analyzer import RewardModelAnalyzer
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
-DEF_DIST_THRESHOLD = 1 # .8  # .6
+DEF_DIST_THRESHOLD = 1  # .8  # .6
 DEF_STDS = 1.5  # 3
 DEF_LINKAGE = 'ward'
 
@@ -68,7 +69,7 @@ def cluster_reward_weights(analyzer, output_dir,
     logging.info('\n=================================')
     logging.info('Analyzing models\' reward weights for {} results...'.format(len(file_names)))
 
-    # performs cluster of reward weights
+    # performs clustering of reward weights
     results = [analyzer.results[filename] for filename in file_names]
     clustering, thetas = cluster_linear_rewards(results, linkage, dist_threshold, stds)
 
@@ -106,6 +107,11 @@ def cluster_reward_weights(analyzer, output_dir,
         'Internal subject ID': subject_ids, 'File name': file_names, 'Game player name': player_names})
     save_clusters_info(clustering, extra_info,
                        thetas, os.path.join(output_dir, 'clusters.csv'), rwd_feat_names)
+
+    # individual rwd weights
+    thetas = np.array([result.stats[THETA_STR] for result in results])
+    ind_df = pd.DataFrame(list(zip(file_names, *thetas.T.tolist())), columns=['File name'] + rwd_feat_names)
+    ind_df.to_csv(os.path.join(output_dir, 'individual-weights.csv'), index=False)
 
     # cluster sizes
     cluster_sizes = OrderedDict({str(cluster): len(clusters[cluster]) for cluster in sorted(clusters.keys())})
