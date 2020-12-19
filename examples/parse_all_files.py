@@ -1,11 +1,11 @@
 import argparse
+import copy
 import os
-from collections import OrderedDict
+from model_learning.util.io import get_files_with_extension, create_clear_dir, change_log_handler
+from atomic.model_learning.linear.post_process.players_data import process_players_data
 from atomic.definitions import world_map
 from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
-from model_learning.util.io import get_files_with_extension, create_clear_dir, change_log_handler
-from model_learning.util.plot import plot_bar
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -21,21 +21,31 @@ world_map.MODEL_LIGHTS = False
 class TrajectoryAnalyzer(Replayer):
     parser_class = TrajectoryParser
 
-    def __init__(self, replays, maps=None):
+    def __init__(self, replays, maps=None, img_format='pdf'):
         super().__init__(replays, maps, {}, create_observer=False)
+        self.img_format = img_format
 
         self.trajectories = {}
         self.subject_ids = {}
+        self.agent_names = {}
+        self.map_tables = {}
+        self.trial_conditions = {}
 
     def post_replay(self):
         # registers trajectory and subject identifier
         self.logger.info(
             'Parsed trajectory of length {} for: {}'.format(len(self.parser.trajectory), self.parser.filename))
         self.trajectories[self.parser.filename] = self.parser.trajectory
-        self.subject_ids[self.parser.filename] = \
-            '{}-{}'.format(self.conditions[SUBJECT_ID_TAG], self.conditions[COND_MAP_TAG][0]) \
-                if SUBJECT_ID_TAG in self.conditions and COND_MAP_TAG in self.conditions else \
-                self.parser.player_name()
+        self.agent_names[self.parser.filename] = self.parser.player_name()
+        self.map_tables[self.parser.filename] = self.map_table
+        self.trial_conditions[self.parser.filename] = copy.deepcopy(self.conditions)
+
+    def get_player_name(self, filename):
+        # get player name if possible from the conditions dict
+        conditions = self.trial_conditions[filename]
+        if SUBJECT_ID_TAG in conditions and COND_MAP_TAG in conditions:
+            return '{}-{}'.format(conditions[SUBJECT_ID_TAG], conditions[COND_MAP_TAG][0])
+        return self.agent_names[filename]
 
 
 if __name__ == '__main__':
@@ -57,15 +67,11 @@ if __name__ == '__main__':
 
     # create output and log file
     create_clear_dir(args.output, False)
-    change_log_handler(os.path.join(args.output, 'learning.log'))
+    change_log_handler(os.path.join(args.output, 'parsing.log'))
 
     # create replayer and process all files
     analyzer = TrajectoryAnalyzer(files)
     analyzer.process_files()
 
-    # creates plot with trajectories' lengths
-    files = sorted(analyzer.trajectories.keys())
-    lengths = [len(analyzer.trajectories[filename]) for filename in files]
-    subject_ids = [analyzer.subject_ids[filename] for filename in files]
-    traj_len_data = OrderedDict(zip(subject_ids, lengths))
-    plot_bar(traj_len_data, 'Player Trajectory Length', os.path.join(args.output, 'length.pdf'), show=True)
+    # prints some charts about data
+    process_players_data(analyzer, args.output)

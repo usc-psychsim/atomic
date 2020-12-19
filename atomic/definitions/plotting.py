@@ -13,7 +13,7 @@ from psychsim.world import World
 from model_learning.util.plot import distinct_colors, plot_bar
 from atomic.definitions.features import get_num_victims_location_key, get_location_key
 from atomic.definitions.victims import GOLD_STR, GREEN_STR, RED_STR, WHITE_STR
-from atomic.model_learning.stats import get_location_frequencies, get_action_frequencies
+from atomic.model_learning.stats import get_actions_frequencies, get_locations_frequencies
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -139,21 +139,8 @@ def plot_agent_location_frequencies(
     :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
     """
     # gets agent's visitation frequency for all locations
-    data = get_location_frequencies(agent, trajectories, locations)
-    plot_location_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title), plot_mean, plot_error)
-
-
-def plot_location_frequencies(data, output_img, title, plot_mean=True, plot_error=True):
-    """
-    Generates a plot with the visitation frequency for each location in the environment.
-    :param dict[str, float or list[float]] data: a dictionary containing the number of executions for each action.
-    :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
-    :param str title: the plot's title.
-    :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
-    :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
-    :return:
-    """
-    plot_bar(data, title, output_img, None, plot_mean, plot_error, y_label='Frequency')
+    data = get_locations_frequencies(trajectories, agent, locations)
+    plot_bar(data, '{}\'s {}'.format(agent.name, title), output_img, None, plot_mean, plot_error, y_label='Frequency')
 
 
 def plot_agent_action_frequencies(
@@ -167,22 +154,9 @@ def plot_agent_action_frequencies(
     :param str title: the plot's title.
     :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
     """
-    data = get_action_frequencies(agent, trajectories)
+    data = get_actions_frequencies(trajectories, agent)
     data = OrderedDict({str(a).replace('{}-'.format(agent.name), '').replace('_', ' '): val for a, val in data.items()})
-    plot_action_frequencies(data, output_img, '{}\'s {}'.format(agent.name, title), plot_mean)
-
-
-def plot_action_frequencies(data, output_img, title, plot_mean=True, plot_error=True):
-    """
-    Generates a plot with the agent's action execution frequency for each action.
-    :param dict[str, float or list[float]] data: a dictionary containing the number of executions for each action.
-    :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
-    :param str title: the plot's title.
-    :param bool plot_mean: whether to plot a horizontal line across the bar chart denoting the mean of the values.
-    :param bool plot_error: whether to plot error bars (requires input `data` to be 2-dimensional for each entry).
-    :return:
-    """
-    plot_bar(data, title, output_img, None, plot_mean, plot_error, y_label='Frequency')
+    plot_bar(data, '{}\'s {}'.format(agent.name, title), output_img, None, plot_mean, y_label='Frequency')
 
 
 def _plot(world, locations, neighbors, output_img, coordinates,
