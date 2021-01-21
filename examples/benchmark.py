@@ -132,7 +132,7 @@ if __name__ == '__main__':
         logging.info('Provided replay path is not a valid file or directory: {}.'.format(args.replays))
 
     # create replayer and process all files
-    if False:#len(files) > 0:
+    if len(files) > 0:
         replayer = BenchmarkReplayer(files)
         replayer.process_files()
 
