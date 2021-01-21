@@ -8,6 +8,7 @@ from collections import OrderedDict
 from timeit import default_timer as timer
 from atomic.definitions import victims, world_map
 from atomic.definitions.map_utils import get_default_maps
+from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.scenarios.single_player import make_single_player_world
@@ -37,6 +38,20 @@ PROCESSES = None
 MAP_NAME = 'FalconEasy'
 PLAYER_NAME = 'Player'
 FULL_OBS = True
+
+REWARD_WEIGHTS = np.array([
+    0,  # Before Mid
+    0,  # After Mid
+    0,  # Loc Freq
+    0.5,  # Triaged Green
+    0.5,  # Triaged Gold
+    0,  # See White
+    0,  # See Red
+    0,  # Move N
+    0,  # Move E
+    0,  # Move S
+    0  # Move W
+])
 
 
 def _signal_traj_completion():
@@ -117,7 +132,7 @@ if __name__ == '__main__':
         logging.info('Provided replay path is not a valid file or directory: {}.'.format(args.replays))
 
     # create replayer and process all files
-    if len(files) > 0:
+    if False:#len(files) > 0:
         replayer = BenchmarkReplayer(files)
         replayer.process_files()
 
@@ -155,6 +170,11 @@ if __name__ == '__main__':
         agent.setAttribute('rationality', args.rationality)
         agent.setAttribute('selection', args.selection)
         agent.setAttribute('horizon', args.horizon)
+
+        # set agent rwd function
+        rwd_vector = create_reward_vector(agent, map_table.rooms_list, world_map.moveActions[agent.name])
+        rwd_vector.set_rewards(agent, REWARD_WEIGHTS)
+        logging.info('Set reward vector: {}'.format(dict(zip(rwd_vector.names, REWARD_WEIGHTS))))
 
         # generate trajectories
         logging.info('Generating {} trajectories of length {} using {} parallel processes...'.format(
