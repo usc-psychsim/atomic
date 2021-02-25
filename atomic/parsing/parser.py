@@ -300,7 +300,6 @@ class ProcessCSV(object):
         """
         Run actions and flag resetting events in the order they're given. No notion of timestamps
         """
-
         self.logger.debug(self.actions[start])
         if start == 0:
             [actOrEvFlag, actEv, stamp, duration, attempt] = self.actions[0]
@@ -314,10 +313,10 @@ class ProcessCSV(object):
                 if type(actEv) == ActionSet:
                     world.step(actEv)
                 else:
-                    world.setState(self.human, 'loc', actEv[0])
-                    world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
-                    world.setState(self.human, 'locvisits_' + actEv[0], 1)
-                    world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
+                    world.setState(self.human, 'loc', actEv[0], recurse=True)
+#                    world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
+                    world.setState(self.human, 'locvisits_' + actEv[0], 1, recurse=True)
+#                    world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
             start = 1
 
         for t, actEvent in enumerate(self.actions[start:end]):
@@ -328,6 +327,9 @@ class ProcessCSV(object):
                 input('press any key.. ')
             if actEvent[0] == ACTION:
                 act = actEvent[1][0]
+                for model in world.getModel(self.human).domain():
+                    if act not in world.agents[self.human].getLegalActions(world.agents[self.human].models[model]['beliefs']):
+                        logging.warning('Action {} not believed to be legal under model {}'.format(act, model))
                 legal_choices = world.agents[self.human].getLegalActions() 
                 if act not in legal_choices:
                     raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(act, t+start, 
