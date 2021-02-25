@@ -95,11 +95,11 @@ class AnalysisParser(ProcessCSV):
             t = world.getState(WORLD, 'seconds', unique=True)
         else:
             t = log_entry[2]
-        if len(self.prediction_data) == 0 or self.prediction_data[-1]['Timestep'] != t:
-            # No prediction for this timestep yet
-            for color, prob in self.next_victim(world).items():
-                entry = {'Timestep': t, 'Belief': prob, 'Color': color}
-                self.prediction_data.append(entry)
+#        if len(self.prediction_data) == 0 or self.prediction_data[-1]['Timestep'] != t:
+#            # No prediction for this timestep yet
+#            for color, prob in self.next_victim(world).items():
+#                entry = {'Timestep': t, 'Belief': prob, 'Color': color}
+#                self.prediction_data.append(entry)
 
     def post_step(self, world, act, log_entry=None):
         if log_entry is None:
@@ -162,11 +162,16 @@ class Analyzer(Replayer):
             'predictions': self.parser.prediction_data}.items():
             for entry in data:
                 now = entry['Timestep'].to_pydatetime()
-                for t in self.mission_times:
-                    if abs(now - t).total_seconds() < 1:
-                        break
-                else:
-                    raise ValueError('Unable to find mission time for {}'.format(now))
+                epsilon = 1
+                while epsilon > 0:
+                    for t in self.mission_times:
+                        if abs(now - t).total_seconds() < epsilon:
+                            break
+                    else:
+                        # Didn't find a mathing time, so let's be more forgiving
+                        epsilon += 1
+                        continue
+                    epsilon = 0
                 minutes, seconds = self.mission_times[t]
                 assert minutes < 10
                 if data is self.parser.prediction_data and minutes < 5:
@@ -186,12 +191,13 @@ def load_clusters(fname):
     cluster_map = {}
     raw_weights = {}
     reward_weights = {}
-    condition_map = {}
+    condition_map = {None: {}}
     with open(fname, 'r') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
             cluster = int(row['Cluster'])
-            raw_weights[cluster] = raw_weights.get(cluster, []) + [np.array([float(value) for field, value in row.items() if field not in ignore])]
+            weights = [np.array([float(value) for field, value in row.items() if field not in ignore])]
+            raw_weights[cluster] = raw_weights.get(cluster, []) + weights
             cluster_map[row['Player name']] = cluster
             cluster_map[row['Filename']] = cluster
             condition = filename_to_condition(os.path.splitext(os.path.basename(row['Filename']))[0])
@@ -199,10 +205,16 @@ def load_clusters(fname):
             if cluster not in condition_map:
                 condition_map[cluster] = {}
             condition_map[cluster][condition_label] = condition_map[cluster].get(condition_label, 0) + 1
+            # Update stats for universal cluster
+#            raw_weights[None] = raw_weights.get(None, []) + weights
+            condition_map[None][condition_label] = condition_map[cluster].get(condition_label, 0) + 1
     for cluster, weights in raw_weights.items():
         reward_weights[cluster] = np.mean(weights, axis=0)
         condition_map[cluster] = Distribution(condition_map[cluster])
         condition_map[cluster].normalize()
+    condition_map[None] = Distribution(condition_map[None])
+    condition_map[None].normalize()
+    logging.info('Baseline conditions: {}'.format(', '.join(['P({})={}'.format(c, p) for c, p in sorted(condition_map[None].items())])))
     return reward_weights, cluster_map, condition_map
 
 def apply_cluster_rewards(reward_weights, models=None):
@@ -212,7 +224,10 @@ def apply_cluster_rewards(reward_weights, models=None):
         for cluster, vector in reward_weights.items()}
 
 def model_to_cluster(model):
-    return int(model.split('_')[-2][7:])
+    try:
+        return int(model.split('_')[-2][7:])
+    except ValueError:
+        return None
 
 if __name__ == '__main__':
     # Process command-line arguments
@@ -252,7 +267,7 @@ if __name__ == '__main__':
 
         reward_weights, cluster_map, condition_map = load_clusters(args['clusters'])
         AnalysisParser.condition_dist = condition_map
-        apply_cluster_rewards({0: reward_weights[0]})
+        apply_cluster_rewards(reward_weights)
     elif args['reward_file']:
         import atomic.model_learning.linear.post_process.clustering as clustering
 
