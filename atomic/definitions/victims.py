@@ -22,10 +22,13 @@ FOV_FEATURE = 'vicInFOV'
 # defaults
 COLOR_REWARDS = {'Green': 10, 'Gold': 200}
 COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.8}, 'Gold': {5: 0.2, 15: 0.8}}
-COLOR_EXPIRY = {'Green': int(10 * 60), 'Gold': int(7 * 60)}
+COLOR_EXPIRY = {'Green': int(15 * 60), 'Gold': int(5 * 60)}
 COLOR_PRIOR_P = {'Green': 0, 'Gold': 0}
 COLOR_FOV_P = {'Green': 0, 'Gold': 0, 'Red': 0, 'White': 0}
 PROB_NO_BEEP = 0.01
+
+# based on average times from parsing the data
+SEARCH_TIME_INC = 5
 
 
 class Victims(object):
@@ -192,6 +195,9 @@ class Victims(object):
         self.world.setDynamics(saved_key, action, makeTree(dynamicsMatrix(saved_key, diff)))
         self.world.setDynamics(saved_key, True, makeTree(setFalseMatrix(saved_key)))  # default: set to False
 
+        # increment time
+        self.world.setDynamics(self.world.time, action, makeTree(incrementMatrix(self.world.time, threshold)))
+
         self.triageActs[agent.name][color] = action
 
     @staticmethod
@@ -269,27 +275,22 @@ class Victims(object):
     def makeSearchAction(self, agent):
         action = agent.addAction({'verb': 'search'})
 
-        # A victim can randomly appear in FOV
+        # default: FOV is none
         fov_key = stateKey(agent.name, FOV_FEATURE)
+        self.world.setDynamics(fov_key, True, makeTree(setToConstantMatrix(fov_key, 'none')))
+
+        # A victim can randomly appear in FOV
         fov_tree = self.makeRandomFOVDistr(agent)
         self.world.setDynamics(fov_key, action, makeTree(fov_tree))
-        self.world.setDynamics(fov_key, True, makeTree(setToConstantMatrix(fov_key, 'none')))  # default: FOV is none
+
+        # increment time
+        self.world.setDynamics(self.world.time, action, makeTree(incrementMatrix(self.world.time, SEARCH_TIME_INC)))
 
         self.searchActs[agent.name] = action
 
     def makeExpiryDynamics(self):
-        # set every player's FOV to RED if they are seeing a victim
+        # # set every player's FOV to RED if they are seeing a victim after it has expired
         vic_colors = [color for color in self.color_names if color not in {WHITE_STR, RED_STR}]
-        for agent in self.triageActs.keys():
-            fovKey = stateKey(agent, FOV_FEATURE)
-            deathTree = {'if': equalRow(fovKey, vic_colors),
-                         None: noChangeMatrix(fovKey)}
-            for i, color in enumerate(vic_colors):
-                expire = self.color_expiry[color]
-                deathTree[i] = {'if': thresholdRow(self.world.time, expire),
-                                True: setToConstantMatrix(fovKey, 'Red'),
-                                False: noChangeMatrix(fovKey)}
-            self.world.setDynamics(fovKey, True, makeTree(deathTree))
 
         # update victim loc counters
         for loc in self.world_map.all_locations:

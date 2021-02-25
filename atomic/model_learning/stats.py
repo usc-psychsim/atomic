@@ -1,54 +1,98 @@
-import copy
 import numpy as np
 from collections import OrderedDict
 from psychsim.agent import Agent
 from psychsim.probability import Distribution
 from psychsim.world import World
-from atomic.definitions.features import get_num_visits_location_key
+from atomic.definitions.features import get_num_visits_location_key, get_mission_seconds_key
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
 
 
-def get_location_frequencies(agent, trajectories, locations):
+def get_locations_frequencies(trajectories, agents, locations):
     """
     Gets the visitation frequencies of the agent for each location according to the provided trajectories.
-    :param Agent agent: the agent whose visitation frequency we want to retrieve.
-    :param list[list[tuple[World, Distribution]]] trajectories: the set of trajectories containing sequences of
-    state-action pairs.
+    :param list[list[(World, Distribution)]] trajectories: the set of trajectories, containing sequences of state-action pairs.
+    :param Agent or list[Agent] agents: a list with the agent for each trajectory set whose location frequencies we want to retrieve.
     :param list[str] locations: the list of possible world locations.
     :rtype: dict[str,float]
     :return: the visitation frequencies for each location.
     """
-    world = agent.world
+    if isinstance(agents, Agent):
+        agents = [agents] * len(trajectories)
+    assert len(trajectories) == len(agents), 'One agent per set of trajectories has to be provided'
+
     data = np.zeros(len(locations))
-    for trajectory in trajectories:
+    for i in range(len(trajectories)):
+        world = trajectories[i][-1][0]
         traj_data = []
         for loc in locations:
-            freq_feat = get_num_visits_location_key(agent, loc)
-            state = copy.deepcopy(trajectory[-1][0].state)
-            state.select(True)
-            freq = world.getFeature(freq_feat, state, True)
-            traj_data.append(freq)
+            loc_freq_feat = get_num_visits_location_key(agents[i], loc)
+            traj_data.append(world.getFeature(loc_freq_feat).expectation())
         data += traj_data
-    data = dict(zip(locations, data))
-    return data
+    return dict(zip(locations, data))
 
 
-def get_action_frequencies(agent, trajectories):
+def get_actions_frequencies(trajectories, agents):
     """
-    Gets the action-execution frequencies of the agent according to the provided trajectories.
-    :param Agent agent: the agent whose execution frequency we want to retrieve.
-    :param list[list[tuple[World, Distribution]]] trajectories: the set of trajectories containing sequences of
-    state-action pairs.
-    :rtype: dict[str,float]
-    :return: the execution frequencies for each action.
+    Gets the mean action execution frequencies for each agent in the given trajectories.
+    :param list[list[(World, Distribution)]] trajectories: the set of trajectories, containing sequences of state-action pairs.
+    :param Agent or list[Agent] agents: a list with the agent for each trajectory set whose execution frequency we want to retrieve.
+    :rtype: dict[str,(float,float)]
+    :return: the mean and std error action execution frequencies per agent.
     """
-    # gets action execution frequencies
-    actions = sorted(agent.actions, key=lambda a: str(a))
-    data = OrderedDict({a: 0 for a in actions})
-    for trajectory in trajectories:
-        for _, dist in trajectory:
-            for a, p in dist.items():
-                data[a] += p
-    return data
+    if isinstance(agents, Agent):
+        agents = [agents] * len(trajectories)
+    assert len(trajectories) == len(agents), 'One agent per set of trajectories has to be provided'
+
+    data = {}
+    for i in range(len(trajectories)):
+        # collect agent data
+        ag_data = {}
+        for _, a_dist in trajectories[i]:
+            for a, p in a_dist.items():
+                a = str(a).replace('{}-'.format(agents[i].name), '').replace('_', ' ')  # get clean action name
+                if a not in ag_data:
+                    ag_data[a] = 0.
+                ag_data[a] += p
+
+        for a, freq in ag_data.items():
+            if a not in data:
+                data[a] = []
+            data[a].append(freq)
+
+    # get mean and std err per agent
+    return OrderedDict({a: [np.mean(data[a]), np.std(data[a]) / len(data[a])] for a in sorted(data)})
+
+
+def get_actions_durations(trajectories, agents):
+    """
+    Gets the average durations of actions according to the given trajectories.
+    :param list[list[(World, Distribution)]] trajectories: the set of trajectories, containing sequences of state-action pairs.
+    :param Agent or list[Agent] agents: a list with the agent for each trajectory set whose actions durations we want to retrieve.
+    :rtype: dict[str,(float,float)]
+    :return: the mean and std error action duration.
+    """
+    if isinstance(agents, Agent):
+        agents = [agents] * len(trajectories)
+    assert len(trajectories) == len(agents), 'One agent per set of trajectories has to be provided'
+
+    data = {}
+    clock_key = get_mission_seconds_key()
+    for i in range(len(trajectories)):
+        trajectory = trajectories[i]
+        for t in range(len(trajectory) - 1):
+
+            # compute clock diff
+            duration = trajectory[t + 1][0].getFeature(clock_key, unique=True) - \
+                       trajectory[t][0].getFeature(clock_key, unique=True)
+
+            # get action and register duration
+            a_dist = trajectory[t][1]
+            for a, p in a_dist.items():
+                a = str(a).replace('{}-'.format(agents[i].name), '').replace('_', ' ') # get clean action name
+                if a not in data:
+                    data[a] = []
+                data[a].append(p * duration)
+
+    return OrderedDict({a: [np.mean(data[a]), np.std(data[a]) / len(data[a])] for a in sorted(data)})

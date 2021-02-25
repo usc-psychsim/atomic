@@ -1,14 +1,13 @@
 import copy
 import os
 import logging
-import numpy as np
 from collections import OrderedDict
 from model_learning.util.io import create_clear_dir, change_log_handler
 from model_learning.util.plot import plot_bar
 from atomic.definitions.features import get_mission_seconds_key
-from atomic.definitions.plotting import plot_location_frequencies, plot_action_frequencies, plot_trajectories
+from atomic.definitions.plotting import plot_trajectories
 from atomic.model_learning.linear.analyzer import RewardModelAnalyzer
-from atomic.model_learning.stats import get_location_frequencies, get_action_frequencies
+from atomic.model_learning.stats import get_actions_frequencies, get_actions_durations, get_locations_frequencies
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -26,7 +25,7 @@ def process_players_data(analyzer, output_dir, clear=False, verbosity=1):
     create_clear_dir(output_dir, clear)
     change_log_handler(os.path.join(output_dir, 'post-process.log'), verbosity)
 
-    file_names = list(analyzer.results)
+    file_names = list(analyzer.trajectories)
     logging.info('\n=================================')
     logging.info('Analyzing mean player behavior for {} results...'.format(len(file_names)))
 
@@ -46,28 +45,22 @@ def process_players_data(analyzer, output_dir, clear=False, verbosity=1):
         agents = [trajectories[i][-1][0].agents[analyzer.agent_names[files[i]]] for i in range(len(files))]
 
         # saves mean location frequencies
-        location_data = [get_location_frequencies(agents[i], [trajectories[i]], map_table.rooms_list)
-                         for i in range(len(files))]
-        location_data = {loc: [np.mean([loc_freqs[loc] for loc_freqs in location_data]),
-                               np.std([loc_freqs[loc] for loc_freqs in location_data]) / len(location_data)]
-                         for loc in locations}
-        plot_location_frequencies(
-            location_data, os.path.join(output_dir, '{}-loc-frequencies.{}'.format(map_name, analyzer.img_format)),
-            'Mean Location Visitation Frequencies')
+        location_data = get_locations_frequencies(trajectories, agents, locations)
+        plot_bar(location_data, 'Mean Location Visitation Frequencies',
+                 os.path.join(output_dir, '{}-loc-frequencies.{}'.format(map_name, analyzer.img_format)),
+                 y_label='Frequency')
 
         # saves mean action frequencies
-        act_data = [get_action_frequencies(agents[i], [trajectories[i]]) for i in range(len(files))]
-        act_data = [{str(a).replace('{}-'.format(agents[i].name), '').replace('_', ' '): val
-                     for a, val in act_data[i].items()}
-                    for i in range(len(act_data))]
-        all_actions = sorted(set([a for act_freqs in act_data for a in act_freqs]))
-        act_data = OrderedDict({
-            act: [np.mean([act_freqs[act] for act_freqs in act_data if act in act_freqs]),
-                  np.std([act_freqs[act] for act_freqs in act_data if act in act_freqs]) / len(act_data)]
-            for act in all_actions})
-        plot_action_frequencies(
-            act_data, os.path.join(output_dir, '{}-action-frequencies.{}'.format(map_name, analyzer.img_format)),
-            'Mean Action Execution Frequencies')
+        act_data = get_actions_frequencies(trajectories, agents)
+        plot_bar(act_data, 'Mean Action Execution Frequencies',
+                 os.path.join(output_dir, '{}-action-frequencies.{}'.format(map_name, analyzer.img_format)),
+                 y_label='Frequency')
+
+        # saves mean action durations
+        act_data = get_actions_durations(trajectories, agents)
+        plot_bar(act_data, 'Mean Action Durations',
+                 os.path.join(output_dir, '{}-action-durations.{}'.format(map_name, analyzer.img_format)),
+                 y_label='Duration (secs)')
 
         # saves all player trajectories
         plot_trajectories(agents, trajectories, locations, map_table.adjacency,
