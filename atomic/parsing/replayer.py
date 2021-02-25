@@ -207,3 +207,13 @@ def filename_to_condition(fname):
         except ValueError:
             continue
     return result
+
+def find_trial(trial, log_dir):
+    """
+    :return: the filename in the given log directory for the given trial
+    """
+    for fname in os.listdir(log_dir):
+        if int(filename_to_condition(os.path.join(log_dir, fname))['Trial']) == trial:
+            return fname
+    else:
+        raise ValueError('Unable to find a file for log {} in {}'.format(trial, log_dir))
