@@ -7,7 +7,7 @@ from psychsim.probability import Distribution
 from psychsim.pwl import modelKey
 
 # Possible player model parameterizations
-DEFAULT_MODELS = {'horizon': {'myopic': 2, 'strategic': 4},
+DEFAULT_MODELS = {'horizon': {'myopic': 1, 'strategic': 4},
                   'reward': {'preferyellow': {'Green': 1, 'Gold': 3}, 'nopreference': {'Green': 1, 'Gold': 1}},
                   'rationality': {'unskilled': 0.5, 'skilled': 1}}
 DEFAULT_IGNORE = ['horizon', 'rationality']
@@ -61,7 +61,7 @@ def set_player_models(world, observer_name, player_name, victims, param_list):
         else:
             for feature, weight in param_dict['reward'].items():
                 feature.set_reward(player, weight, model_name)
-        player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
+        beliefs = player.resetBelief(model=model_name, ignore={modelKey(observer.name)})
 
     # observer has uniform prior distribution over possible player models
     if len(player.models) > 1:
