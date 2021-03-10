@@ -11000,7 +11000,7 @@
    "facing": "south"
   },
   {
-   "id": "vg1",
+   "id": "vg0",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11013,7 +11013,7 @@
    }
   },
   {
-   "id": "vg2",
+   "id": "vg1",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11026,7 +11026,7 @@
    }
   },
   {
-   "id": "vg3",
+   "id": "vg2",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11039,7 +11039,7 @@
    }
   },
   {
-   "id": "vg4",
+   "id": "vg3",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11052,7 +11052,7 @@
    }
   },
   {
-   "id": "vg5",
+   "id": "vg4",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11065,7 +11065,7 @@
    }
   },
   {
-   "id": "vg6",
+   "id": "vg5",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11078,7 +11078,7 @@
    }
   },
   {
-   "id": "vg7",
+   "id": "vg6",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11086,6 +11086,19 @@
      {
       "x": "-2193",
       "z": "2"
+     }
+    ]
+   }
+  },
+  {
+   "id": "vg7",
+   "type": "green_victim",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2209",
+      "z": "39"
      }
     ]
    }
@@ -11098,26 +11111,13 @@
     "coordinates": [
      {
       "x": "-2209",
-      "z": "39"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg9",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2209",
       "z": "33"
      }
     ]
    }
   },
   {
-   "id": "vg10",
+   "id": "vg9",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11130,7 +11130,7 @@
    }
   },
   {
-   "id": "vg11",
+   "id": "vg10",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11143,7 +11143,7 @@
    }
   },
   {
-   "id": "vg12",
+   "id": "vg11",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11156,7 +11156,7 @@
    }
   },
   {
-   "id": "vg13",
+   "id": "vg12",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11169,7 +11169,7 @@
    }
   },
   {
-   "id": "vg14",
+   "id": "vg13",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11182,7 +11182,7 @@
    }
   },
   {
-   "id": "vg15",
+   "id": "vg14",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11195,7 +11195,7 @@
    }
   },
   {
-   "id": "vg16",
+   "id": "vg15",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11203,6 +11203,19 @@
      {
       "x": "-2187",
       "z": "4"
+     }
+    ]
+   }
+  },
+  {
+   "id": "vg16",
+   "type": "green_victim",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2184",
+      "z": "7"
      }
     ]
    }
@@ -11215,26 +11228,13 @@
     "coordinates": [
      {
       "x": "-2184",
-      "z": "7"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg18",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2184",
       "z": "44"
      }
     ]
    }
   },
   {
-   "id": "vg19",
+   "id": "vg18",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11247,7 +11247,7 @@
    }
   },
   {
-   "id": "vg20",
+   "id": "vg19",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11260,7 +11260,7 @@
    }
   },
   {
-   "id": "vg21",
+   "id": "vg20",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11273,7 +11273,7 @@
    }
   },
   {
-   "id": "vg22",
+   "id": "vg21",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11286,7 +11286,7 @@
    }
   },
   {
-   "id": "vg23",
+   "id": "vg22",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11299,7 +11299,7 @@
    }
   },
   {
-   "id": "vg24",
+   "id": "vg23",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11312,7 +11312,7 @@
    }
   },
   {
-   "id": "vg25",
+   "id": "vg24",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11325,7 +11325,7 @@
    }
   },
   {
-   "id": "vg26",
+   "id": "vg25",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11338,7 +11338,7 @@
    }
   },
   {
-   "id": "vg27",
+   "id": "vg26",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11351,7 +11351,7 @@
    }
   },
   {
-   "id": "vg28",
+   "id": "vg27",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11364,7 +11364,7 @@
    }
   },
   {
-   "id": "vg29",
+   "id": "vg28",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11377,7 +11377,7 @@
    }
   },
   {
-   "id": "vg30",
+   "id": "vg29",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11390,7 +11390,7 @@
    }
   },
   {
-   "id": "vg31",
+   "id": "vg30",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11403,7 +11403,7 @@
    }
   },
   {
-   "id": "vg32",
+   "id": "vg31",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11416,7 +11416,7 @@
    }
   },
   {
-   "id": "vg33",
+   "id": "vg32",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11429,7 +11429,7 @@
    }
   },
   {
-   "id": "vg34",
+   "id": "vg33",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11437,6 +11437,19 @@
      {
       "x": "-2124",
       "z": "11"
+     }
+    ]
+   }
+  },
+  {
+   "id": "vg34",
+   "type": "green_victim",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2130",
+      "z": "22"
      }
     ]
    }
@@ -11449,7 +11462,7 @@
     "coordinates": [
      {
       "x": "-2130",
-      "z": "22"
+      "z": "42"
      }
     ]
    }
@@ -11461,8 +11474,8 @@
     "type": "block",
     "coordinates": [
      {
-      "x": "-2130",
-      "z": "42"
+      "x": "-2122",
+      "z": "47"
      }
     ]
    }
@@ -11475,26 +11488,13 @@
     "coordinates": [
      {
       "x": "-2122",
-      "z": "47"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg38",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2122",
       "z": "10"
      }
     ]
    }
   },
   {
-   "id": "vg39",
+   "id": "vg38",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11507,7 +11507,7 @@
    }
   },
   {
-   "id": "vg40",
+   "id": "vg39",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11515,6 +11515,19 @@
      {
       "x": "-2114",
       "z": "19"
+     }
+    ]
+   }
+  },
+  {
+   "id": "vg40",
+   "type": "green_victim",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2109",
+      "z": "20"
      }
     ]
    }
@@ -11527,7 +11540,7 @@
     "coordinates": [
      {
       "x": "-2109",
-      "z": "20"
+      "z": "42"
      }
     ]
    }
@@ -11540,7 +11553,7 @@
     "coordinates": [
      {
       "x": "-2109",
-      "z": "42"
+      "z": "44"
      }
     ]
    }
@@ -11552,8 +11565,8 @@
     "type": "block",
     "coordinates": [
      {
-      "x": "-2109",
-      "z": "44"
+      "x": "-2107",
+      "z": "46"
      }
     ]
    }
@@ -11565,8 +11578,8 @@
     "type": "block",
     "coordinates": [
      {
-      "x": "-2107",
-      "z": "46"
+      "x": "-2101",
+      "z": "54"
      }
     ]
    }
@@ -11579,26 +11592,13 @@
     "coordinates": [
      {
       "x": "-2101",
-      "z": "54"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg46",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2101",
       "z": "33"
      }
     ]
    }
   },
   {
-   "id": "vg47",
+   "id": "vg46",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11611,7 +11611,7 @@
    }
   },
   {
-   "id": "vg48",
+   "id": "vg47",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11624,7 +11624,7 @@
    }
   },
   {
-   "id": "vg49",
+   "id": "vg48",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11637,7 +11637,7 @@
    }
   },
   {
-   "id": "vg50",
+   "id": "vg49",
    "type": "green_victim",
    "bounds": {
     "type": "block",
@@ -11650,7 +11650,7 @@
    }
   },
   {
-   "id": "vy51",
+   "id": "vy50",
    "type": "yellow_victim",
    "bounds": {
     "type": "block",
@@ -11663,7 +11663,7 @@
    }
   },
   {
-   "id": "vy52",
+   "id": "vy51",
    "type": "yellow_victim",
    "bounds": {
     "type": "block",
@@ -11676,7 +11676,7 @@
    }
   },
   {
-   "id": "vy53",
+   "id": "vy52",
    "type": "yellow_victim",
    "bounds": {
     "type": "block",
@@ -11689,25 +11689,25 @@
    }
   },
   {
+   "id": "vy53",
+   "type": "yellow_victim",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2109",
+      "z": "22"
+     }
+    ]
+   }
+  },
+  {
    "id": "vy54",
    "type": "yellow_victim",
    "bounds": {
     "type": "block",
     "coordinates": [
      {
-      "x": "-2109",
-      "z": "22"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vy55",
-   "type": "yellow_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
       "x": "-2092",
       "z": "18"
      }
@@ -11715,8 +11715,8 @@
    }
   },
   {
-   "id": "vg56",
-   "type": "green_victim",
+   "id": "rb0",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11728,8 +11728,8 @@
    }
   },
   {
-   "id": "vg57",
-   "type": "green_victim",
+   "id": "rb1",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11741,8 +11741,8 @@
    }
   },
   {
-   "id": "vg58",
-   "type": "green_victim",
+   "id": "rb2",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11754,8 +11754,8 @@
    }
   },
   {
-   "id": "vg59",
-   "type": "green_victim",
+   "id": "rb3",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11767,8 +11767,8 @@
    }
   },
   {
-   "id": "vg60",
-   "type": "green_victim",
+   "id": "rb4",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11780,8 +11780,8 @@
    }
   },
   {
-   "id": "vg61",
-   "type": "green_victim",
+   "id": "rb5",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11793,8 +11793,8 @@
    }
   },
   {
-   "id": "vg62",
-   "type": "green_victim",
+   "id": "rb6",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11806,8 +11806,8 @@
    }
   },
   {
-   "id": "vg63",
-   "type": "green_victim",
+   "id": "rb7",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11819,8 +11819,8 @@
    }
   },
   {
-   "id": "vg64",
-   "type": "green_victim",
+   "id": "rb8",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11832,8 +11832,8 @@
    }
   },
   {
-   "id": "vg65",
-   "type": "green_victim",
+   "id": "rb9",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11845,8 +11845,8 @@
    }
   },
   {
-   "id": "vg66",
-   "type": "green_victim",
+   "id": "rb10",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11858,8 +11858,8 @@
    }
   },
   {
-   "id": "vg67",
-   "type": "green_victim",
+   "id": "rb11",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11871,21 +11871,8 @@
    }
   },
   {
-   "id": "vg68",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2215",
-      "z": "30"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg69",
-   "type": "green_victim",
+   "id": "rb12",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11897,8 +11884,21 @@
    }
   },
   {
-   "id": "vg70",
-   "type": "green_victim",
+   "id": "rb13",
+   "type": "rubble",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2215",
+      "z": "30"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rb14",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11910,8 +11910,8 @@
    }
   },
   {
-   "id": "vg71",
-   "type": "green_victim",
+   "id": "rb15",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11923,8 +11923,8 @@
    }
   },
   {
-   "id": "vg72",
-   "type": "green_victim",
+   "id": "rb16",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11936,8 +11936,8 @@
    }
   },
   {
-   "id": "vg73",
-   "type": "green_victim",
+   "id": "rb17",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11949,8 +11949,8 @@
    }
   },
   {
-   "id": "vg74",
-   "type": "green_victim",
+   "id": "rb18",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11962,8 +11962,8 @@
    }
   },
   {
-   "id": "vg75",
-   "type": "green_victim",
+   "id": "rb19",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11975,8 +11975,8 @@
    }
   },
   {
-   "id": "vg76",
-   "type": "green_victim",
+   "id": "rb20",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -11988,8 +11988,8 @@
    }
   },
   {
-   "id": "vg77",
-   "type": "green_victim",
+   "id": "rb21",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12001,8 +12001,8 @@
    }
   },
   {
-   "id": "vg78",
-   "type": "green_victim",
+   "id": "rb22",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12014,8 +12014,8 @@
    }
   },
   {
-   "id": "vg79",
-   "type": "green_victim",
+   "id": "rb23",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12027,8 +12027,8 @@
    }
   },
   {
-   "id": "vg80",
-   "type": "green_victim",
+   "id": "rb24",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12040,8 +12040,8 @@
    }
   },
   {
-   "id": "vg81",
-   "type": "green_victim",
+   "id": "rb25",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12053,8 +12053,8 @@
    }
   },
   {
-   "id": "vg82",
-   "type": "green_victim",
+   "id": "rb26",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12066,8 +12066,8 @@
    }
   },
   {
-   "id": "vg83",
-   "type": "green_victim",
+   "id": "rb27",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12079,8 +12079,8 @@
    }
   },
   {
-   "id": "vg84",
-   "type": "green_victim",
+   "id": "rb28",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12092,8 +12092,8 @@
    }
   },
   {
-   "id": "vg85",
-   "type": "green_victim",
+   "id": "rb29",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12105,8 +12105,8 @@
    }
   },
   {
-   "id": "vg86",
-   "type": "green_victim",
+   "id": "rb30",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12118,8 +12118,8 @@
    }
   },
   {
-   "id": "vg87",
-   "type": "green_victim",
+   "id": "rb31",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12131,8 +12131,8 @@
    }
   },
   {
-   "id": "vg88",
-   "type": "green_victim",
+   "id": "rb32",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12144,8 +12144,8 @@
    }
   },
   {
-   "id": "vg89",
-   "type": "green_victim",
+   "id": "rb33",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12157,8 +12157,8 @@
    }
   },
   {
-   "id": "vg90",
-   "type": "green_victim",
+   "id": "rb34",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12170,8 +12170,8 @@
    }
   },
   {
-   "id": "vg91",
-   "type": "green_victim",
+   "id": "rb35",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12183,8 +12183,8 @@
    }
   },
   {
-   "id": "vg92",
-   "type": "green_victim",
+   "id": "rb36",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12196,8 +12196,8 @@
    }
   },
   {
-   "id": "vg93",
-   "type": "green_victim",
+   "id": "rb37",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12209,8 +12209,8 @@
    }
   },
   {
-   "id": "vg94",
-   "type": "green_victim",
+   "id": "rb38",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12222,8 +12222,8 @@
    }
   },
   {
-   "id": "vg95",
-   "type": "green_victim",
+   "id": "rb39",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12235,8 +12235,8 @@
    }
   },
   {
-   "id": "vg96",
-   "type": "green_victim",
+   "id": "rb40",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12248,8 +12248,8 @@
    }
   },
   {
-   "id": "vg97",
-   "type": "green_victim",
+   "id": "rb41",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12261,8 +12261,8 @@
    }
   },
   {
-   "id": "vg98",
-   "type": "green_victim",
+   "id": "rb42",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12274,8 +12274,8 @@
    }
   },
   {
-   "id": "vg99",
-   "type": "green_victim",
+   "id": "rb43",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12287,8 +12287,8 @@
    }
   },
   {
-   "id": "vg100",
-   "type": "green_victim",
+   "id": "rb44",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12300,8 +12300,8 @@
    }
   },
   {
-   "id": "vg101",
-   "type": "green_victim",
+   "id": "rb45",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12313,8 +12313,8 @@
    }
   },
   {
-   "id": "vg102",
-   "type": "green_victim",
+   "id": "rb46",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12326,8 +12326,8 @@
    }
   },
   {
-   "id": "vg103",
-   "type": "green_victim",
+   "id": "rb47",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12339,8 +12339,8 @@
    }
   },
   {
-   "id": "vg104",
-   "type": "green_victim",
+   "id": "rb48",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12352,8 +12352,8 @@
    }
   },
   {
-   "id": "vg105",
-   "type": "green_victim",
+   "id": "rb49",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12365,8 +12365,8 @@
    }
   },
   {
-   "id": "vg106",
-   "type": "green_victim",
+   "id": "rb50",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12378,8 +12378,8 @@
    }
   },
   {
-   "id": "vg107",
-   "type": "green_victim",
+   "id": "rb51",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12391,8 +12391,8 @@
    }
   },
   {
-   "id": "vg108",
-   "type": "green_victim",
+   "id": "rb52",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12404,8 +12404,8 @@
    }
   },
   {
-   "id": "vg109",
-   "type": "green_victim",
+   "id": "rb53",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12417,8 +12417,8 @@
    }
   },
   {
-   "id": "vg110",
-   "type": "green_victim",
+   "id": "rb54",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12430,8 +12430,8 @@
    }
   },
   {
-   "id": "vg111",
-   "type": "green_victim",
+   "id": "rb55",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12443,8 +12443,8 @@
    }
   },
   {
-   "id": "vg112",
-   "type": "green_victim",
+   "id": "rb56",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12456,8 +12456,8 @@
    }
   },
   {
-   "id": "vg113",
-   "type": "green_victim",
+   "id": "rb57",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12469,8 +12469,8 @@
    }
   },
   {
-   "id": "vg114",
-   "type": "green_victim",
+   "id": "rb58",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12482,8 +12482,8 @@
    }
   },
   {
-   "id": "vg115",
-   "type": "green_victim",
+   "id": "rb59",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12495,8 +12495,8 @@
    }
   },
   {
-   "id": "vg116",
-   "type": "green_victim",
+   "id": "rb60",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12508,8 +12508,8 @@
    }
   },
   {
-   "id": "vg117",
-   "type": "green_victim",
+   "id": "rb61",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12521,8 +12521,8 @@
    }
   },
   {
-   "id": "vg118",
-   "type": "green_victim",
+   "id": "rb62",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12534,8 +12534,8 @@
    }
   },
   {
-   "id": "vg119",
-   "type": "green_victim",
+   "id": "rb63",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12547,8 +12547,8 @@
    }
   },
   {
-   "id": "vg120",
-   "type": "green_victim",
+   "id": "rb64",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12560,8 +12560,8 @@
    }
   },
   {
-   "id": "vg121",
-   "type": "green_victim",
+   "id": "rb65",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12573,8 +12573,8 @@
    }
   },
   {
-   "id": "vg122",
-   "type": "green_victim",
+   "id": "rb66",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12586,8 +12586,8 @@
    }
   },
   {
-   "id": "vg123",
-   "type": "green_victim",
+   "id": "rb67",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12599,8 +12599,8 @@
    }
   },
   {
-   "id": "vg124",
-   "type": "green_victim",
+   "id": "rb68",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12612,8 +12612,8 @@
    }
   },
   {
-   "id": "vg125",
-   "type": "green_victim",
+   "id": "rb69",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12625,8 +12625,8 @@
    }
   },
   {
-   "id": "vg126",
-   "type": "green_victim",
+   "id": "rb70",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12638,8 +12638,8 @@
    }
   },
   {
-   "id": "vg127",
-   "type": "green_victim",
+   "id": "rb71",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12651,8 +12651,8 @@
    }
   },
   {
-   "id": "vg128",
-   "type": "green_victim",
+   "id": "rb72",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12664,8 +12664,8 @@
    }
   },
   {
-   "id": "vg129",
-   "type": "green_victim",
+   "id": "rb73",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12677,8 +12677,8 @@
    }
   },
   {
-   "id": "vg130",
-   "type": "green_victim",
+   "id": "rb74",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12690,8 +12690,8 @@
    }
   },
   {
-   "id": "vg131",
-   "type": "green_victim",
+   "id": "rb75",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12703,8 +12703,8 @@
    }
   },
   {
-   "id": "vg132",
-   "type": "green_victim",
+   "id": "rb76",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12716,8 +12716,8 @@
    }
   },
   {
-   "id": "vg133",
-   "type": "green_victim",
+   "id": "rb77",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12729,8 +12729,8 @@
    }
   },
   {
-   "id": "vg134",
-   "type": "green_victim",
+   "id": "rb78",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12742,8 +12742,8 @@
    }
   },
   {
-   "id": "vg135",
-   "type": "green_victim",
+   "id": "rb79",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12755,8 +12755,8 @@
    }
   },
   {
-   "id": "vg136",
-   "type": "green_victim",
+   "id": "rb80",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12768,8 +12768,8 @@
    }
   },
   {
-   "id": "vg137",
-   "type": "green_victim",
+   "id": "rb81",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12781,8 +12781,8 @@
    }
   },
   {
-   "id": "vg138",
-   "type": "green_victim",
+   "id": "rb82",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12794,8 +12794,8 @@
    }
   },
   {
-   "id": "vg139",
-   "type": "green_victim",
+   "id": "rb83",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12807,8 +12807,8 @@
    }
   },
   {
-   "id": "vg140",
-   "type": "green_victim",
+   "id": "rb84",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12820,8 +12820,8 @@
    }
   },
   {
-   "id": "vg141",
-   "type": "green_victim",
+   "id": "rb85",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12833,8 +12833,8 @@
    }
   },
   {
-   "id": "vg142",
-   "type": "green_victim",
+   "id": "rb86",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12846,8 +12846,8 @@
    }
   },
   {
-   "id": "vg143",
-   "type": "green_victim",
+   "id": "rb87",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12859,8 +12859,8 @@
    }
   },
   {
-   "id": "vg144",
-   "type": "green_victim",
+   "id": "rb88",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12872,8 +12872,8 @@
    }
   },
   {
-   "id": "vg145",
-   "type": "green_victim",
+   "id": "rb89",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12885,8 +12885,8 @@
    }
   },
   {
-   "id": "vg146",
-   "type": "green_victim",
+   "id": "rb90",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12898,8 +12898,8 @@
    }
   },
   {
-   "id": "vg147",
-   "type": "green_victim",
+   "id": "rb91",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12911,8 +12911,8 @@
    }
   },
   {
-   "id": "vg148",
-   "type": "green_victim",
+   "id": "rb92",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12924,8 +12924,8 @@
    }
   },
   {
-   "id": "vg149",
-   "type": "green_victim",
+   "id": "rb93",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12937,8 +12937,8 @@
    }
   },
   {
-   "id": "vg150",
-   "type": "green_victim",
+   "id": "rb94",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12950,8 +12950,8 @@
    }
   },
   {
-   "id": "vg151",
-   "type": "green_victim",
+   "id": "rb95",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12963,8 +12963,8 @@
    }
   },
   {
-   "id": "vg152",
-   "type": "green_victim",
+   "id": "rb96",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12976,8 +12976,8 @@
    }
   },
   {
-   "id": "vg153",
-   "type": "green_victim",
+   "id": "rb97",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -12989,8 +12989,8 @@
    }
   },
   {
-   "id": "vg154",
-   "type": "green_victim",
+   "id": "rb98",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13002,8 +13002,8 @@
    }
   },
   {
-   "id": "vg155",
-   "type": "green_victim",
+   "id": "rb99",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13015,8 +13015,8 @@
    }
   },
   {
-   "id": "vg156",
-   "type": "green_victim",
+   "id": "rb100",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13028,8 +13028,8 @@
    }
   },
   {
-   "id": "vg157",
-   "type": "green_victim",
+   "id": "rb101",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13041,8 +13041,8 @@
    }
   },
   {
-   "id": "vg158",
-   "type": "green_victim",
+   "id": "rb102",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13054,8 +13054,8 @@
    }
   },
   {
-   "id": "vg159",
-   "type": "green_victim",
+   "id": "rb103",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13067,8 +13067,8 @@
    }
   },
   {
-   "id": "vg160",
-   "type": "green_victim",
+   "id": "rb104",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13080,8 +13080,8 @@
    }
   },
   {
-   "id": "vg161",
-   "type": "green_victim",
+   "id": "rb105",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13093,8 +13093,8 @@
    }
   },
   {
-   "id": "vg162",
-   "type": "green_victim",
+   "id": "rb106",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13106,8 +13106,8 @@
    }
   },
   {
-   "id": "vg163",
-   "type": "green_victim",
+   "id": "rb107",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13119,8 +13119,8 @@
    }
   },
   {
-   "id": "vg164",
-   "type": "green_victim",
+   "id": "rb108",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13132,8 +13132,8 @@
    }
   },
   {
-   "id": "vg165",
-   "type": "green_victim",
+   "id": "rb109",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13145,8 +13145,8 @@
    }
   },
   {
-   "id": "vg166",
-   "type": "green_victim",
+   "id": "rb110",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13158,8 +13158,8 @@
    }
   },
   {
-   "id": "vg167",
-   "type": "green_victim",
+   "id": "rb111",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13171,8 +13171,8 @@
    }
   },
   {
-   "id": "vg168",
-   "type": "green_victim",
+   "id": "rb112",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13184,8 +13184,8 @@
    }
   },
   {
-   "id": "vg169",
-   "type": "green_victim",
+   "id": "rb113",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13197,8 +13197,8 @@
    }
   },
   {
-   "id": "vg170",
-   "type": "green_victim",
+   "id": "rb114",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13210,8 +13210,8 @@
    }
   },
   {
-   "id": "vg171",
-   "type": "green_victim",
+   "id": "rb115",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13223,8 +13223,8 @@
    }
   },
   {
-   "id": "vg172",
-   "type": "green_victim",
+   "id": "rb116",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13236,8 +13236,8 @@
    }
   },
   {
-   "id": "vg173",
-   "type": "green_victim",
+   "id": "rb117",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13249,8 +13249,8 @@
    }
   },
   {
-   "id": "vg174",
-   "type": "green_victim",
+   "id": "rb118",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13262,8 +13262,8 @@
    }
   },
   {
-   "id": "vg175",
-   "type": "green_victim",
+   "id": "rb119",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13275,8 +13275,8 @@
    }
   },
   {
-   "id": "vg176",
-   "type": "green_victim",
+   "id": "rb120",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13288,8 +13288,8 @@
    }
   },
   {
-   "id": "vg177",
-   "type": "green_victim",
+   "id": "rb121",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13301,8 +13301,8 @@
    }
   },
   {
-   "id": "vg178",
-   "type": "green_victim",
+   "id": "rb122",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13314,8 +13314,8 @@
    }
   },
   {
-   "id": "vg179",
-   "type": "green_victim",
+   "id": "rb123",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13327,8 +13327,8 @@
    }
   },
   {
-   "id": "vg180",
-   "type": "green_victim",
+   "id": "rb124",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13340,8 +13340,8 @@
    }
   },
   {
-   "id": "vg181",
-   "type": "green_victim",
+   "id": "rb125",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13353,8 +13353,8 @@
    }
   },
   {
-   "id": "vg182",
-   "type": "green_victim",
+   "id": "rb126",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13366,8 +13366,8 @@
    }
   },
   {
-   "id": "vg183",
-   "type": "green_victim",
+   "id": "rb127",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13379,8 +13379,8 @@
    }
   },
   {
-   "id": "vg184",
-   "type": "green_victim",
+   "id": "rb128",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13392,8 +13392,8 @@
    }
   },
   {
-   "id": "vg185",
-   "type": "green_victim",
+   "id": "rb129",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13405,8 +13405,8 @@
    }
   },
   {
-   "id": "vg186",
-   "type": "green_victim",
+   "id": "rb130",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13418,8 +13418,8 @@
    }
   },
   {
-   "id": "vg187",
-   "type": "green_victim",
+   "id": "rb131",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13431,8 +13431,8 @@
    }
   },
   {
-   "id": "vg188",
-   "type": "green_victim",
+   "id": "rb132",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13444,8 +13444,8 @@
    }
   },
   {
-   "id": "vg189",
-   "type": "green_victim",
+   "id": "rb133",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13457,8 +13457,8 @@
    }
   },
   {
-   "id": "vg190",
-   "type": "green_victim",
+   "id": "rb134",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13470,8 +13470,8 @@
    }
   },
   {
-   "id": "vg191",
-   "type": "green_victim",
+   "id": "rb135",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13483,8 +13483,8 @@
    }
   },
   {
-   "id": "vg192",
-   "type": "green_victim",
+   "id": "rb136",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13496,8 +13496,8 @@
    }
   },
   {
-   "id": "vg193",
-   "type": "green_victim",
+   "id": "rb137",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13509,8 +13509,8 @@
    }
   },
   {
-   "id": "vg194",
-   "type": "green_victim",
+   "id": "rb138",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13522,8 +13522,8 @@
    }
   },
   {
-   "id": "vg195",
-   "type": "green_victim",
+   "id": "rb139",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13535,8 +13535,8 @@
    }
   },
   {
-   "id": "vg196",
-   "type": "green_victim",
+   "id": "rb140",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13548,8 +13548,8 @@
    }
   },
   {
-   "id": "vg197",
-   "type": "green_victim",
+   "id": "rb141",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13561,8 +13561,8 @@
    }
   },
   {
-   "id": "vg198",
-   "type": "green_victim",
+   "id": "rb142",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13574,8 +13574,8 @@
    }
   },
   {
-   "id": "vg199",
-   "type": "green_victim",
+   "id": "rb143",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13587,8 +13587,8 @@
    }
   },
   {
-   "id": "vg200",
-   "type": "green_victim",
+   "id": "rb144",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13600,8 +13600,8 @@
    }
   },
   {
-   "id": "vg201",
-   "type": "green_victim",
+   "id": "rb145",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13613,8 +13613,8 @@
    }
   },
   {
-   "id": "vg202",
-   "type": "green_victim",
+   "id": "rb146",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13626,8 +13626,8 @@
    }
   },
   {
-   "id": "vg203",
-   "type": "green_victim",
+   "id": "rb147",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13639,8 +13639,8 @@
    }
   },
   {
-   "id": "vg204",
-   "type": "green_victim",
+   "id": "rb148",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13652,8 +13652,8 @@
    }
   },
   {
-   "id": "vg205",
-   "type": "green_victim",
+   "id": "rb149",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13665,8 +13665,8 @@
    }
   },
   {
-   "id": "vg206",
-   "type": "green_victim",
+   "id": "rb150",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13678,8 +13678,8 @@
    }
   },
   {
-   "id": "vg207",
-   "type": "green_victim",
+   "id": "rb151",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13691,8 +13691,8 @@
    }
   },
   {
-   "id": "vg208",
-   "type": "green_victim",
+   "id": "rb152",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13704,8 +13704,8 @@
    }
   },
   {
-   "id": "vg209",
-   "type": "green_victim",
+   "id": "rb153",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13717,8 +13717,8 @@
    }
   },
   {
-   "id": "vg210",
-   "type": "green_victim",
+   "id": "rb154",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13730,8 +13730,8 @@
    }
   },
   {
-   "id": "vg211",
-   "type": "green_victim",
+   "id": "rb155",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13743,8 +13743,8 @@
    }
   },
   {
-   "id": "vg212",
-   "type": "green_victim",
+   "id": "rb156",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13756,8 +13756,8 @@
    }
   },
   {
-   "id": "vg213",
-   "type": "green_victim",
+   "id": "rb157",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13769,8 +13769,8 @@
    }
   },
   {
-   "id": "vg214",
-   "type": "green_victim",
+   "id": "rb158",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13782,8 +13782,8 @@
    }
   },
   {
-   "id": "vg215",
-   "type": "green_victim",
+   "id": "rb159",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13795,8 +13795,8 @@
    }
   },
   {
-   "id": "vg216",
-   "type": "green_victim",
+   "id": "rb160",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13808,8 +13808,8 @@
    }
   },
   {
-   "id": "vg217",
-   "type": "green_victim",
+   "id": "rb161",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13821,8 +13821,8 @@
    }
   },
   {
-   "id": "vg218",
-   "type": "green_victim",
+   "id": "rb162",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13834,8 +13834,8 @@
    }
   },
   {
-   "id": "vg219",
-   "type": "green_victim",
+   "id": "rb163",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13847,8 +13847,8 @@
    }
   },
   {
-   "id": "vg220",
-   "type": "green_victim",
+   "id": "rb164",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13860,8 +13860,8 @@
    }
   },
   {
-   "id": "vg221",
-   "type": "green_victim",
+   "id": "rb165",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13873,8 +13873,8 @@
    }
   },
   {
-   "id": "vg222",
-   "type": "green_victim",
+   "id": "rb166",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13886,8 +13886,8 @@
    }
   },
   {
-   "id": "vg223",
-   "type": "green_victim",
+   "id": "rb167",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13899,8 +13899,8 @@
    }
   },
   {
-   "id": "vg224",
-   "type": "green_victim",
+   "id": "rb168",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13912,8 +13912,8 @@
    }
   },
   {
-   "id": "vg225",
-   "type": "green_victim",
+   "id": "rb169",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13925,8 +13925,8 @@
    }
   },
   {
-   "id": "vg226",
-   "type": "green_victim",
+   "id": "rb170",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13938,8 +13938,8 @@
    }
   },
   {
-   "id": "vg227",
-   "type": "green_victim",
+   "id": "rb171",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13951,8 +13951,8 @@
    }
   },
   {
-   "id": "vg228",
-   "type": "green_victim",
+   "id": "rb172",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13964,8 +13964,8 @@
    }
   },
   {
-   "id": "vg229",
-   "type": "green_victim",
+   "id": "rb173",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13977,8 +13977,8 @@
    }
   },
   {
-   "id": "vg230",
-   "type": "green_victim",
+   "id": "rb174",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -13990,8 +13990,8 @@
    }
   },
   {
-   "id": "vg231",
-   "type": "green_victim",
+   "id": "rb175",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14003,8 +14003,8 @@
    }
   },
   {
-   "id": "vg232",
-   "type": "green_victim",
+   "id": "rb176",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14016,8 +14016,8 @@
    }
   },
   {
-   "id": "vg233",
-   "type": "green_victim",
+   "id": "rb177",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14029,8 +14029,8 @@
    }
   },
   {
-   "id": "vg234",
-   "type": "green_victim",
+   "id": "rb178",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14042,8 +14042,8 @@
    }
   },
   {
-   "id": "vg235",
-   "type": "green_victim",
+   "id": "rb179",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14055,8 +14055,8 @@
    }
   },
   {
-   "id": "vg236",
-   "type": "green_victim",
+   "id": "rb180",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14068,8 +14068,8 @@
    }
   },
   {
-   "id": "vg237",
-   "type": "green_victim",
+   "id": "rb181",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14081,8 +14081,8 @@
    }
   },
   {
-   "id": "vg238",
-   "type": "green_victim",
+   "id": "rb182",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14094,8 +14094,8 @@
    }
   },
   {
-   "id": "vg239",
-   "type": "green_victim",
+   "id": "rb183",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14107,8 +14107,8 @@
    }
   },
   {
-   "id": "vg240",
-   "type": "green_victim",
+   "id": "rb184",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14120,8 +14120,8 @@
    }
   },
   {
-   "id": "vg241",
-   "type": "green_victim",
+   "id": "rb185",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14133,8 +14133,8 @@
    }
   },
   {
-   "id": "vg242",
-   "type": "green_victim",
+   "id": "rb186",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14146,8 +14146,8 @@
    }
   },
   {
-   "id": "vg243",
-   "type": "green_victim",
+   "id": "rb187",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14159,8 +14159,8 @@
    }
   },
   {
-   "id": "vg244",
-   "type": "green_victim",
+   "id": "rb188",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14172,8 +14172,8 @@
    }
   },
   {
-   "id": "vg245",
-   "type": "green_victim",
+   "id": "rb189",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14185,8 +14185,8 @@
    }
   },
   {
-   "id": "vg246",
-   "type": "green_victim",
+   "id": "rb190",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14198,8 +14198,8 @@
    }
   },
   {
-   "id": "vg247",
-   "type": "green_victim",
+   "id": "rb191",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14211,8 +14211,8 @@
    }
   },
   {
-   "id": "vg248",
-   "type": "green_victim",
+   "id": "rb192",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14224,8 +14224,8 @@
    }
   },
   {
-   "id": "vg249",
-   "type": "green_victim",
+   "id": "rb193",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14237,8 +14237,8 @@
    }
   },
   {
-   "id": "vg250",
-   "type": "green_victim",
+   "id": "rb194",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14250,8 +14250,8 @@
    }
   },
   {
-   "id": "vg251",
-   "type": "green_victim",
+   "id": "rb195",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14263,8 +14263,8 @@
    }
   },
   {
-   "id": "vg252",
-   "type": "green_victim",
+   "id": "rb196",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14276,8 +14276,8 @@
    }
   },
   {
-   "id": "vg253",
-   "type": "green_victim",
+   "id": "rb197",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14289,8 +14289,8 @@
    }
   },
   {
-   "id": "vg254",
-   "type": "green_victim",
+   "id": "rb198",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14302,8 +14302,8 @@
    }
   },
   {
-   "id": "vg255",
-   "type": "green_victim",
+   "id": "rb199",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14315,8 +14315,8 @@
    }
   },
   {
-   "id": "vg256",
-   "type": "green_victim",
+   "id": "rb200",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14328,8 +14328,8 @@
    }
   },
   {
-   "id": "vg257",
-   "type": "green_victim",
+   "id": "rb201",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14341,8 +14341,8 @@
    }
   },
   {
-   "id": "vg258",
-   "type": "green_victim",
+   "id": "rb202",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14354,8 +14354,8 @@
    }
   },
   {
-   "id": "vg259",
-   "type": "green_victim",
+   "id": "rb203",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14367,8 +14367,8 @@
    }
   },
   {
-   "id": "vg260",
-   "type": "green_victim",
+   "id": "rb204",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14380,8 +14380,8 @@
    }
   },
   {
-   "id": "vg261",
-   "type": "green_victim",
+   "id": "rb205",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14393,8 +14393,8 @@
    }
   },
   {
-   "id": "vg262",
-   "type": "green_victim",
+   "id": "rb206",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14406,8 +14406,8 @@
    }
   },
   {
-   "id": "vg263",
-   "type": "green_victim",
+   "id": "rb207",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14419,8 +14419,8 @@
    }
   },
   {
-   "id": "vg264",
-   "type": "green_victim",
+   "id": "rb208",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14432,8 +14432,8 @@
    }
   },
   {
-   "id": "vg265",
-   "type": "green_victim",
+   "id": "rb209",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14445,8 +14445,8 @@
    }
   },
   {
-   "id": "vg266",
-   "type": "green_victim",
+   "id": "rb210",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14458,8 +14458,8 @@
    }
   },
   {
-   "id": "vg267",
-   "type": "green_victim",
+   "id": "rb211",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14471,8 +14471,8 @@
    }
   },
   {
-   "id": "vg268",
-   "type": "green_victim",
+   "id": "rb212",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14484,8 +14484,8 @@
    }
   },
   {
-   "id": "vg269",
-   "type": "green_victim",
+   "id": "rb213",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14497,8 +14497,8 @@
    }
   },
   {
-   "id": "vg270",
-   "type": "green_victim",
+   "id": "rb214",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14510,8 +14510,8 @@
    }
   },
   {
-   "id": "vg271",
-   "type": "green_victim",
+   "id": "rb215",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14523,8 +14523,8 @@
    }
   },
   {
-   "id": "vg272",
-   "type": "green_victim",
+   "id": "rb216",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14536,8 +14536,8 @@
    }
   },
   {
-   "id": "vg273",
-   "type": "green_victim",
+   "id": "rb217",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14549,8 +14549,8 @@
    }
   },
   {
-   "id": "vg274",
-   "type": "green_victim",
+   "id": "rb218",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14562,8 +14562,8 @@
    }
   },
   {
-   "id": "vg275",
-   "type": "green_victim",
+   "id": "rb219",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14575,8 +14575,8 @@
    }
   },
   {
-   "id": "vg276",
-   "type": "green_victim",
+   "id": "rb220",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14588,8 +14588,8 @@
    }
   },
   {
-   "id": "vg277",
-   "type": "green_victim",
+   "id": "rb221",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14601,8 +14601,8 @@
    }
   },
   {
-   "id": "vg278",
-   "type": "green_victim",
+   "id": "rb222",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14614,8 +14614,8 @@
    }
   },
   {
-   "id": "vg279",
-   "type": "green_victim",
+   "id": "rb223",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14627,8 +14627,8 @@
    }
   },
   {
-   "id": "vg280",
-   "type": "green_victim",
+   "id": "rb224",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14640,8 +14640,8 @@
    }
   },
   {
-   "id": "vg281",
-   "type": "green_victim",
+   "id": "rb225",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14653,8 +14653,8 @@
    }
   },
   {
-   "id": "vg282",
-   "type": "green_victim",
+   "id": "rb226",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14666,8 +14666,8 @@
    }
   },
   {
-   "id": "vg283",
-   "type": "green_victim",
+   "id": "rb227",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14679,8 +14679,8 @@
    }
   },
   {
-   "id": "vg284",
-   "type": "green_victim",
+   "id": "rb228",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14692,8 +14692,8 @@
    }
   },
   {
-   "id": "vg285",
-   "type": "green_victim",
+   "id": "rb229",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14705,8 +14705,8 @@
    }
   },
   {
-   "id": "vg286",
-   "type": "green_victim",
+   "id": "rb230",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14718,8 +14718,8 @@
    }
   },
   {
-   "id": "vg287",
-   "type": "green_victim",
+   "id": "rb231",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14731,8 +14731,8 @@
    }
   },
   {
-   "id": "vg288",
-   "type": "green_victim",
+   "id": "rb232",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14744,8 +14744,8 @@
    }
   },
   {
-   "id": "vg289",
-   "type": "green_victim",
+   "id": "rb233",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14757,8 +14757,8 @@
    }
   },
   {
-   "id": "vg290",
-   "type": "green_victim",
+   "id": "rb234",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14770,8 +14770,8 @@
    }
   },
   {
-   "id": "vg291",
-   "type": "green_victim",
+   "id": "rb235",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14783,8 +14783,8 @@
    }
   },
   {
-   "id": "vg292",
-   "type": "green_victim",
+   "id": "rb236",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14796,21 +14796,8 @@
    }
   },
   {
-   "id": "vg293",
-   "type": "green_victim",
-   "bounds": {
-    "type": "block",
-    "coordinates": [
-     {
-      "x": "-2115",
-      "z": "19"
-     }
-    ]
-   }
-  },
-  {
-   "id": "vg294",
-   "type": "green_victim",
+   "id": "rb237",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14822,8 +14809,21 @@
    }
   },
   {
-   "id": "vg295",
-   "type": "green_victim",
+   "id": "rb238",
+   "type": "rubble",
+   "bounds": {
+    "type": "block",
+    "coordinates": [
+     {
+      "x": "-2115",
+      "z": "19"
+     }
+    ]
+   }
+  },
+  {
+   "id": "rb239",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14835,8 +14835,8 @@
    }
   },
   {
-   "id": "vg296",
-   "type": "green_victim",
+   "id": "rb240",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14848,8 +14848,8 @@
    }
   },
   {
-   "id": "vg297",
-   "type": "green_victim",
+   "id": "rb241",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14861,8 +14861,8 @@
    }
   },
   {
-   "id": "vg298",
-   "type": "green_victim",
+   "id": "rb242",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14874,8 +14874,8 @@
    }
   },
   {
-   "id": "vg299",
-   "type": "green_victim",
+   "id": "rb243",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14887,8 +14887,8 @@
    }
   },
   {
-   "id": "vg300",
-   "type": "green_victim",
+   "id": "rb244",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14900,8 +14900,8 @@
    }
   },
   {
-   "id": "vg301",
-   "type": "green_victim",
+   "id": "rb245",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14913,8 +14913,8 @@
    }
   },
   {
-   "id": "vg302",
-   "type": "green_victim",
+   "id": "rb246",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14926,8 +14926,8 @@
    }
   },
   {
-   "id": "vg303",
-   "type": "green_victim",
+   "id": "rb247",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14939,8 +14939,8 @@
    }
   },
   {
-   "id": "vg304",
-   "type": "green_victim",
+   "id": "rb248",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14952,8 +14952,8 @@
    }
   },
   {
-   "id": "vg305",
-   "type": "green_victim",
+   "id": "rb249",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14965,8 +14965,8 @@
    }
   },
   {
-   "id": "vg306",
-   "type": "green_victim",
+   "id": "rb250",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14978,8 +14978,8 @@
    }
   },
   {
-   "id": "vg307",
-   "type": "green_victim",
+   "id": "rb251",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -14991,8 +14991,8 @@
    }
   },
   {
-   "id": "vg308",
-   "type": "green_victim",
+   "id": "rb252",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15004,8 +15004,8 @@
    }
   },
   {
-   "id": "vg309",
-   "type": "green_victim",
+   "id": "rb253",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15017,8 +15017,8 @@
    }
   },
   {
-   "id": "vg310",
-   "type": "green_victim",
+   "id": "rb254",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15030,8 +15030,8 @@
    }
   },
   {
-   "id": "vg311",
-   "type": "green_victim",
+   "id": "rb255",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15043,8 +15043,8 @@
    }
   },
   {
-   "id": "vg312",
-   "type": "green_victim",
+   "id": "rb256",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15056,8 +15056,8 @@
    }
   },
   {
-   "id": "vg313",
-   "type": "green_victim",
+   "id": "rb257",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15069,8 +15069,8 @@
    }
   },
   {
-   "id": "vg314",
-   "type": "green_victim",
+   "id": "rb258",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15082,8 +15082,8 @@
    }
   },
   {
-   "id": "vg315",
-   "type": "green_victim",
+   "id": "rb259",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15095,8 +15095,8 @@
    }
   },
   {
-   "id": "vg316",
-   "type": "green_victim",
+   "id": "rb260",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15108,8 +15108,8 @@
    }
   },
   {
-   "id": "vg317",
-   "type": "green_victim",
+   "id": "rb261",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15121,8 +15121,8 @@
    }
   },
   {
-   "id": "vg318",
-   "type": "green_victim",
+   "id": "rb262",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15134,8 +15134,8 @@
    }
   },
   {
-   "id": "vg319",
-   "type": "green_victim",
+   "id": "rb263",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15147,8 +15147,8 @@
    }
   },
   {
-   "id": "vg320",
-   "type": "green_victim",
+   "id": "rb264",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15160,8 +15160,8 @@
    }
   },
   {
-   "id": "vg321",
-   "type": "green_victim",
+   "id": "rb265",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15173,8 +15173,8 @@
    }
   },
   {
-   "id": "vg322",
-   "type": "green_victim",
+   "id": "rb266",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15186,8 +15186,8 @@
    }
   },
   {
-   "id": "vg323",
-   "type": "green_victim",
+   "id": "rb267",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15199,8 +15199,8 @@
    }
   },
   {
-   "id": "vg324",
-   "type": "green_victim",
+   "id": "rb268",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15212,8 +15212,8 @@
    }
   },
   {
-   "id": "vg325",
-   "type": "green_victim",
+   "id": "rb269",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15225,8 +15225,8 @@
    }
   },
   {
-   "id": "vg326",
-   "type": "green_victim",
+   "id": "rb270",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15238,8 +15238,8 @@
    }
   },
   {
-   "id": "vg327",
-   "type": "green_victim",
+   "id": "rb271",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15251,8 +15251,8 @@
    }
   },
   {
-   "id": "vg328",
-   "type": "green_victim",
+   "id": "rb272",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15264,8 +15264,8 @@
    }
   },
   {
-   "id": "vg329",
-   "type": "green_victim",
+   "id": "rb273",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15277,8 +15277,8 @@
    }
   },
   {
-   "id": "vg330",
-   "type": "green_victim",
+   "id": "rb274",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15290,8 +15290,8 @@
    }
   },
   {
-   "id": "vg331",
-   "type": "green_victim",
+   "id": "rb275",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15303,8 +15303,8 @@
    }
   },
   {
-   "id": "vg332",
-   "type": "green_victim",
+   "id": "rb276",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15316,8 +15316,8 @@
    }
   },
   {
-   "id": "vg333",
-   "type": "green_victim",
+   "id": "rb277",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15329,8 +15329,8 @@
    }
   },
   {
-   "id": "vg334",
-   "type": "green_victim",
+   "id": "rb278",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15342,8 +15342,8 @@
    }
   },
   {
-   "id": "vg335",
-   "type": "green_victim",
+   "id": "rb279",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15355,8 +15355,8 @@
    }
   },
   {
-   "id": "vg336",
-   "type": "green_victim",
+   "id": "rb280",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15368,8 +15368,8 @@
    }
   },
   {
-   "id": "vg337",
-   "type": "green_victim",
+   "id": "rb281",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15381,8 +15381,8 @@
    }
   },
   {
-   "id": "vg338",
-   "type": "green_victim",
+   "id": "rb282",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15394,8 +15394,8 @@
    }
   },
   {
-   "id": "vg339",
-   "type": "green_victim",
+   "id": "rb283",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15407,8 +15407,8 @@
    }
   },
   {
-   "id": "vg340",
-   "type": "green_victim",
+   "id": "rb284",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15420,8 +15420,8 @@
    }
   },
   {
-   "id": "vg341",
-   "type": "green_victim",
+   "id": "rb285",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15433,8 +15433,8 @@
    }
   },
   {
-   "id": "vg342",
-   "type": "green_victim",
+   "id": "rb286",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15446,8 +15446,8 @@
    }
   },
   {
-   "id": "vg343",
-   "type": "green_victim",
+   "id": "rb287",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15459,8 +15459,8 @@
    }
   },
   {
-   "id": "vg344",
-   "type": "green_victim",
+   "id": "rb288",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15472,8 +15472,8 @@
    }
   },
   {
-   "id": "vg345",
-   "type": "green_victim",
+   "id": "rb289",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15485,8 +15485,8 @@
    }
   },
   {
-   "id": "vg346",
-   "type": "green_victim",
+   "id": "rb290",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15498,8 +15498,8 @@
    }
   },
   {
-   "id": "vg347",
-   "type": "green_victim",
+   "id": "rb291",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15511,8 +15511,8 @@
    }
   },
   {
-   "id": "vg348",
-   "type": "green_victim",
+   "id": "rb292",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15524,8 +15524,8 @@
    }
   },
   {
-   "id": "vg349",
-   "type": "green_victim",
+   "id": "rb293",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15537,8 +15537,8 @@
    }
   },
   {
-   "id": "vg350",
-   "type": "green_victim",
+   "id": "rb294",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15550,8 +15550,8 @@
    }
   },
   {
-   "id": "vg351",
-   "type": "green_victim",
+   "id": "rb295",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15563,8 +15563,8 @@
    }
   },
   {
-   "id": "vg352",
-   "type": "green_victim",
+   "id": "rb296",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15576,8 +15576,8 @@
    }
   },
   {
-   "id": "vg353",
-   "type": "green_victim",
+   "id": "rb297",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15589,8 +15589,8 @@
    }
   },
   {
-   "id": "vg354",
-   "type": "green_victim",
+   "id": "rb298",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15602,8 +15602,8 @@
    }
   },
   {
-   "id": "vg355",
-   "type": "green_victim",
+   "id": "rb299",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15615,8 +15615,8 @@
    }
   },
   {
-   "id": "vg356",
-   "type": "green_victim",
+   "id": "rb300",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15628,8 +15628,8 @@
    }
   },
   {
-   "id": "vg357",
-   "type": "green_victim",
+   "id": "rb301",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
@@ -15641,8 +15641,8 @@
    }
   },
   {
-   "id": "vg358",
-   "type": "green_victim",
+   "id": "rb302",
+   "type": "rubble",
    "bounds": {
     "type": "block",
     "coordinates": [
