@@ -1,20 +1,16 @@
 import numpy as np
 from psychsim.pwl.plane import thresholdRow
 from psychsim.agent import Agent
-from psychsim.probability import Distribution
 from psychsim.pwl import equalRow, rewardKey, makeTree, setToFeatureMatrix, dynamicsMatrix, noChangeMatrix, \
     setToConstantMatrix
 from model_learning.features.linear import ValueComparisonLinearRewardFeature, LinearRewardVector, \
     NumericLinearRewardFeature, LinearRewardFeature, ActionLinearRewardFeature
-from atomic.model_learning.stats import get_locations_frequencies
 from atomic.definitions.features import get_triaged_key, get_mission_seconds_key, get_num_visits_location_key, \
-    get_location_key, get_fov_key
+    get_location_key, get_num_victims_location_key
 from atomic.definitions.world import MISSION_PHASES, MISSION_PHASE_END_TIMES, MIDDLE_STR
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
-
-from psychsim.world import World
 
 
 def create_reward_vector(agent, locations, move_actions):
@@ -42,13 +38,69 @@ def create_reward_vector(agent, locations, move_actions):
     features.append(NumericLinearRewardFeature('Triaged Green', get_triaged_key(agent, 'Green')))
     features.append(NumericLinearRewardFeature('Triaged Gold', get_triaged_key(agent, 'Gold')))
 
-    features.append(ValueComparisonLinearRewardFeature('See White', world, get_fov_key(agent), 'White', '=='))
-    features.append(ValueComparisonLinearRewardFeature('See Red', world, get_fov_key(agent), 'Red', '=='))
+    features.append(LocationVictimColorReward('See White', agent, 'White', locations))
+    features.append(LocationVictimColorReward('See Red', agent, 'Red', locations))
 
     features.extend([ActionLinearRewardFeature(
         'Move ' + next(iter(action))['object'], agent, action) for action in move_actions])
 
     return LinearRewardVector(features)
+
+
+class LocationVictimColorReward(LinearRewardFeature):
+    """
+    A binary reward feature that is True (1) if the agent is currently in a location where there is a victim of
+    a given color, False (0) otherwise.
+    """
+
+    def __init__(self, name, agent, color, all_locations):
+        """
+        Creates a new reward feature.
+        :param Agent agent: the PsychSim agent capable of retrieving the feature's value given a state.
+        :param str name: the label for this reward feature.
+        :param str color: the victim color.
+        :param list[str] all_locations: all the world's locations.
+        """
+        super().__init__(name)
+        self.agent = agent
+        self.world = agent.world
+        self.all_locations = all_locations
+        self.color = color
+        self.location_feat = get_location_key(agent)
+
+    def get_value(self, state):
+        # collects feature value distribution
+        values = []
+        probs = []
+        for loc_kv, loc_p in state.distributions[state.keyMap[self.location_feat]].items():
+            # gets current location and victim color counter
+            loc = self.world.float2value(self.location_feat, loc_kv[self.location_feat])
+            loc_color_feat = get_num_victims_location_key(loc, self.color)
+
+            for loc_color_kv, loc_color_p in state.distributions[state.keyMap[loc_color_feat]].items():
+                # gets amount of color victims at location
+                num_vics = loc_color_kv[loc_color_feat]
+                values.append(int(num_vics >= 1))
+                probs.append(loc_p * loc_color_p)
+
+        # returns weighted average
+        return np.array(values).dot(np.array(probs)) * self.normalize_factor
+
+    def set_reward(self, agent, weight, model=None):
+        rwd_feat = rewardKey(agent.name)
+
+        # compares agent's current location
+        rwd_tree = {'if': equalRow(self.location_feat, self.all_locations),
+                    None: noChangeMatrix(rwd_feat)}
+
+        # get binary value according to color victims at location
+        for i, loc in enumerate(self.all_locations):
+            loc_color_feat = get_num_victims_location_key(loc, self.color)
+            rwd_tree[i] = {'if': thresholdRow(loc_color_feat, 0),
+                           True: setToConstantMatrix(rwd_feat, 1),
+                           False: setToConstantMatrix(rwd_feat, 0)}
+
+        agent.setReward(makeTree(rwd_tree), weight * self.normalize_factor, model)
 
 
 class LocationVisitedReward(LinearRewardFeature):
@@ -59,8 +111,8 @@ class LocationVisitedReward(LinearRewardFeature):
     def __init__(self, name, agent, all_locations):
         """
         Creates a new reward feature.
-        :param Agent agent: the PsychSim agent capable of retrieving the feature's value given a state.
         :param str name: the label for this reward feature.
+        :param Agent agent: the PsychSim agent capable of retrieving the feature's value given a state.
         :param list[str] all_locations: all the world's locations.
         """
         super().__init__(name)

@@ -120,33 +120,6 @@ class ProcessCSV(object):
                     break
                 self.data.loc[idx, 'victim_' + str(vi) + '_in_FOV'] = (vicInCH == thisID)
 
-    def parseFOV(self, row, newRoom, prevRow, victims, searchActs):
-        ''' For each victim, if in distance range, add approach action        
-        '''
-        someoneInFOV = row['isAVicInFOV']
-        for vi in range(self.maxVicsInLoc):
-            color = row['victim_' + str(vi) + '_color']
-            inFov = row['victim_' + str(vi) + '_in_FOV']
-            if not prevRow.empty:
-                prevFOV = prevRow['victim_' + str(vi) + '_in_FOV']
-
-            if newRoom or (not prevFOV):
-                if inFov:  # this dude just got into my FOV because of a search action
-                    searchActs.append([victims.getSearchAction(self.human), color])
-                    self.logger.debug('Searched and found %s' % (color))
-            else:  # same room and previously in FOV
-                # Either remain in FOV ==> noop
-                # Or search action found: a) another victim ==> search action injected in another iteration of vi
-                # or b) none  ==> set approached to none outside the loop
-                pass
-
-        if prevRow.empty:
-            prevSomeone = False
-        else:
-            prevSomeone = prevRow['isAVicInFOV']
-        if prevSomeone and (not someoneInFOV) and (not newRoom):
-            searchActs.append([victims.getSearchAction(self.human), 'none'])
-            self.logger.debug('Searched and found none')
 
     def getFOVColor(self, row):
         for vi in range(self.maxVicsInLoc):
@@ -239,9 +212,7 @@ class ProcessCSV(object):
                 lastLoc = row['Room_in']
                 self.logger.debug('moved to %s %s' % (lastLoc, stamp))
 
-                self.parseFOV(row, True, prev, victims, searchActs)
-
-                # Is a TIP in this new room? 
+                # Is a TIP in this new room?
                 if row['triage_in_progress']:
                     ## event_triage_victim_id
                     fovColor = self.getFOVColor(row)
@@ -251,7 +222,6 @@ class ProcessCSV(object):
 
             # same room. Compare flag values to know what changed!
             else:
-                self.parseFOV(row, False, prev, victims, searchActs)
 
                 # If TIP changed
                 tip = 'triage_in_progress'
@@ -320,8 +290,13 @@ class ProcessCSV(object):
                     if type(actEv) == ActionSet:
                         world.step(actEv)
                     else:
-                        world.setState(self.human, 'loc', actEv[0], recurse=True)
-                        world.setState(self.human, 'locvisits_' + actEv[0], 1, recurse=True)
+                        # TODO put this back
+                        # world.setState(self.human, 'loc', actEv[0], recurse=True)
+                        # world.setState(self.human, 'locvisits_' + actEv[0], 1, recurse=True)
+                        world.setState(self.human, 'loc', actEv[0])
+                        world.agents[self.human].setBelief(stateKey(self.human, 'loc'), actEv[0])
+                        world.setState(self.human, 'locvisits_' + actEv[0], 1)
+                        world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + actEv[0]), 1)
                 continue
 
             # manually sync the time feature with the game's time (invert timer)
@@ -392,7 +367,6 @@ class ProcessCSV(object):
         clrs = ['Green', 'Gold', 'Red', 'White']
         for clr in clrs:
             self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
-        self.logger.info('FOV: %s' % (world.getState(self.human, 'vicInFOV', unique=True)))
         self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))
         self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
         self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))

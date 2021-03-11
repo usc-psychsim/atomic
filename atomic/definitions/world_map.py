@@ -52,14 +52,6 @@ class WorldMap(object):
         # Make move actions
         self._makeMoveActions(agent)
 
-    def makeMoveResetFOV(self, agent):
-        fovKey = stateKey(agent.name, 'vicInFOV')
-        for direction in range(4):
-            action = self.moveActions[agent.name][direction]
-            ## Reset FoV            
-            tree = setToConstantMatrix(fovKey, 'none')
-            self.world.setDynamics(fovKey, action, makeTree(tree))
-
     def _makeMoveActions(self, agent):
         """
         N/E/S/W actions

@@ -52,20 +52,13 @@ class ProcessParsedJson(object):
     #######  Message handlers
     ###############################################
 
-    def injectFOVIfNeeded(self, vicColor, ts):
-        ## If color in FOV not what you're trying to triage, inject a FoV message
-        if self.lastParsedClrInFOV != vicColor:
-            self.logger.error('Injecting search action to look before triage at %s at %s' % (vicColor, ts))
-            self.parseFOV([vicColor], -1, ts)
+
 
     def parseTriageStart(self, vicColor, ts):
-        self.injectFOVIfNeeded(vicColor, ts)
         self.logger.debug('triage started of %s at %s' % (vicColor, ts))
         self.triageStartTime = ts
 
     def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
-        self.injectFOVIfNeeded(vicColor, ts)
-
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
         
         ## IGNORE what I think about the duration being enough
@@ -152,25 +145,6 @@ class ProcessParsedJson(object):
         self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
         return 0
 
-    def parseFOV(self, origColors, msgIdx, ts):
-        ## Filter our victims that are no longer in the room
-        colors = [c for c in origColors if c in self.roomToVicDict[self.lastParsedLoc]]
-        if len(colors) < len(origColors):
-            self.logger.error('%s in FOV but not in %s at %s idx %d' % (origColors, self.lastParsedLoc, ts, msgIdx))
-
-        ## TODO what if multiple victims in FOV
-        if len(colors) > 0:
-            found = colors[0]
-        else:
-            found = 'none'
-        #        if found != 'none' and found not in SandRVics[self.lastParsedLoc]:
-        #            return
-        # If you're seeing a new color (including none)
-        if found != self.lastParsedClrInFOV:
-            self.logger.debug('Searched and found %s at %s' % (found, ts))
-            self.actions.append([SEARCH, [self.victimsObj.getSearchAction(self.human), found], msgIdx, ts])
-            self.lastParsedClrInFOV = found
-
     def getTriageDuration(self, color, originalDuration):
         success = False
         if originalDuration <= 7:
@@ -239,10 +213,10 @@ class ProcessParsedJson(object):
                 if ret > 0:
                     self.logger.error('That was msg %d' % (numMsgs))
 
-            elif mtype == 'FoV':
-                ## Ignore 'looking' at victims while you're triaging
-                if not triageInProgress:
-                    self.parseFOV(m['victim_list'], numMsgs, ts)
+            # elif mtype == 'FoV':
+            #     ## Ignore 'looking' at victims while you're triaging
+            #     if not triageInProgress:
+            #         self.parseFOV(m['victim_list'], numMsgs, ts)
 
             elif mtype == 'Event:Location':
                 if triageInProgress:

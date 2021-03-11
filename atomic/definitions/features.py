@@ -1,8 +1,6 @@
 from psychsim.pwl import stateKey, WORLD
 from psychsim.agent import Agent
-from atomic.definitions import Directions
 from atomic.definitions.world import PHASE_FEATURE
-from atomic.definitions.victims import FOV_FEATURE
 
 
 def get_mission_seconds_key():
@@ -43,16 +41,6 @@ def get_num_triaged_key(agent, color):
     :return: the corresponding PsychSim feature key.
     """
     return stateKey(agent.name, 'numsaved_' + color)
-
-
-def get_fov_key(agent):
-    """
-    Gets the named key of the feature corresponding to the color of the victim in the agent's field-of-view (FOV).
-    :param Agent agent: the agent for which to get the feature.
-    :rtype: str
-    :return: the corresponding PsychSim feature key.
-    """
-    return stateKey(agent.name, FOV_FEATURE)
 
 
 def get_location_key(agent):
