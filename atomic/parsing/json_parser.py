@@ -1,0 +1,340 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr  2 20:35:23 2020
+
+@author: mostafh
+"""
+import logging
+import json
+from psychsim.pwl import stateKey
+from psychsim.world import WORLD
+from atomic.parsing import GameLogParser
+from atomic.parsing.message_reader import getMessages
+
+MOVE = 0
+TRIAGE = 1
+SEARCH = 2
+TOGGLE_LIGHT = 3
+BEEP = 4
+
+
+class ProcessParsedJson(GameLogParser):
+
+    def __init__(self, filename, map_data, processor=None, logger=logging):
+        super().__init__(filename, processor, logger)
+        self.lastParsedLoc = None
+        self.lastParsedClrInFOV = None
+        self.triageStartTime = 0
+        self.actions = []
+        self.locations = set()
+        if len(filename) > 0:
+            inputFiles = {
+                '--msgfile': filename,
+                '--roomfile': map_data.room_file,
+                '--portalfile': map_data.portals_file,
+                '--victimfile' : map_data.victim_file
+            }
+            self.allMs, self.human = getMessages(inputFiles)
+            self.human = self.allMs[1]['playername']
+        
+    def useParsedFile(self, msgfile):
+        self.allMs = []
+        jsonfile = open(msgfile, 'rt')
+        for line in jsonfile.readlines():
+            self.allMs.append(json.loads(line))
+        self.human = self.allMs[1]['playername']
+
+    def player_name(self):
+        return self.human
+
+    ###############################################
+    #######  Message handlers
+    ###############################################
+
+
+
+    def parseTriageStart(self, vicColor, ts):
+        self.logger.debug('triage started of %s at %s' % (vicColor, ts))
+        self.triageStartTime = ts
+
+    def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
+        self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
+        
+        ## IGNORE what I think about the duration being enough
+        ## Adopt success/failure reported in message!
+        #        duration, success = self.getTriageDuration(vicColor, originalDuration)
+        #        self.logger.debug('Orig dur %d quantized %d' % (originalDuration, duration))
+        #        if success != isSuccessful:
+        #            self.logger.error('Triage succes in data %s but by duration %s' % (isSuccessful, success) )
+
+        ## If reported as successful, force duration to be long enough
+        if isSuccessful:
+            if vicColor == 'Green':
+                duration = 8
+            else:
+                duration = 15
+            ## Reset the FoV we're tracking
+            self.lastParsedClrInFOV = 'White'
+        ## Otherwise use actual duration capped by long enough duration
+        else:
+            duration = 5
+
+        # ## Update the parser's version of victims in each room
+        # if isSuccessful:
+        #     self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
+
+        triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
+        ## Record it as happening at self.triageStartTime
+        self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
+
+    def parseMove(self, newRoom, msgIdx, ts):
+        self.locations.add(newRoom)
+        if self.lastParsedLoc == None:
+            self.actions.append(newRoom)
+            self.lastParsedLoc = newRoom
+            self.logger.debug('moved to %s at %s' % (self.lastParsedLoc, ts))
+            return 0
+
+        # Add one or more move actions
+        mv = self.world_map.getMoveAction(self.human, self.lastParsedLoc, newRoom)
+        if mv == []:
+            self.logger.error('unreachable %s to %s at %s' % (self.lastParsedLoc, newRoom, ts))
+            self.lastParsedLoc = newRoom
+            return 1
+
+        if len(mv) > 1:
+            self.logger.error('multiple steps from %s to %s at %s' % (self.lastParsedLoc, newRoom, ts))
+        for mAct in mv:
+            self.actions.append([MOVE, [mAct], msgIdx, ts])
+        self.logger.debug('moved to %s at %s' % (newRoom, ts))
+        self.lastParsedLoc = newRoom
+        ## Clear the last seen victim color!
+        self.lastParsedClrInFOV = 'none'
+        return 0
+
+    # def parseLight(self, loc, msgIdx, ts):
+    #     action = self.world_map.lightActions[self.human]
+    #     self.actions.append([TOGGLE_LIGHT, [action], msgIdx, ts])
+    #
+    # def parseBeep(self, msg, msgIdx, ts):
+    #     numBeeps = len(msg['message'].split())
+    #     targetRoom = msg['room_name']
+    #
+    #     if targetRoom not in self.roomToVicDict.keys():
+    #         self.logger.error('%d Beeps from %s but no victims at %s' % (numBeeps, targetRoom, ts))
+    #         return 1
+    #     victims = self.roomToVicDict[targetRoom]
+    #     cond1 = (numBeeps == 1) and 'Green' in victims and 'Gold' not in victims
+    #     cond2 = (numBeeps == 2) and 'Gold' in victims
+    #     if not (cond1 or cond2):
+    #         self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, victims))
+    #         return 1
+    #
+    #     direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
+    #     if len(direction) > 1:
+    #         self.logger.error(
+    #             'In %s beep from %s %d steps away at %s' % (self.lastParsedLoc, targetRoom, len(direction), ts))
+    #         return 1
+    #     if direction[0] == -1:
+    #         self.logger.error('In %s beep from %s UNCONNECTED at %s' % (self.lastParsedLoc, targetRoom, ts))
+    #         return 1
+    #     self.logger.debug('Heard %d beeps from %s at %s' % (numBeeps, targetRoom, ts))
+    #     direc = Directions(direction[0]).name
+    #     sensorKey = stateKey(self.human, 'sensor_' + direc)
+    #     self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
+    #     return 0
+
+    def getTriageDuration(self, color, originalDuration):
+        success = False
+        if originalDuration <= 7:
+            duration = 5
+        elif (originalDuration > 7) and (originalDuration < 15):
+            if color == 'Green':
+                duration = 8
+                success = True
+            else:
+                duration = 5
+        elif originalDuration >= 15:
+            success = True
+            if color == 'Green':
+                duration = 8
+            else:
+                duration = 15
+        return duration, success
+
+    ###############################################
+    #######  Processing the json messages
+    ###############################################
+
+    def getActionsAndEvents(self, victims, world_map, maxEvents=-1):
+        jsonMsgIter = iter(self.allMs)
+        self.world_map = world_map
+        self.victimsObj = victims
+        numMsgs = 0
+        m = next(jsonMsgIter)
+        ignore = ['Mission:VictimList', 'Event:Door']
+        triageInProgress = False
+
+        while (m != None) and ((maxEvents < 0) or (numMsgs < maxEvents)):
+            mtype = m['sub_type']
+            if mtype in ignore:
+                m = next(jsonMsgIter)
+                numMsgs = numMsgs + 1
+                continue
+            ## time elapsed in seconds
+            mtime = m['mission_timer']
+            ts = [int(x) for x in mtime.split(':')]
+
+            if mtype == 'Event:Triage':
+                tstate = m['triage_state']
+                vicColor = m['color']
+                if vicColor == 'Yellow':
+                    vicColor = 'Gold'
+                if m['room_name'] != self.lastParsedLoc:
+                    self.logger.error(
+                        'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))
+
+                if tstate == 'IN_PROGRESS':
+                    self.parseTriageStart(vicColor, ts)
+                    triageInProgress = True
+                else:
+                    success = (tstate == 'SUCCESSFUL')
+                    self.parseTriageEnd(vicColor, success, numMsgs, ts)
+                    triageInProgress = False
+
+            # elif mtype == 'Event:Beep':
+            #     ret = self.parseBeep(m, numMsgs, ts)
+            #     if ret > 0:
+            #         self.logger.error('That was msg %d' % (numMsgs))
+
+            # elif mtype == 'FoV':
+            #     ## Ignore 'looking' at victims while you're triaging
+            #     if not triageInProgress:
+            #         self.parseFOV(m['victim_list'], numMsgs, ts)
+
+            elif mtype == 'Event:Location':
+                if triageInProgress:
+                    self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
+                    triageInProgress = False
+                loc = m['room_name']
+                ret = self.parseMove(loc, numMsgs, ts)
+                if ret > 0:
+                    self.logger.error('That was msg %d' % (numMsgs))
+
+            # elif mtype == 'Event:Lever':
+            #     if triageInProgress:
+            #         self.logger.error('At %s msg %d flipped a light while triaging' % (m['mission_timer'], numMsgs))
+            #         triageInProgress = False
+            #     #  is_powered:false then the player has just turned that light switch on
+            #     self.parseLight(loc, numMsgs, ts)
+
+            elif mtype == 'Event:Door':
+                pass
+
+            m = next(jsonMsgIter, None)
+            numMsgs = numMsgs + 1
+        self.locations = list(self.locations)
+
+    ###############################################
+    #######  Running the actions we collected
+    ###############################################
+
+    def runTimeless(self, world, start, end, ffwdTo=0, prune_threshold=None, permissive=False):
+        self.logger.debug(self.actions[start])
+        if start == 0:
+            loc = self.actions[0]
+            # world.setState(self.human, 'loc', loc, recurse=True)
+            # world.setState(self.human, 'locvisits_' + loc, 1, recurse=True)
+            world.setState(self.human, 'loc', loc)
+            world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
+            world.setState(self.human, 'locvisits_' + loc, 1)
+            world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
+            start = 1
+
+        t = start
+        while True:
+            if (t >= end) or (t >= len(self.actions)):
+                break
+
+            actStruct = self.actions[t]
+            actType = actStruct[0]
+            act = actStruct[1][0]
+            testbedMsgId = actStruct[-2]
+            trueTime = actStruct[-1]
+            timeInSec = 600 - (trueTime[0] * 60) - trueTime[1]
+
+            self.logger.info('%d) Running msg %d: %s' % (t + start, testbedMsgId, ','.join(map(str, actStruct[1]))))
+
+            # before any action, manually sync the time feature with the game's time (invert timer)
+            world.setFeature(stateKey(WORLD, 'seconds'), timeInSec, recurse=True)
+
+            if self.processor is not None:
+                self.processor.pre_step(world)
+
+            ## Force no beeps (unless overwritten later)
+            # selDict = {stateKey(self.human, 'sensor_' + d.name): 'none' for d in Directions}
+            selDict = {}
+            if act not in world.agents[self.human].getLegalActions():
+                self.logger.error('Illegal %s' % (act))
+                raise ValueError('Illegal action!')
+
+            if actType == MOVE or actType == TRIAGE:
+                if len(actStruct[1]) > 1:
+                    dur = actStruct[1][1]
+                    clock = stateKey(WORLD, 'seconds')
+                    curTime = world.getState(WORLD, 'seconds', unique=True)
+                    newTime = curTime + dur
+                    selDict[clock] = newTime
+                    self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
+
+            # if actType == SEARCH:
+            #     color = actStruct[1][1]
+            #     selDict[stateKey(self.human, 'vicInFOV')] = color
+            #     if permissive and color != 'none' and world.getState(WORLD,
+            #                                                          'ctr_{}_{}'.format(self.lastParsedLoc, color),
+            #                                                          unique=True) == 0:
+            #         # Observed a victim who should not be here
+            #         self.logger.warning(
+            #             'In {}, a nonexistent {} victim entered the FOV'.format(self.lastParsedLoc, color))
+            #         continue
+
+            t = t + 1
+            # ## After you parse an action, skip ahead to overwrite 'none' beeps with heard beeps.
+            # while (t < len(self.actions)) and (self.actions[t][0] == BEEP):
+            #     [sensorKey, value] = self.actions[t][1]
+            #     selDict[sensorKey] = value
+            #     t = t + 1
+            self.logger.info('Injecting %s' % (selDict))
+
+            # selDict = {k: world.value2float(k, v) for k, v in selDict.items()}
+            world.step(act, select=selDict, threshold=prune_threshold)
+            world.modelGC()
+
+            self.summarizeState(world, trueTime)
+            if self.processor is not None:
+                self.processor.post_step(world, None if act is None else world.getAction(self.human))
+
+            if t + start - 1 > ffwdTo:
+                input('press any key.. ')
+
+    def summarizeState(self, world, ttime):
+        loc = world.getState(self.human, 'loc', unique=True)
+        time = 600 - world.getState(WORLD, 'seconds', unique=True)
+        self.logger.info('psim Time: %s' % ([int(time / 60), time % 60]))
+        self.logger.info('True Time: %s' % (ttime))
+        self.logger.info('Phase: %s' % (world.getState(WORLD, 'phase', unique=True)))
+
+        self.logger.info('Player location: %s' % (loc))
+        clrs = ['Green', 'Gold', 'Red', 'White']
+        for clr in clrs:
+            self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
+        self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))
+        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
+        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
+
+# f = open('/home/mostafh/Documents/psim/new_atomic/atomic/data/tryj', 'rt')
+# lines = f.readlines()
+# jsonIter = ite([m.mdict for m in reader.messages])
+# jsonParser = ProcessParsedJson()
+# jsonParser.processJson(jsonIter, 100)
