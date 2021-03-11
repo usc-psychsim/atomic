@@ -6,7 +6,6 @@ import numpy as np
 import multiprocessing as mp
 from collections import OrderedDict
 from timeit import default_timer as timer
-from atomic.definitions import victims
 from atomic.definitions.map_utils import get_default_maps
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.model_learning.parser import TrajectoryParser
@@ -99,11 +98,8 @@ if __name__ == '__main__':
                         help='Likelihood below which stochastic outcomes are pruned.')
 
     parser.add_argument('-s', '--seed', type=int, default=SEED, help='Seed for random number generation.')
-
     parser.add_argument('-m', '--map-name', type=str, default=MAP_NAME,
                         help='Name of the map for trajectory generation.')
-    parser.add_argument('--no-beep', type=float, default=0., help='Probability of not hearing a sensor beep.')
-
     parser.add_argument('-p', '--processes', type=none_or_int, default=PROCESSES,
                         help='Number of processes/cores to use. If unspecified, all available cores will be used')
     args = parser.parse_args()
@@ -147,7 +143,6 @@ if __name__ == '__main__':
                  os.path.join(args.output, 'parse-lengths.pdf'))
 
     # generate trajectories
-    victims.PROB_NO_BEEP = args.no_beep  # otherwise agent will reason about 'none' values (non-zero prob)
     default_maps = get_default_maps()
     if args.trajectories == 0 or args.map_name not in default_maps:
         msg = 'Skipping generation benchmark. '

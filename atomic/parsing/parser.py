@@ -341,8 +341,7 @@ class ProcessCSV(object):
                 if act not in legal_choices:
                     raise ValueError('Illegal action ({}) at time {}. Legal choices: {}'.format(
                         act, t, ', '.join(sorted(map(str, legal_choices)))))
-                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if
-                           isStateKey(k) and state2feature(k)[:6] == 'sensor'}
+                selDict = {}
                 if len(actEv) > 1:
                     dur = actEv[1]
                     # This is a triage action with an associated duration
@@ -367,9 +366,8 @@ class ProcessCSV(object):
 
             elif actOrEvFlag == SEARCH:
                 act, color = actEv[0], actEv[1]
-                selDict = {k: world.value2float(k, 'none') for k in world.state.keys() if
-                           isStateKey(k) and state2feature(k)[:6] == 'sensor'}
-                selDict[stateKey(self.human, 'vicInFOV')] = world.value2float(stateKey(self.human, 'vicInFOV'), color)
+                selDict = {
+                    stateKey(self.human, 'vicInFOV'): world.value2float(stateKey(self.human, 'vicInFOV'), color)}
                 loc = world.getState(self.human, 'loc', unique=True)
                 if permissive and color != 'none' and world.getState(WORLD, 'ctr_{}_{}'.format(loc, color),
                                                                      unique=True) == 0:

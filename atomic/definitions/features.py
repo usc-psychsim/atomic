@@ -55,17 +55,6 @@ def get_fov_key(agent):
     return stateKey(agent.name, FOV_FEATURE)
 
 
-def get_sensor_key(agent, direction):
-    """
-    Gets the named key of the feature corresponding to the status of the agent's sensor in the given direction.
-    :param Agent agent: the agent for which to get the feature.
-    :param Directions direction: the direction of the sensor.
-    :rtype: str
-    :return: the corresponding PsychSim feature key.
-    """
-    return stateKey(agent.name, 'sensor_' + direction.name)
-
-
 def get_location_key(agent):
     """
     Gets the named key of the feature corresponding to the agent's current location / room in the environment.
