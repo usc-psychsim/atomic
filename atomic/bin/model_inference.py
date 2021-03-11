@@ -263,7 +263,7 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         reward_weights, cluster_map, condition_map = load_clusters(args['clusters'])
-        AnalysisParser.condition_dist = condition_map
+        AnalysisParseProcessor.condition_dist = condition_map
         apply_cluster_rewards(reward_weights)
     elif args['reward_file']:
         import atomic.model_learning.linear.post_process.clustering as clustering
