@@ -1,4 +1,3 @@
-import copy
 import cProfile
 import csv
 from datetime import datetime
@@ -10,26 +9,26 @@ import pytz
 from argparse import ArgumentParser
 
 import numpy as np
-import pandas as pd
 from plotly import express as px
 
 from psychsim.probability import Distribution
 from psychsim.pwl import WORLD, modelKey, stateKey
 
+from atomic.parsing import ParsingProcessor
 from atomic.definitions.map_utils import get_default_maps
-from atomic.parsing.parser import ProcessCSV
 from atomic.parsing.replayer import Replayer, filename_to_condition
 from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
+
 
 def plot_data(data, color_field, title):
     return px.line(data, x='Timestep', y='Belief', color=color_field, range_y=[0, 1], title=title)
 
-class AnalysisParser(ProcessCSV):
+
+class AnalysisParseProcessor(ParsingProcessor):
     condition_dist = None
 
-    def __init__(self, filename, maxDist=5, logger=logging):
-        super().__init__(filename, maxDist, logger)
-        self.name = os.path.splitext(os.path.basename(filename))[0]
+    def __init__(self):
+        super().__init__()
         self.model_data = []
         self.condition_data = []
         self.prediction_data = []
@@ -37,21 +36,22 @@ class AnalysisParser(ProcessCSV):
         self.expectation = None
 
     def draw_plot(self):
+        name = os.path.splitext(os.path.basename(self.parser.file_name))[0]
         if self.model_data:
-            fig = plot_data(self.model_data, 'Model', 'Model Inference {}'.format(self.name))
+            fig = plot_data(self.model_data, 'Model', 'Model Inference {}'.format(name))
             fig.show()
         if self.condition_data:
-            fig = plot_data(self.condition_data, 'Condition', 'Condition Inference {}'.format(self.name))
+            fig = plot_data(self.condition_data, 'Condition', 'Condition Inference {}'.format(name))
             fig.show()
         if self.prediction_data:
-            fig = plot_data(self.prediction_data, 'Color', 'Prediction {}'.format(self.name))
+            fig = plot_data(self.prediction_data, 'Color', 'Prediction {}'.format(name))
             fig.show()
 
     def next_victim(self, world):
         """
         Generate an expectation about what room the player will enter next
         """
-        player = world.agents[self.player_name()]
+        player = world.agents[self.parser.player_name()]
         action = world.getAction(player.name, unique=True)
         if action['verb'] == 'triage_Green':
             # Triaging green as we speak
@@ -105,7 +105,7 @@ class AnalysisParser(ProcessCSV):
         t = world.getState(WORLD, 'seconds', unique=True)
         if len(self.model_data) == 0 or self.model_data[-1]['Timestep'] != t:
             # Haven't made some inference for this timestep (maybe wait until last one?)
-            player_name = self.player_name()
+            player_name = self.parser.player_name()
             player = world.agents[player_name]
             agent = world.agents['ATOMIC']
             # Store beliefs over player models
@@ -130,11 +130,11 @@ class AnalysisParser(ProcessCSV):
                 for condition, condition_prob in condition_dist.items():
                     self.condition_data.append({'Timestep': t, 'Belief': condition_prob, 'Condition': condition})
 
+
 class Analyzer(Replayer):
-    parser_class = AnalysisParser
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, logger=logging):
-        super().__init__(files, maps, models, ignore_models, True, logger)
+        super().__init__(files, maps, models, ignore_models, True, AnalysisParseProcessor(), logger)
 
         self.mission_times = mission_times
         # Set player models for observer agent
