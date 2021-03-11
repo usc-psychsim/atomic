@@ -4,18 +4,18 @@ import copy
 import random
 import numpy as np
 from collections import OrderedDict
-from atomic.definitions.features import get_mission_seconds_key
 from model_learning.util.plot import plot_bar
 from model_learning.algorithms.max_entropy import MaxEntRewardLearning, THETA_STR
 from model_learning.trajectory import sample_spread_sub_trajectories
 from model_learning.util.io import get_file_name_without_extension, create_clear_dir, save_object, change_log_handler, \
     load_object
+from atomic.definitions.features import get_mission_seconds_key
+from atomic.model_learning.parse_processor import TrajectoryParseProcessor
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.definitions.map_utils import get_default_maps
 from atomic.definitions.plotting import plot_environment, plot_trajectories, plot_agent_location_frequencies, \
     plot_agent_action_frequencies
 from atomic.model_learning.linear.rewards import create_reward_vector
-from atomic.model_learning.parser import TrajectoryParser
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
@@ -47,7 +47,6 @@ class RewardModelAnalyzer(Replayer):
     """
     Replay analyzer that performs linear reward model learning given a player's data using the MaxEnt IRL algorithm.
     """
-    parser_class = TrajectoryParser
 
     def __init__(self, replays, output=OUTPUT_DIR, maps=None, clear=True,
                  num_trajectories=NUM_TRAJECTORIES, length=TRAJ_LENGTH,
@@ -75,7 +74,7 @@ class RewardModelAnalyzer(Replayer):
         """
         if maps is None:
             maps = get_default_maps()
-        super().__init__(replays, maps, {}, create_observer=False)
+        super().__init__(replays, maps, {}, create_observer=False, processor=TrajectoryParseProcessor())
 
         self._all_replays = replays
         self.output = output
@@ -167,7 +166,7 @@ class RewardModelAnalyzer(Replayer):
             return
 
         # checks trajectory
-        trajectory = self.parser.trajectory
+        trajectory = self.processor.trajectory
         if len(trajectory) <= self.length + self.num_trajectories - 1:
             logging.info('Could not process datapoint, empty or very short trajectory: {}'.format(
                 self.parser.filename))

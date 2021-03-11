@@ -2,8 +2,8 @@ import argparse
 import copy
 import os
 from model_learning.util.io import get_files_with_extension, create_clear_dir, change_log_handler
+from atomic.model_learning.parse_processor import TrajectoryParseProcessor
 from atomic.model_learning.linear.post_process.players_data import process_players_data
-from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 
 __author__ = 'Pedro Sequeira'
@@ -15,10 +15,9 @@ OUTPUT_DIR = 'output/parse-all-files'
 
 
 class TrajectoryAnalyzer(Replayer):
-    parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None, img_format='pdf'):
-        super().__init__(replays, maps, {}, create_observer=False)
+        super().__init__(replays, maps, {}, create_observer=False, processor=TrajectoryParseProcessor())
         self.img_format = img_format
 
         self.trajectories = {}
@@ -30,8 +29,8 @@ class TrajectoryAnalyzer(Replayer):
     def post_replay(self):
         # registers trajectory and subject identifier
         self.logger.info(
-            'Parsed trajectory of length {} for: {}'.format(len(self.parser.trajectory), self.parser.filename))
-        self.trajectories[self.parser.filename] = self.parser.trajectory
+            'Parsed trajectory of length {} for: {}'.format(len(self.processor.trajectory), self.parser.filename))
+        self.trajectories[self.parser.filename] = self.processor.trajectory
         self.agent_names[self.parser.filename] = self.parser.player_name()
         self.map_tables[self.parser.filename] = self.map_table
         self.trial_conditions[self.parser.filename] = copy.deepcopy(self.conditions)

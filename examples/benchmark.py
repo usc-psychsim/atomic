@@ -8,7 +8,7 @@ from collections import OrderedDict
 from timeit import default_timer as timer
 from atomic.definitions.map_utils import get_default_maps
 from atomic.model_learning.linear.rewards import create_reward_vector
-from atomic.model_learning.parser import TrajectoryParser
+from atomic.model_learning.parse_processor import TrajectoryParseProcessor
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 from atomic.scenarios.single_player import make_single_player_world
 from model_learning.trajectory import generate_trajectories
@@ -58,10 +58,9 @@ def _signal_traj_completion():
 
 
 class BenchmarkReplayer(Replayer):
-    parser_class = TrajectoryParser
 
     def __init__(self, replays, maps=None):
-        super().__init__(replays, maps, {}, create_observer=False)
+        super().__init__(replays, maps, {}, create_observer=False, processor=TrajectoryParseProcessor())
 
         self.timings = {}
         self.subject_ids = {}
@@ -77,7 +76,7 @@ class BenchmarkReplayer(Replayer):
                 if SUBJECT_ID_TAG in self.conditions and COND_MAP_TAG in self.conditions else \
                 self.parser.player_name()
         self.timings[self.parser.filename] = elapsed
-        self.trajectories[self.parser.filename] = self.parser.trajectory
+        self.trajectories[self.parser.filename] = self.processor.trajectory
 
 
 if __name__ == '__main__':
