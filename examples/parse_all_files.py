@@ -3,7 +3,6 @@ import copy
 import os
 from model_learning.util.io import get_files_with_extension, create_clear_dir, change_log_handler
 from atomic.model_learning.linear.post_process.players_data import process_players_data
-from atomic.definitions import world_map
 from atomic.model_learning.parser import TrajectoryParser
 from atomic.parsing.replayer import Replayer, SUBJECT_ID_TAG, COND_MAP_TAG
 
@@ -13,9 +12,6 @@ __desc__ = 'Simple test script that loads several player log files and creates a
            'imported trajectories\' length.'
 
 OUTPUT_DIR = 'output/parse-all-files'
-
-# TODO hack to avoid lights
-world_map.MODEL_LIGHTS = False
 
 
 class TrajectoryAnalyzer(Replayer):

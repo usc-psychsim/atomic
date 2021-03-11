@@ -23,16 +23,6 @@ def get_mission_phase_key():
     return stateKey(WORLD, PHASE_FEATURE)
 
 
-def get_light_status_key(location):
-    """
-    Gets the named key of the feature corresponding to the status of light (on/off) in a location.
-    :param str location: the location / room of the environment.
-    :rtype: str
-    :return: the corresponding PsychSim feature key.
-    """
-    return stateKey(WORLD, 'light' + str(location))
-
-
 def get_triaged_key(agent, color):
     """
     Gets the named key of the feature corresponding to whether the agent has triaged a victim of the given color.

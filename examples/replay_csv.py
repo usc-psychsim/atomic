@@ -46,7 +46,7 @@ for shr,num in shared.items():
 
 #use_unobserved=True, full_obs=False, logger=logging):
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
-    parser.player_name(), None, SandRLocs, SandRVics, False, True, lightMap)
+    parser.player_name(), None, SandRLocs, SandRVics, False, True)
 
 
 maxNumEvents = 350

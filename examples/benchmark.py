@@ -6,7 +6,7 @@ import numpy as np
 import multiprocessing as mp
 from collections import OrderedDict
 from timeit import default_timer as timer
-from atomic.definitions import victims, world_map
+from atomic.definitions import victims
 from atomic.definitions.map_utils import get_default_maps
 from atomic.model_learning.linear.rewards import create_reward_vector
 from atomic.model_learning.parser import TrajectoryParser
@@ -102,7 +102,6 @@ if __name__ == '__main__':
 
     parser.add_argument('-m', '--map-name', type=str, default=MAP_NAME,
                         help='Name of the map for trajectory generation.')
-    parser.add_argument('--lights', action='store_true', help='Whether to model lights and switches.')
     parser.add_argument('--no-beep', type=float, default=0., help='Probability of not hearing a sensor beep.')
 
     parser.add_argument('-p', '--processes', type=none_or_int, default=PROCESSES,
@@ -116,9 +115,6 @@ if __name__ == '__main__':
     # saves args
     with open(os.path.join(args.output, 'args.json'), 'w') as fp:
         json.dump(vars(args), fp, indent=4)
-
-    # TODO hacks to avoid stochastic beep and lights
-    world_map.MODEL_LIGHTS = args.lights
 
     # checks input files
     files = []
@@ -164,7 +160,7 @@ if __name__ == '__main__':
         map_table = default_maps[args.map_name]
         world, agent, observer, victims, world_map = make_single_player_world(
             PLAYER_NAME, map_table.init_loc, map_table.adjacency, map_table.victims,
-            False, FULL_OBS, create_observer=False)
+            False, FULL_OBS, False)
 
         # agent params
         agent.setAttribute('rationality', args.rationality)

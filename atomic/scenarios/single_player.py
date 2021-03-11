@@ -13,10 +13,10 @@ COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
 
 def make_single_player_world(
         player_name, init_loc, loc_neighbors, victims_color_locs, use_unobserved=True, full_obs=False,
-        light_neighbors={}, create_observer=True, logger=logging):
+        create_observer=True, logger=logging):
     # create world and map
     world = SearchAndRescueWorld()
-    world_map = WorldMap(world, loc_neighbors, light_neighbors)
+    world_map = WorldMap(world, loc_neighbors)
 
     # create victims info
     victims = Victims(world, victims_color_locs, world_map, full_obs=full_obs,

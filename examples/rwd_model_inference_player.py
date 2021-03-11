@@ -101,10 +101,10 @@ if __name__ == '__main__':
     set_player_models(world, observer.name, agent.name, victims, model_list)
 
     # generates trajectory
-    aes, _ = parser.getActionsAndEvents(agent.name, victims, world_map, True, MAX_TRAJ_LENGTH)
-    logging.info('Getting trajectory out of {} actions/events...'.format(len(aes)))
+    parser.getActionsAndEvents(victims, world_map, MAX_TRAJ_LENGTH)
+    logging.info('Getting trajectory out of {} actions/events...'.format(len(parser.actions)))
 
-    parser.runTimeless(world, agent.name, aes, 0, len(aes), prune_threshold=PRUNE_THRESHOLD)
+    parser.runTimeless(world, 0, len(parser.actions), len(parser.actions), PRUNE_THRESHOLD, True)
     logging.info('Recorded {} state-action pairs'.format(len(parser.trajectory)))
 
     # gets evolution of inference over reward models of the agent
