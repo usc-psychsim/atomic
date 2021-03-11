@@ -4,7 +4,9 @@ import os.path
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.parsing import ParsingProcessor
 from atomic.parsing.parser import ProcessCSV
+from atomic.parsing.parserFromJson import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world
 
 COND_MAP_TAG = 'CondWin'
@@ -34,17 +36,16 @@ def accumulate_files(files):
 class Replayer(object):
     """
     Base class for replaying log files
-    :cvar parser_class: Class of parser to instantiate for each file (default is ProcessCSV)
     :ivar files: List of names of the log files to process
     :type files: List(str)
     """
 
-    parser_class = ProcessCSV
-
-    def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True, logger=logging):
+    def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True,
+                 processor=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
         self.create_observer = create_observer
+        self.processor = processor
         self.logger = logger
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
@@ -110,18 +111,26 @@ class Replayer(object):
             logger.debug('Full path: {}'.format(fname))
             self.conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
 
-            # Parse events from log file
-            try:
-                self.parser = self.parser_class(fname, logger=logger.getChild(self.parser_class.__name__))
-            except:
-                logger.error(traceback.format_exc())
-                logger.error('Unable to parse log file')
-                continue
-
             map_name, self.map_table = self.get_map(logger)
             if map_name is None or self.map_table is None:
                 # could not determine map
                 continue
+
+            # Parse events from log file
+            logger_name = type(self.processor).__name__ if self.processor is not None else ''
+            _, ext = os.path.splitext(fname)
+            ext = ext.lower()
+            if ext == '.csv' or ext == '.xlsx':
+                self.parser = ProcessCSV(fname, self.processor, logger.getChild(logger_name))
+            elif ext == '.metadata':
+                self.parser = ProcessParsedJson(
+                    fname, self.map_table, self.processor, logger.getChild(logger_name))
+            else:
+                raise ValueError('Unable to parse log file: {}, unknown extension.'.format(fname))
+
+            # set parser to processor
+            if self.processor is not None:
+                self.processor.parser = self.parser
 
             if not self.pre_replay(logger=logger.getChild('pre_replay')):
                 # Failure in creating world
@@ -148,7 +157,7 @@ class Replayer(object):
         try:
             self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
                 make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
-                                         self.map_table.adjacency, self.map_table.victims, False, True, 
+                                         self.map_table.adjacency, self.map_table.victims, False, True,
                                          self.create_observer, logger.getChild('make_single_player_world'))
         except:
             logger.error(traceback.format_exc())
@@ -179,7 +188,7 @@ class Replayer(object):
 
     def replay(self, duration, logger):
         try:
-            self.parser.runTimeless(self.world, 0, duration, len(self.parser.actions), permissive=True)
+            self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to complete re-simulation')
@@ -187,9 +196,9 @@ class Replayer(object):
     def post_replay(self):
         pass
 
-
     def read_filename(self, fname):
         raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
+
 
 def filename_to_condition(fname):
     """
@@ -207,6 +216,7 @@ def filename_to_condition(fname):
         except ValueError:
             continue
     return result
+
 
 def find_trial(trial, log_dir):
     """
