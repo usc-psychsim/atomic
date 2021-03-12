@@ -100,12 +100,14 @@ class ProcessParsedJson(GameLogParser):
     ###############################################
     #######  Processing the json messages
     ###############################################
+    
+    def setVictimLocations(self, SandRVics):
+        self.roomToVicDict = dict(SandRVics)
 
-    def getActionsAndEvents(self, victims, world_map, SandRVics, ffwd=0, maxActions=-1):
+    def getActionsAndEvents(self, victims, world_map, maxActions=-1):
         jsonMsgIter = iter(self.allMs)
         self.world_map = world_map
         self.victimsObj = victims
-        self.roomToVicDict = dict(SandRVics)
         numMsgs = 0
         m = next(jsonMsgIter)
         ignore = ['Mission:VictimList']
@@ -122,8 +124,8 @@ class ProcessParsedJson(GameLogParser):
             ts = [int(x) for x in mtime.split(':')]
 
             #            print(numMsgs)
-            if ffwd > 0 and numMsgs >= ffwd:
-                input('press any key.. ')
+#            if ffwd > 0 and numMsgs >= ffwd:
+#                input('press any key.. ')
 
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']

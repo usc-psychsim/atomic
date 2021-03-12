@@ -38,6 +38,7 @@ parseFastFwdTo = 9999
 runFastFwdTo = 9999
 
 #### Process the list of dicts into psychsim actions
+parser.setVictimLocations(SandRVics)
 parser.getActionsAndEvents(victimsObj, world_map, maxNumEvents)
 #### Replay sequence of actions 
 parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
