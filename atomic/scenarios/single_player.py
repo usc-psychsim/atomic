@@ -6,8 +6,11 @@ from atomic.definitions.world import SearchAndRescueWorld
 from atomic.inference import make_observer
 
 OBSERVER_NAME = 'ATOMIC'
-COLOR_PRIOR_P = {'Green': 0.3, 'Gold': 0.4}
-COLOR_REQD_TIMES = {'Green': {5: 0.2, 8: 0.4}, 'Gold': {5: 0.2, 15: 0.4}}
+GREEN_STR = 'Green'
+GOLD_STR = 'Yellow'
+
+COLOR_PRIOR_P = {GREEN_STR: 0.3, GOLD_STR: 0.4}
+COLOR_REQD_TIMES = {GREEN_STR: {5: 0.2, 8: 0.4}, GOLD_STR: {5: 0.2, 15: 0.4}}
 
 
 def make_single_player_world(
@@ -64,5 +67,5 @@ if __name__ == '__main__':
     world, triage_agent, observer, victims, world_map = make_single_player_world(
         'player', map_data.init_loc, map_data.adjacency, map_data.victims, False)
     inference.set_player_models(world, observer.name, triage_agent.name, victims,
-                                [{'name': 'player0', 'reward': {'Green': 1, 'Gold': 3}}])
+                                [{'name': 'player0', 'reward': {GREEN_STR: 1, GOLD_STR: 3}}])
     world.save('world.psy' if len(sys.argv) == 1 else sys.argv[1])

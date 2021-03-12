@@ -10,13 +10,10 @@ import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.parsing import GameLogParser
-from atomic.parsing.message_reader import getMessages
+from atomic.parsing.pilot2_message_reader import getMessages
 
 MOVE = 0
 TRIAGE = 1
-SEARCH = 2
-TOGGLE_LIGHT = 3
-BEEP = 4
 
 
 class ProcessParsedJson(GameLogParser):
@@ -24,10 +21,9 @@ class ProcessParsedJson(GameLogParser):
     def __init__(self, filename, map_data, processor=None, logger=logging):
         super().__init__(filename, processor, logger)
         self.lastParsedLoc = None
-        self.lastParsedClrInFOV = None
-        self.triageStartTime = 0
         self.actions = []
         self.locations = set()
+        self.triageStartTime = 0
         if len(filename) > 0:
             inputFiles = {
                 '--msgfile': filename,
@@ -35,6 +31,7 @@ class ProcessParsedJson(GameLogParser):
                 '--portalfile': map_data.portals_file,
                 '--victimfile' : map_data.victim_file
             }
+            print('Reading json with these input files', inputFiles)
             self.allMs, self.human = getMessages(inputFiles)
             self.human = self.allMs[1]['playername']
         
@@ -52,8 +49,6 @@ class ProcessParsedJson(GameLogParser):
     #######  Message handlers
     ###############################################
 
-
-
     def parseTriageStart(self, vicColor, ts):
         self.logger.debug('triage started of %s at %s' % (vicColor, ts))
         self.triageStartTime = ts
@@ -61,28 +56,19 @@ class ProcessParsedJson(GameLogParser):
     def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
         self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
         
-        ## IGNORE what I think about the duration being enough
-        ## Adopt success/failure reported in message!
-        #        duration, success = self.getTriageDuration(vicColor, originalDuration)
-        #        self.logger.debug('Orig dur %d quantized %d' % (originalDuration, duration))
-        #        if success != isSuccessful:
-        #            self.logger.error('Triage succes in data %s but by duration %s' % (isSuccessful, success) )
-
         ## If reported as successful, force duration to be long enough
         if isSuccessful:
             if vicColor == 'Green':
                 duration = 8
             else:
                 duration = 15
-            ## Reset the FoV we're tracking
-            self.lastParsedClrInFOV = 'White'
         ## Otherwise use actual duration capped by long enough duration
         else:
             duration = 5
 
-        # ## Update the parser's version of victims in each room
-        # if isSuccessful:
-        #     self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
+        ## Update the parser's version of victims in each room
+        if isSuccessful:
+            self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
 
         triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
         ## Record it as happening at self.triageStartTime
@@ -109,74 +95,23 @@ class ProcessParsedJson(GameLogParser):
             self.actions.append([MOVE, [mAct], msgIdx, ts])
         self.logger.debug('moved to %s at %s' % (newRoom, ts))
         self.lastParsedLoc = newRoom
-        ## Clear the last seen victim color!
-        self.lastParsedClrInFOV = 'none'
         return 0
-
-    # def parseLight(self, loc, msgIdx, ts):
-    #     action = self.world_map.lightActions[self.human]
-    #     self.actions.append([TOGGLE_LIGHT, [action], msgIdx, ts])
-    #
-    # def parseBeep(self, msg, msgIdx, ts):
-    #     numBeeps = len(msg['message'].split())
-    #     targetRoom = msg['room_name']
-    #
-    #     if targetRoom not in self.roomToVicDict.keys():
-    #         self.logger.error('%d Beeps from %s but no victims at %s' % (numBeeps, targetRoom, ts))
-    #         return 1
-    #     victims = self.roomToVicDict[targetRoom]
-    #     cond1 = (numBeeps == 1) and 'Green' in victims and 'Gold' not in victims
-    #     cond2 = (numBeeps == 2) and 'Gold' in victims
-    #     if not (cond1 or cond2):
-    #         self.logger.error('%d Beep from %s but wrong victims %s' % (numBeeps, targetRoom, victims))
-    #         return 1
-    #
-    #     direction = self.world_map.getDirection(self.lastParsedLoc, targetRoom)
-    #     if len(direction) > 1:
-    #         self.logger.error(
-    #             'In %s beep from %s %d steps away at %s' % (self.lastParsedLoc, targetRoom, len(direction), ts))
-    #         return 1
-    #     if direction[0] == -1:
-    #         self.logger.error('In %s beep from %s UNCONNECTED at %s' % (self.lastParsedLoc, targetRoom, ts))
-    #         return 1
-    #     self.logger.debug('Heard %d beeps from %s at %s' % (numBeeps, targetRoom, ts))
-    #     direc = Directions(direction[0]).name
-    #     sensorKey = stateKey(self.human, 'sensor_' + direc)
-    #     self.actions.append([BEEP, [sensorKey, str(numBeeps)], msgIdx, ts])
-    #     return 0
-
-    def getTriageDuration(self, color, originalDuration):
-        success = False
-        if originalDuration <= 7:
-            duration = 5
-        elif (originalDuration > 7) and (originalDuration < 15):
-            if color == 'Green':
-                duration = 8
-                success = True
-            else:
-                duration = 5
-        elif originalDuration >= 15:
-            success = True
-            if color == 'Green':
-                duration = 8
-            else:
-                duration = 15
-        return duration, success
 
     ###############################################
     #######  Processing the json messages
     ###############################################
 
-    def getActionsAndEvents(self, victims, world_map, maxEvents=-1):
+    def getActionsAndEvents(self, victims, world_map, SandRVics, ffwd=0, maxActions=-1):
         jsonMsgIter = iter(self.allMs)
         self.world_map = world_map
         self.victimsObj = victims
+        self.roomToVicDict = dict(SandRVics)
         numMsgs = 0
         m = next(jsonMsgIter)
-        ignore = ['Mission:VictimList', 'Event:Door']
+        ignore = ['Mission:VictimList']
         triageInProgress = False
 
-        while (m != None) and ((maxEvents < 0) or (numMsgs < maxEvents)):
+        while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):
             mtype = m['sub_type']
             if mtype in ignore:
                 m = next(jsonMsgIter)
@@ -185,6 +120,10 @@ class ProcessParsedJson(GameLogParser):
             ## time elapsed in seconds
             mtime = m['mission_timer']
             ts = [int(x) for x in mtime.split(':')]
+
+            #            print(numMsgs)
+            if ffwd > 0 and numMsgs >= ffwd:
+                input('press any key.. ')
 
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
@@ -203,16 +142,6 @@ class ProcessParsedJson(GameLogParser):
                     self.parseTriageEnd(vicColor, success, numMsgs, ts)
                     triageInProgress = False
 
-            # elif mtype == 'Event:Beep':
-            #     ret = self.parseBeep(m, numMsgs, ts)
-            #     if ret > 0:
-            #         self.logger.error('That was msg %d' % (numMsgs))
-
-            # elif mtype == 'FoV':
-            #     ## Ignore 'looking' at victims while you're triaging
-            #     if not triageInProgress:
-            #         self.parseFOV(m['victim_list'], numMsgs, ts)
-
             elif mtype == 'Event:Location':
                 if triageInProgress:
                     self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
@@ -221,16 +150,6 @@ class ProcessParsedJson(GameLogParser):
                 ret = self.parseMove(loc, numMsgs, ts)
                 if ret > 0:
                     self.logger.error('That was msg %d' % (numMsgs))
-
-            # elif mtype == 'Event:Lever':
-            #     if triageInProgress:
-            #         self.logger.error('At %s msg %d flipped a light while triaging' % (m['mission_timer'], numMsgs))
-            #         triageInProgress = False
-            #     #  is_powered:false then the player has just turned that light switch on
-            #     self.parseLight(loc, numMsgs, ts)
-
-            elif mtype == 'Event:Door':
-                pass
 
             m = next(jsonMsgIter, None)
             numMsgs = numMsgs + 1
@@ -244,8 +163,6 @@ class ProcessParsedJson(GameLogParser):
         self.logger.debug(self.actions[start])
         if start == 0:
             loc = self.actions[0]
-            # world.setState(self.human, 'loc', loc, recurse=True)
-            # world.setState(self.human, 'locvisits_' + loc, 1, recurse=True)
             world.setState(self.human, 'loc', loc)
             world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
             world.setState(self.human, 'locvisits_' + loc, 1)
@@ -271,42 +188,24 @@ class ProcessParsedJson(GameLogParser):
 
             if self.processor is not None:
                 self.processor.pre_step(world)
-
-            ## Force no beeps (unless overwritten later)
-            # selDict = {stateKey(self.human, 'sensor_' + d.name): 'none' for d in Directions}
-            selDict = {}
+            selDict = dict()
             if act not in world.agents[self.human].getLegalActions():
                 self.logger.error('Illegal %s' % (act))
                 raise ValueError('Illegal action!')
 
-            if actType == MOVE or actType == TRIAGE:
-                if len(actStruct[1]) > 1:
-                    dur = actStruct[1][1]
-                    clock = stateKey(WORLD, 'seconds')
-                    curTime = world.getState(WORLD, 'seconds', unique=True)
-                    newTime = curTime + dur
-                    selDict[clock] = newTime
-                    self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
+            if actType == MOVE:
+                pass
 
-            # if actType == SEARCH:
-            #     color = actStruct[1][1]
-            #     selDict[stateKey(self.human, 'vicInFOV')] = color
-            #     if permissive and color != 'none' and world.getState(WORLD,
-            #                                                          'ctr_{}_{}'.format(self.lastParsedLoc, color),
-            #                                                          unique=True) == 0:
-            #         # Observed a victim who should not be here
-            #         self.logger.warning(
-            #             'In {}, a nonexistent {} victim entered the FOV'.format(self.lastParsedLoc, color))
-            #         continue
+            if actType == TRIAGE:
+                dur = actStruct[1][1]
+                clock = stateKey(WORLD, 'seconds')
+                curTime = world.getState(WORLD, 'seconds', unique=True)
+                newTime = curTime + dur
+                selDict[clock] = newTime
+                self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
 
             t = t + 1
-            # ## After you parse an action, skip ahead to overwrite 'none' beeps with heard beeps.
-            # while (t < len(self.actions)) and (self.actions[t][0] == BEEP):
-            #     [sensorKey, value] = self.actions[t][1]
-            #     selDict[sensorKey] = value
-            #     t = t + 1
             self.logger.info('Injecting %s' % (selDict))
-
             # selDict = {k: world.value2float(k, v) for k, v in selDict.items()}
             world.step(act, select=selDict, threshold=prune_threshold)
             world.modelGC()
@@ -326,7 +225,7 @@ class ProcessParsedJson(GameLogParser):
         self.logger.info('Phase: %s' % (world.getState(WORLD, 'phase', unique=True)))
 
         self.logger.info('Player location: %s' % (loc))
-        clrs = ['Green', 'Gold', 'Red', 'White']
+        clrs = ['Green', 'Gold', 'White']
         for clr in clrs:
             self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
         self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))

@@ -5,6 +5,7 @@ from collections import OrderedDict
 from atomic.definitions import Directions
 
 MAPS_DIR = (pathlib.Path(__file__).parent / '..' / '..' / 'maps').resolve()
+SATURN_MAP_DIR = MAPS_DIR / 'Saturn'
 FALCON_MAP_DIR = MAPS_DIR / 'Falcon_EMH_PsychSim'
 FALCON_COORDS_FILE = str(MAPS_DIR / 'ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU-coords.csv')
 FALCON_PORTALS_FILE = str(MAPS_DIR / 'ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv')
@@ -31,31 +32,35 @@ class MapData(object):
 
 def get_default_maps(logger=logging):
     return {
-        'sparky': MapData('sparky', str(MAPS_DIR / 'sparky_adjacency.csv'), None,
-                          str(MAPS_DIR / 'sparky_vic_locs.csv'),
-                          str(MAPS_DIR / 'sparky_coords.csv'), None, logger),
-        'falcon': MapData('falcon', str(MAPS_DIR / 'falcon_adjacency_v1.1_OCN.csv'), None,
-                          str(MAPS_DIR / 'falcon_vic_locs_v1.1_OCN.csv'),
-                          FALCON_COORDS_FILE, None, logger),
-        'FalconEasy': MapData('FalconEasy',
-                              str(FALCON_MAP_DIR / 'falcon_easy_adjacency.csv'), FALCON_ROOMS_FILE,
-                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'),
-                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
-        'FalconMed': MapData('FalconMed',
-                             str(FALCON_MAP_DIR / 'falcon_medium_adjacency.csv'), FALCON_ROOMS_FILE,
-                             str(FALCON_MAP_DIR / 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU.csv'),
-                             FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
-        'FalconHard': MapData('FalconHard',
-                              str(FALCON_MAP_DIR / 'falcon_hard_adjacency.csv'), FALCON_ROOMS_FILE,
-                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU.csv'),
-                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
-        'simple': MapData('simple',
-            str(MAPS_DIR / 'simple_adjacency.csv'), None, str(MAPS_DIR / 'simple_victims.csv'), None, None, logger),
+#        'sparky': MapData('sparky', str(MAPS_DIR / 'sparky_adjacency.csv'), None,
+#                          str(MAPS_DIR / 'sparky_vic_locs.csv'),
+#                          str(MAPS_DIR / 'sparky_coords.csv'), None, logger),
+#        'falcon': MapData('falcon', str(MAPS_DIR / 'falcon_adjacency_v1.1_OCN.csv'), None,
+#                          str(MAPS_DIR / 'falcon_vic_locs_v1.1_OCN.csv'),
+#                          FALCON_COORDS_FILE, None, logger),
+#        'FalconEasy': MapData('FalconEasy',
+#                              str(FALCON_MAP_DIR / 'falcon_easy_adjacency.csv'), FALCON_ROOMS_FILE,
+#                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'),
+#                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+#        'FalconMed': MapData('FalconMed',
+#                             str(FALCON_MAP_DIR / 'falcon_medium_adjacency.csv'), FALCON_ROOMS_FILE,
+#                             str(FALCON_MAP_DIR / 'ASIST_FalconMap_Medium_Victims_v1.1_OCN_VU.csv'),
+#                             FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+#        'FalconHard': MapData('FalconHard',
+#                              str(FALCON_MAP_DIR / 'falcon_hard_adjacency.csv'), FALCON_ROOMS_FILE,
+#                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU.csv'),
+#                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
+        'saturn': MapData('saturn',
+                           str(SATURN_MAP_DIR / 'saturn_adjacency.csv'), 
+                           str(SATURN_MAP_DIR / 'saturn_rooms.csv'),
+                           str(SATURN_MAP_DIR / 'saturn_1_0_vic_locs.csv'), None, 
+                           str(SATURN_MAP_DIR / 'saturn_doors.csv'), logger),                           
+#        'simple': MapData('simple',
+#            str(MAPS_DIR / 'simple_adjacency.csv'), None, str(MAPS_DIR / 'simple_victims.csv'), None, None, logger),
     }
 
 
 def checkSRMap(SRMap, logger=logging):
-    # small verison of map for debugging
     DN = Directions.N
     DS = Directions.S
     DE = Directions.E
