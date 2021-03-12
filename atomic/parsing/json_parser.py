@@ -33,15 +33,24 @@ class ProcessParsedJson(GameLogParser):
             }
             print('Reading json with these input files', inputFiles)
             self.allMs, self.human = getMessages(inputFiles)
-            self.human = self.allMs[1]['playername']
+            self.pickTriager()
         
     def useParsedFile(self, msgfile):
         self.allMs = []
         jsonfile = open(msgfile, 'rt')
         for line in jsonfile.readlines():
             self.allMs.append(json.loads(line))
-        self.human = self.allMs[1]['playername']
-
+            
+        self.pickTriager()
+        
+    def pickTriager(self):
+        """ Pick a player who spent time as a medic. Ignore everyone else!
+        """
+        players = set([m['playername'] for m in self.allMs if m['sub_type'] == 'Event:Triage'])
+        chosenOne = players.pop()
+        self.allMs = [m for m in self.allMs if ('playername' in m.keys()) and (m['playername'] == chosenOne)]
+        self.human = chosenOne
+        
     def player_name(self):
         return self.human
 
