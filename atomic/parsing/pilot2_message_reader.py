@@ -82,7 +82,7 @@ class msgreader(object):
         self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV', 'Event:ToolUsed']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped']
         self.messages = []
         self.mission_running = False
         self.locations = []
@@ -276,6 +276,10 @@ class msgreader(object):
                     add_msg = False
             if m.mtype == 'Event:Lever':
                 self.add_room(m.mdict) 
+            if m.mtype == 'Event:VictimPickedUp':
+                self.add_room(m.mdict) 
+            if m.mtype == 'Event:RubbleDestroyed':
+                self.add_room(m.mdict) 
             elif m.mtype == 'Event:Door':
                 self.add_door_rooms(m.mdict,m.mtype)
             #elif m.mtype == 'Event:ToolUsed':
@@ -453,8 +457,9 @@ class msgreader(object):
         for r in self.rooms:
             if r.in_room(x,z):
                 room_name = r.name
-        del msgdict[xkey]
-        del msgdict[zkey]
+        if not self.verbose:
+            del msgdict[xkey]
+            del msgdict[zkey]
         msgdict.update({'room_name':room_name})
         if self.curr_room != room_name:
             self.make_location_event(msgdict['mission_timer'], room_name, msgdict['timestamp'])
@@ -516,6 +521,21 @@ class msgreader(object):
         elif jtxt.find('Event:ToolUsed') > -1:
             self.psychsim_tags += ['tool_type', 'durability', 'target_block_type']
             m.mtype = 'Event:ToolUsed'
+        elif jtxt.find('Event:RoleSelected') > -1:
+            self.psychsim_tags += ['new_role', 'prev_role']
+            m.mtype = 'Event:RoleSelected'
+        elif jtxt.find('Event:ToolDepleted') > -1:
+            self.psychsim_tags += ['tool_type']
+            m.mtype = 'Event:ToolDepleted'
+        elif jtxt.find('Event:VictimPickedUp') > -1:
+            self.psychsim_tags += ['color', 'victim_x', 'victim_z']
+            m.mtype = 'Event:VictimPickedUp'
+        elif jtxt.find('Event:RubbleDestroyed') > -1:
+            self.psychsim_tags += ['rubble_x','rubble_z']
+            m.mtype = 'Event:RubbleDestroyed'
+        elif jtxt.find('Event:ItemEquipped') > -1:
+            self.psychsim_tags += ['equippeditemname']
+            m.mtype = 'Event:ItemEquipped'
         elif jtxt.find('Event:Lever') > -1:
             self.psychsim_tags += ['powered', 'lever_x', 'lever_z']
             m.mtype = 'Event:Lever'
@@ -679,8 +699,10 @@ def proc_msg_file(msgfile, room_list, portal_list, victim_list, psychsimdir):
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
 def getMessages(args):    
     ## Defaults
-    portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
-    room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+    #portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
+    portal_list = 'saturn_doors.csv'
+    #room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
+    room_list = 'saturn_rooms.csv'
     victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     
     ## Local directory containing multiple json files, if multitrial
