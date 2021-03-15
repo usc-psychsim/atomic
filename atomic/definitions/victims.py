@@ -4,28 +4,21 @@ from psychsim.world import WORLD
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.world import SearchAndRescueWorld
 from atomic.util.psychsim import anding
+from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, RED_STR
 
 """
 Contains classes and methods for dealing with victims in the ASIST S&R problem.
 """
 
 # overall constants
-GREEN_STR = 'Green'
-GOLD_STR = 'Yellow'
-WHITE_STR = 'White'
-RED_STR = 'Red'
 COLORS = [GREEN_STR, GOLD_STR, RED_STR, WHITE_STR]
 STR_TRIAGE_ACT = 'actTriage'
 
 # defaults
 COLOR_REWARDS = {GREEN_STR: 10, GOLD_STR: 200}
 COLOR_REQD_TIMES = {GREEN_STR: {5: 0.2, 8: 0.8}, GOLD_STR: {5: 0.2, 15: 0.8}}
-COLOR_EXPIRY = {GREEN_STR: int(15 * 60), GOLD_STR: int(5 * 60)}
+COLOR_EXPIRY = {GREEN_STR: int(15 * 60), GOLD_STR: int(15 * 60)}
 COLOR_PRIOR_P = {GREEN_STR: 0, GOLD_STR: 0}
-
-# based on average times from parsing the data
-SEARCH_TIME_INC = 5
-
 
 class Victims(object):
     """ Methods for modeling victims within a PsychSim world. """

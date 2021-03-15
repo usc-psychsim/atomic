@@ -11,6 +11,7 @@ from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.parsing import GameLogParser
 from atomic.parsing.pilot2_message_reader import getMessages
+from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR
 
 MOVE = 0
 TRIAGE = 1
@@ -139,8 +140,6 @@ class ProcessParsedJson(GameLogParser):
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
                 vicColor = m['color']
-                if vicColor == 'Yellow':
-                    vicColor = 'Gold'
                 if m['room_name'] != self.lastParsedLoc:
                     self.logger.error(
                         'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))
@@ -236,7 +235,7 @@ class ProcessParsedJson(GameLogParser):
         self.logger.info('Phase: %s' % (world.getState(WORLD, 'phase', unique=True)))
 
         self.logger.info('Player location: %s' % (loc))
-        clrs = ['Green', 'Gold', 'White']
+        clrs = [GOLD_STR, GREEN_STR, WHITE_STR]
         for clr in clrs:
             self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
         self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))

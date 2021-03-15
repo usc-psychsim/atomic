@@ -15,6 +15,7 @@ import csv
 import subprocess
 import time
 print = functools.partial(print, flush=True)
+from atomic.definitions import GOLD_STR, GREEN_STR
 
 class room(object):
     def __init__(self, name, x0, z0, x1, z1):
@@ -270,7 +271,7 @@ class msgreader(object):
                     m.mdict[k] = v
             if m.mtype in ['Event:Triage']:
                 if m.mdict['color'] == 'Yellow':
-                    m.mdict.update({'color':'Gold'})
+                    m.mdict.update({'color':GOLD_STR})
                 self.add_room(m.mdict)
                 if self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
                     add_msg = False
@@ -357,17 +358,17 @@ class msgreader(object):
                     vrm = v.room
                     vvcolor = v.color # extra check that block_type & victim color match
             if vrm == m.mdict['room_name']: # only add if victim in player room
-                if b['type'] == 'block_victim_1' and vvcolor == 'Green':
+                if b['type'] == 'block_victim_1' and vvcolor == GREEN_STR:
                     if self.verbose:
-                        vcolor = 'Green '+str(vloc)+' '+vrm
+                        vcolor = GREEN_STR+str(vloc)+' '+vrm
                     else:
-                        vcolor = 'Green'
+                        vcolor = GREEN_STR
                     victim_arr.append(vcolor)
-                elif b['type'] == 'block_victim_2' and vvcolor == 'Gold':
+                elif b['type'] == 'block_victim_2' and vvcolor == GOLD_STR:
                     if self.verbose:
-                        vcolor = 'Gold '+str(vloc)+' '+vrm
+                        vcolor = GOLD_STR +str(vloc)+' '+vrm
                     else:
-                        vcolor = 'Gold'
+                        vcolor = GOLD_STR
                     victim_arr.append(vcolor)
         m.mdict.update({'victim_list':victim_arr})
         return victim_arr
@@ -383,16 +384,14 @@ class msgreader(object):
                 vloc = b['location']
                 vx = vloc[0]
                 vz = vloc[2]
-                greenstr = 'Green'
-                goldstr = 'Gold'
                 if self.verbose:
-                    greenstr = 'Green '+str(vloc)
-                    goldstr = 'Gold '+str(vloc)
+                    greenstr = GREEN_STR + str(vloc)
+                    goldstr = GOLD_STR + str(vloc)
             if btype == 'block_victim_1':
-                vcolor = 'Green'
+                vcolor = GREEN_STR
                 victim_arr.append(greenstr)
             elif btype == 'block_victim_2':
-                vcolor = 'Gold'
+                vcolor = GOLD_STR
                 victim_arr.append(goldstr)
         return victim_arr
 
@@ -415,9 +414,9 @@ class msgreader(object):
                 for vv in victim_list_dicts:
                     blktype = vv['block_type']
                     if blktype == 'block_victim_1':
-                        vv.update({'block_type':'Green'})
+                        vv.update({'block_type':GREEN_STR})
                     else:
-                        vv.update({'block_type':'Gold'})
+                        vv.update({'block_type':GOLD_STR})
         for v in victim_list_dicts:
             room_name = 'null'
             for (k,val) in v.items():

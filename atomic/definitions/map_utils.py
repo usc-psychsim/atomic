@@ -3,6 +3,7 @@ import pathlib
 import pandas as pd
 from collections import OrderedDict
 from atomic.definitions import Directions
+from atomic.definitions import GOLD_STR, GREEN_STR
 
 MAPS_DIR = (pathlib.Path(__file__).parent / '..' / '..' / 'maps').resolve()
 SATURN_MAP_DIR = MAPS_DIR / 'Saturn'
@@ -50,10 +51,15 @@ def get_default_maps(logger=logging):
 #                              str(FALCON_MAP_DIR / 'falcon_hard_adjacency.csv'), FALCON_ROOMS_FILE,
 #                              str(FALCON_MAP_DIR / 'ASIST_FalconMap_Hard_Victims_v1.1_OCN_VU.csv'),
 #                              FALCON_COORDS_FILE, FALCON_PORTALS_FILE, logger),
-        'saturn': MapData('saturn',
-                           str(SATURN_MAP_DIR / 'saturn_adjacency.csv'), 
-                           str(SATURN_MAP_DIR / 'saturn_rooms.csv'),
-                           str(SATURN_MAP_DIR / 'saturn_1_0_vic_locs.csv'), None, 
+        'saturnA': MapData('saturnA',
+                           str(SATURN_MAP_DIR / 'coordsNeighbs.csv'), 
+                           str(SATURN_MAP_DIR / 'coordsNeighbs.csv'),
+                           str(SATURN_MAP_DIR / 'saturnAPilotVictims.csv'), None, 
+                           str(SATURN_MAP_DIR / 'saturn_doors.csv'), logger),   
+        'saturnB': MapData('saturnB',
+                           str(SATURN_MAP_DIR / 'coordsNeighbs.csv'), 
+                           str(SATURN_MAP_DIR / 'coordsNeighbs.csv'),
+                           str(SATURN_MAP_DIR / 'saturnBPilotVictims.csv'), None, 
                            str(SATURN_MAP_DIR / 'saturn_doors.csv'), logger),                           
 #        'simple': MapData('simple',
 #            str(MAPS_DIR / 'simple_adjacency.csv'), None, str(MAPS_DIR / 'simple_victims.csv'), None, None, logger),
@@ -132,10 +138,19 @@ def getSandRVictims(small=False, fname="sparky_vic_locs"):
     vic_df = pd.read_csv(fname, sep=None, engine='python')
     SandRVics = {}
     for key, row in vic_df.iterrows():
-        if row['Victim Location'] not in SandRVics.keys():
-            SandRVics[row["Victim Location"]] = []
+        if "Victim Location" in vic_df.columns:
+            col = "Victim Location"
+            color = row["Color"]
+        else:
+            col = "RoomName"
+            if row["FeatureType"] == 'victim':
+                color = GREEN_STR
+            else:
+                color = GOLD_STR
+        if row[col] not in SandRVics.keys():
+            SandRVics[row[col]] = []
 
-        SandRVics[row["Victim Location"]].append(row["Color"])
+        SandRVics[row[col]].append(color)       
 
     return SandRVics
 

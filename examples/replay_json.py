@@ -18,15 +18,17 @@ logging.basicConfig(
     format='%(message)s', level=logging.INFO)
 
 ######### Get Map Data
-mapName = 'saturn'
+mapName = 'saturnB'
 DEFAULT_MAPS = get_default_maps()
 SandRLocs = DEFAULT_MAPS[mapName].adjacency
 SandRVics = DEFAULT_MAPS[mapName].victims
 
 # use_unobserved=True, full_obs=False, logger=logging):
-fname = '../data/ASU_DATA/study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnA_Trial-T000288_Team-TM000008_Member-P000124-P000125-P000126_Vers-1.metadata'
-
-parser = ProcessParsedJson(fname, DEFAULT_MAPS[mapName], logger=logging)
+fnames = []
+ddir = '../data/ASU_DATA/'
+fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnB_Trial-T000289_Team-TM000008_Member-P000124-P000125-P000126_Vers-1.metadata')
+fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnA_Trial-T000288_Team-TM000008_Member-P000124-P000125-P000126_Vers-1.metadata')
+parser = ProcessParsedJson(fnames[0], DEFAULT_MAPS[mapName], logger=logging)
 
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
     parser.player_name(), None, SandRLocs, SandRVics, False, True)
@@ -40,5 +42,5 @@ runFastFwdTo = 9999
 #### Process the list of dicts into psychsim actions
 parser.setVictimLocations(SandRVics)
 parser.getActionsAndEvents(victimsObj, world_map, maxNumEvents)
-#### Replay sequence of actions 
+##### Replay sequence of actions 
 parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
