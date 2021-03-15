@@ -74,7 +74,7 @@ class msg(object):
         self.linenum = 0
 
 class msgreader(object):
-    def __init__(self, fname, room_list, portal_list, victim_list, verbose=False):
+    def __init__(self, fname, room_list, portal_list, verbose=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
@@ -98,7 +98,6 @@ class msgreader(object):
             self.load_rooms_semantic(room_list)
         self.load_doors(portal_list)
         self.add_doors_to_rooms()
-        #self.load_victims(victim_list)
 
     def load_fovs(self, fname):
         victim_arr = []
@@ -315,6 +314,7 @@ class msgreader(object):
 
     # OBS & STATE ARE SAME, CHECK ROOM HERE
     # this also generates a message if room has changed
+    # only used for getting timer of fov's
     def add_observation(self,jtxt,nln):
         obs = json.loads(jtxt)
         # message = obs[u'msg']
@@ -329,12 +329,13 @@ class msgreader(object):
             obsz = data['z']
             obsdict = {'x':obsx,'z':obsz}
             room_name = self.add_room_obs(obsdict)
-            if room_name != self.curr_room and room_name != '':
-                m = msg('state')
-                m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
-                self.messages.append(m)
-                self.curr_room = room_name
-            self.observations.append([obsnum,mtimer,nln,realtime,obsx,obsz]) # add to obs even if is location change
+            # SKIP when no fov's, otherwise generates unnecessary location message
+            #if room_name != self.curr_room and room_name != '':
+            #    m = msg('state')
+            #    m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
+            #    self.messages.append(m)
+            #    self.curr_room = room_name
+            #self.observations.append([obsnum,mtimer,nln,realtime,obsx,obsz]) # add to obs even if is location change
 
     def make_location_event(self,mtimer, room_name, tstamp): # generates & adds message
         m = msg('state')
@@ -653,7 +654,6 @@ def get_rescues(msgfile):
         print("TOTAL RESCUED : "+str(num_rescues))
 
 def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
-    print("hereee room list is : "+room_list)
     file_list = tmpdir+'/metafiles.txt'
     cmd = 'gsutil ls gs://studies.aptima.com/'+gcdir+'/'+prefix+'*metadata > '+file_list
     print("getting file list from:: "+cmd)
@@ -667,7 +667,7 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
         cmd = 'gsutil cp '+line.strip()+' '+tmpdir # fetch file
         print("processing file:: "+fname)
         subprocess.getstatusoutput(cmd)
-        reader = msgreader(msgfile, room_list, portal_list, victim_list)
+        reader = msgreader(msgfile, room_list, portal_list)
         reader.add_all_messages(msgfile)
         # write msgs to file
         msgout = open(outfile,'w')
@@ -680,8 +680,8 @@ def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
         cpcnt += 1
     metafile.close()
 
-def proc_msg_file(msgfile, room_list, portal_list, victim_list, psychsimdir):
-    reader = msgreader(msgfile, room_list, portal_list, victim_list)
+def proc_msg_file(msgfile, room_list, portal_list, psychsimdir):
+    reader = msgreader(msgfile, room_list, portal_list)
     reader.add_all_messages(msgfile)
     outname = msgfile.split('/')
     outfile = psychsimdir+'/'+outname[len(outname)-1]+'.json'
@@ -702,7 +702,6 @@ def getMessages(args):
     portal_list = 'saturn_doors.csv'
     #room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     room_list = 'saturn_rooms.csv'
-    victim_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Easy_Victims_v1.1_OCN_VU.csv'
     
     ## Local directory containing multiple json files, if multitrial
     msgdir = ''
@@ -730,8 +729,6 @@ def getMessages(args):
             msgfile = args[a]
         elif a == '--roomfile':
             room_list = args[a]
-        elif a == '--victimfile':
-            victim_list = args[a]
         elif a == '--multitrial':
             multitrial = True
             msgdir = args[a]
@@ -790,13 +787,13 @@ def getMessages(args):
             full_path = os.path.join(msgdir,f)
             if os.path.isfile(full_path):
                 print("processing file "+str(filecnt)+" of "+str(len(file_arr))+" :: "+str(full_path))
-                proc_msg_file(full_path, room_list, portal_list, victim_list, psychsimdir)
+                proc_msg_file(full_path, room_list, portal_list, psychsimdir)
                 filecnt += 1
         return
 
     # default to procesing single file, returning a list of dictionaries
     else:
-        reader = msgreader(msgfile, room_list, portal_list, victim_list, verbose)
+        reader = msgreader(msgfile, room_list, portal_list, verbose)
         reader.add_all_messages(msgfile)
         for m in reader.messages:
             if not reader.verbose:
