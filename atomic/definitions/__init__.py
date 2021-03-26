@@ -8,7 +8,7 @@ class Directions(IntEnum):
     W = 3
 
 
-GREEN_STR = 'Green'
-GOLD_STR = 'Yellow'
-WHITE_STR = 'White'
-RED_STR = 'Red'
+GREEN_STR = 'green'
+GOLD_STR = 'yellow'
+WHITE_STR = 'white'
+RED_STR = 'red'

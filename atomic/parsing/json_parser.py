@@ -34,6 +34,7 @@ class ProcessParsedJson(GameLogParser):
             }
             print('Reading json with these input files', inputFiles)
             self.allMs, self.human = getMessages(inputFiles)
+            self.originalMs = self.allMs
             self.pickTriager()
         
     def useParsedFile(self, msgfile):
@@ -48,6 +49,7 @@ class ProcessParsedJson(GameLogParser):
         """ Pick a player who spent time as a medic. Ignore everyone else!
         """
         players = set([m['playername'] for m in self.allMs if m['sub_type'] == 'Event:Triage'])
+        print("all plauers", players)
         chosenOne = players.pop()
         self.allMs = [m for m in self.allMs if ('playername' in m.keys()) and (m['playername'] == chosenOne)]
         self.human = chosenOne
@@ -64,11 +66,11 @@ class ProcessParsedJson(GameLogParser):
         self.triageStartTime = ts
 
     def parseTriageEnd(self, vicColor, isSuccessful, msgIdx, ts):
-        self.logger.debug('triage ended of %s at %s' % (vicColor, ts))
+        self.logger.debug('triage ended (success = %s) of %s at %s' % (isSuccessful, vicColor, ts))
         
         ## If reported as successful, force duration to be long enough
         if isSuccessful:
-            if vicColor == 'Green':
+            if vicColor == GREEN_STR:
                 duration = 8
             else:
                 duration = 15
@@ -77,12 +79,14 @@ class ProcessParsedJson(GameLogParser):
             duration = 5
 
         ## Update the parser's version of victims in each room
-        if isSuccessful:
-            self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
-
-        triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
-        ## Record it as happening at self.triageStartTime
-        self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
+        if (self.lastParsedLoc in self.roomToVicDict) and (vicColor in self.roomToVicDict[self.lastParsedLoc]):
+            if isSuccessful:
+                self.roomToVicDict[self.lastParsedLoc].remove(vicColor)
+            triageAct = self.victimsObj.getTriageAction(self.human, vicColor)
+            ## Record it as happening at self.triageStartTime
+            self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
+        else:
+            self.logger.warn("ERROR: triaged non-existent %s victim in %s" % (vicColor, self.lastParsedLoc))
 
     def parseMove(self, newRoom, msgIdx, ts):
         self.locations.add(newRoom)
@@ -139,7 +143,7 @@ class ProcessParsedJson(GameLogParser):
 
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
-                vicColor = m['color']
+                vicColor = m['color'].lower()
                 if m['room_name'] != self.lastParsedLoc:
                     self.logger.error(
                         'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))

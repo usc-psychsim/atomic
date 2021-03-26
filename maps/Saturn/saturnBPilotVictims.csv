@@ -1,0 +1,55 @@
+x,y,z,RoomName,FeatureType
+-2222,60,-7,tkt,victim
+-2212,60,4,kco2,victim
+-2222,60,16,lib1,victim
+-2215,60,29,ccw2,victim
+-2224,60,42,lib2,victim
+-2193,60,2,r102,victim
+-2209,60,39,jc,victim
+-2209,60,33,acr,victim
+-2206,60,21,hcr,victim
+-2203,60,23,crc1,victim
+-2203,60,39,mb,victim
+-2194,60,15,hcr,victim
+-2194,60,34,mkcr,victim
+-2193,60,39,wb,victim
+-2187,60,4,cce1,victim
+-2184,60,7,r104,victim
+-2184,60,44,r109,victim
+-2182,60,28,r107,victim
+-2181,60,35,r108,victim
+-2176,60,42,r109,victim
+-2171,60,2,llcn1,victim
+-2173,60,8,llc1,victim
+-2168,60,28,llc14,victim
+-2162,60,17,llc7,victim
+-2157,60,7,llc25,victim
+-2136,60,13,kit2,victim
+-2170,60,42,ds,victim
+-2169,60,49,ca1,victim
+-2161,60,48,o100,victim
+-2151,60,34,el1,victim
+-2138,60,55,mce1,victim
+-2128,60,12,srbn,victim
+-2124,60,11,srbn,victim
+-2130,60,22,srbs,victim
+-2130,60,42,sran,victim
+-2122,60,47,scw4,victim
+-2122,60,10,scw1,victim
+-2117,60,28,scw2,victim
+-2114,60,19,srdn,victim
+-2109,60,20,srdn,victim
+-2109,60,42,srcn,victim
+-2109,60,44,srcs,victim
+-2107,60,46,srcs,victim
+-2101,60,54,scc5,victim
+-2101,60,33,scc3,victim
+-2093,60,7,srj,victim
+-2099,60,36,srg,victim
+-2099,60,42,srf,victim
+-2090,60,29,sce3,victim
+-2222,60,55,oba,High Value Victim
+-2200,60,48,cf,High Value Victim
+-2140,60,39,sdc2,High Value Victim
+-2109,60,22,srds,High Value Victim
+-2092,60,18,sri,High Value Victim

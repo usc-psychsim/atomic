@@ -18,17 +18,19 @@ logging.basicConfig(
     format='%(message)s', level=logging.INFO)
 
 ######### Get Map Data
-mapName = 'saturnB'
 DEFAULT_MAPS = get_default_maps()
-SandRLocs = DEFAULT_MAPS[mapName].adjacency
-SandRVics = DEFAULT_MAPS[mapName].victims
-
-# use_unobserved=True, full_obs=False, logger=logging):
 fnames = []
 ddir = '../data/ASU_DATA/'
-fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnB_Trial-T000289_Team-TM000008_Member-P000124-P000125-P000126_Vers-1.metadata')
-fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnA_Trial-T000288_Team-TM000008_Member-P000124-P000125-P000126_Vers-1.metadata')
-parser = ProcessParsedJson(fnames[0], DEFAULT_MAPS[mapName], logger=logging)
+fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnA_Trial-T000290_Team-TM000009_Member-P000127-P000128-P000129_Vers-2.metadata')
+fnames.append(ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_CondBtwn-TmPlan_CondWin-SaturnB_Trial-T000291_Team-TM000009_Member-P000127-P000128-P000129_Vers-2.metadata')
+
+
+mapNames = ['saturnA', 'saturnB']
+chosen = 1
+mapStruct = DEFAULT_MAPS[mapNames[chosen]]
+SandRLocs = dict(mapStruct.adjacency)
+SandRVics = dict(mapStruct.victims)
+parser = ProcessParsedJson(fnames[chosen], mapStruct, logger=logging)
 
 world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
     parser.player_name(), None, SandRLocs, SandRVics, False, True)
@@ -43,4 +45,4 @@ runFastFwdTo = 9999
 parser.setVictimLocations(SandRVics)
 parser.getActionsAndEvents(victimsObj, world_map, maxNumEvents)
 ##### Replay sequence of actions 
-parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
+#parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)

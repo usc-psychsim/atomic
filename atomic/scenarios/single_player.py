@@ -4,10 +4,9 @@ from atomic.definitions.world_map import WorldMap
 from atomic.definitions.victims import Victims
 from atomic.definitions.world import SearchAndRescueWorld
 from atomic.inference import make_observer
+from atomic.definitions import GOLD_STR, GREEN_STR
 
 OBSERVER_NAME = 'ATOMIC'
-GREEN_STR = 'Green'
-GOLD_STR = 'Yellow'
 
 COLOR_PRIOR_P = {GREEN_STR: 0.3, GOLD_STR: 0.4}
 COLOR_REQD_TIMES = {GREEN_STR: {5: 0.2, 8: 0.4}, GOLD_STR: {5: 0.2, 15: 0.4}}

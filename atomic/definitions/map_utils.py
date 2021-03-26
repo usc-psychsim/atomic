@@ -109,17 +109,19 @@ def getSandRMap(small=False, fname="sparky_adjacency", logger=logging):
     if small:
         fname = fname[:-4] + "_small.csv"
     conn_df = pd.read_csv(fname, sep=None, engine='python')
+    toUpperCase = {c:c.upper() for c in conn_df.columns}
+    conn_df.rename(toUpperCase, axis=1, inplace=True)
     print('-----------------', fname)
     num_col = len(conn_df.columns)
     SandRLocs = OrderedDict()
     for key, row in conn_df.iterrows():
-        if row['Room'] not in SandRLocs.keys():
-            SandRLocs[row["Room"]] = {}
+        if row['ROOM'] not in SandRLocs.keys():
+            SandRLocs[row["ROOM"]] = {}
         for i in range(num_col - 1):
             direction = conn_df.columns[i + 1]
             neighbor = row[direction]
             if type(neighbor) is str:
-                SandRLocs[row["Room"]][dirs[direction]] = neighbor
+                SandRLocs[row["ROOM"]][dirs[direction]] = neighbor
 
     checkmap = checkSRMap(SandRLocs, logger)
     ## Bug here: checkSRMap always returns True!
@@ -143,7 +145,7 @@ def getSandRVictims(small=False, fname="sparky_vic_locs"):
             color = row["Color"]
         else:
             col = "RoomName"
-            if row["FeatureType"] == 'victim':
+            if row["FeatureType"].lower() == 'victim':
                 color = GREEN_STR
             else:
                 color = GOLD_STR

@@ -1,0 +1,56 @@
+x,y,z,RoomName,FeatureType
+-2222,60,-6,tkt,Victim
+-2222,60,37,lib2,Victim
+-2220,60,36,lib2,Victim
+-2217,60,55,oba,Victim
+-2224,60,58,so,Victim
+-2203,60,4,r101,Victim
+-2193,60,0,r102,Victim
+-2193,60,13,hcr,Victim
+-2194,60,15,hcr,Victim
+-2194,60,34,mkcr,Victim
+-2203,60,39,mb,Victim
+-2194,60,48,cf,Victim
+-2207,60,52,cf,Victim
+-2201,60,56,mcw1,Victim
+-2184,60,0,r103,Victim
+-2173,60,8,llc1,Victim
+-2169,60,14,llc5,Victim
+-2184,60,21,r106,Victim
+-2182,60,31,r107,Victim
+-2178,60,35,r108,Victim
+-2166,60,34,ba,Victim
+-2184,60,49,r110,Victim
+-2169,60,49,ca1,Victim
+-2160,60,48,r110,Victim
+-2136,60,-1,llcn3,Victim
+-2154,60,12,llc18,Victim
+-2140,60,9,kit1,Victim
+-2124,60,8,scn6,Victim
+-2154,60,26,llc21,Victim
+-2136,60,26,kit4,Victim
+-2130,60,20,srbs,Victim
+-2148,60,32,buf5,Victim
+-2140,60,40,sdc2,Victim
+-2130,60,44,sras,Victim
+-2144,60,53,sdc1,Victim
+-2112,60,-1,scn3,Victim
+-2093,60,0,scn5,Victim
+-2099,60,11,sri,Victim
+-2109,60,17,srdn,Victim
+-2112,60,19,srdn,Victim
+-2108,60,22,srds,Victim
+-2093,60,20,srh,Victim
+-2092,60,20,srh,Victim
+-2117,60,34,scw3,Victim
+-2090,60,33,sce3,Victim
+-2108,60,41,srcn,Victim
+-2099,60,44,srf,Victim
+-2115,60,53,srcs,Victim
+-2092,60,53,sre,Victim
+-2102,60,56,mce3,Victim
+-2213,60,4,kco2,High Value Victim
+-2197,60,39,wb,High Value Victim
+-2168,60,23,llc11,High Value Victim
+-2131,60,41,sran,High Value Victim
+-2095,60,9,srj,High Value Victim

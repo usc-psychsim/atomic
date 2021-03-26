@@ -162,7 +162,7 @@ class Victims(object):
 
         # update victim loc counters
         for loc in self.world_map.all_locations:
-            red_ctr = stateKey(WORLD, 'ctr_' + loc + '_' + 'Red')
+            red_ctr = stateKey(WORLD, 'ctr_' + loc + '_' + RED_STR)
             for color in vic_colors:
                 ctr = stateKey(WORLD, 'ctr_' + loc + '_' + color)
                 expire = self.color_expiry[color]
