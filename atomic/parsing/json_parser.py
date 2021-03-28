@@ -11,7 +11,7 @@ from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.parsing import GameLogParser
 from atomic.parsing.pilot2_message_reader import getMessages
-from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR
+from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, MISSION_DURATION
 
 MOVE = 0
 TRIAGE = 1
@@ -183,6 +183,9 @@ class ProcessParsedJson(GameLogParser):
             world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
             start = 1
 
+
+        return
+        clockKey = stateKey(WORLD, 'seconds')
         t = start
         while True:
             if (t >= end) or (t >= len(self.actions)):
@@ -193,12 +196,12 @@ class ProcessParsedJson(GameLogParser):
             act = actStruct[1][0]
             testbedMsgId = actStruct[-2]
             trueTime = actStruct[-1]
-            timeInSec = 600 - (trueTime[0] * 60) - trueTime[1]
+            timeInSec = MISSION_DURATION - (trueTime[0] * 60) - trueTime[1]
 
             self.logger.info('%d) Running msg %d: %s' % (t + start, testbedMsgId, ','.join(map(str, actStruct[1]))))
 
             # before any action, manually sync the time feature with the game's time (invert timer)
-            world.setFeature(stateKey(WORLD, 'seconds'), timeInSec, recurse=True)
+            world.setFeature(clockKey, timeInSec, recurse=True)
 
             if self.processor is not None:
                 self.processor.pre_step(world)
@@ -211,16 +214,15 @@ class ProcessParsedJson(GameLogParser):
                 pass
 
             if actType == TRIAGE:
-                dur = actStruct[1][1]
-                clock = stateKey(WORLD, 'seconds')
-                curTime = world.getState(WORLD, 'seconds', unique=True)
+                dur = actStruct[1][1]                
+                curTime = world.getFeature(clockKey, unique=True)
                 newTime = curTime + dur
-                selDict[clock] = newTime
+                selDict[clockKey] = newTime
                 self.logger.debug('Time now %d triage until %d' % (curTime, newTime))
 
             t = t + 1
             self.logger.info('Injecting %s' % (selDict))
-            # selDict = {k: world.value2float(k, v) for k, v in selDict.items()}
+            selDict = {k: world.value2float(k, v) for k, v in selDict.items()}
             world.step(act, select=selDict, threshold=prune_threshold)
             world.modelGC()
 
@@ -233,7 +235,7 @@ class ProcessParsedJson(GameLogParser):
 
     def summarizeState(self, world, ttime):
         loc = world.getState(self.human, 'loc', unique=True)
-        time = 600 - world.getState(WORLD, 'seconds', unique=True)
+        time = MISSION_DURATION - world.getState(WORLD, 'seconds', unique=True)
         self.logger.info('psim Time: %s' % ([int(time / 60), time % 60]))
         self.logger.info('True Time: %s' % (ttime))
         self.logger.info('Phase: %s' % (world.getState(WORLD, 'phase', unique=True)))

@@ -12,3 +12,4 @@ GREEN_STR = 'green'
 GOLD_STR = 'yellow'
 WHITE_STR = 'white'
 RED_STR = 'red'
+MISSION_DURATION = 60 * 15
