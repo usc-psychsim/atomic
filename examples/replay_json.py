@@ -45,4 +45,4 @@ runFastFwdTo = 9999
 parser.setVictimLocations(SandRVics)
 parser.getActionsAndEvents(victimsObj, world_map, maxNumEvents)
 ##### Replay sequence of actions 
-#parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
+parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)

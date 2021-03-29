@@ -183,8 +183,6 @@ class ProcessParsedJson(GameLogParser):
             world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
             start = 1
 
-
-        return
         clockKey = stateKey(WORLD, 'seconds')
         t = start
         while True:
