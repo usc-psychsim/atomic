@@ -83,7 +83,7 @@ class msgreader(object):
         self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped']
+        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped']
         self.messages = []
         self.mission_running = False
         self.locations = []
@@ -277,6 +277,8 @@ class msgreader(object):
             if m.mtype == 'Event:Lever':
                 self.add_room(m.mdict) 
             if m.mtype == 'Event:VictimPickedUp':
+                self.add_room(m.mdict) 
+            if m.mtype == 'Event:VictimPlaced':
                 self.add_room(m.mdict) 
             if m.mtype == 'Event:RubbleDestroyed':
                 self.add_room(m.mdict) 
@@ -530,6 +532,9 @@ class msgreader(object):
         elif jtxt.find('Event:VictimPickedUp') > -1:
             self.psychsim_tags += ['color', 'victim_x', 'victim_z']
             m.mtype = 'Event:VictimPickedUp'
+        elif jtxt.find('Event:VictimPlaced') > -1:
+            self.psychsim_tags += ['color', 'victim_x', 'victim_z']
+            m.mtype = 'Event:VictimPlaced'
         elif jtxt.find('Event:RubbleDestroyed') > -1:
             self.psychsim_tags += ['rubble_x','rubble_z']
             m.mtype = 'Event:RubbleDestroyed'
