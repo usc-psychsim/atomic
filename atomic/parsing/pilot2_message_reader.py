@@ -29,34 +29,11 @@ class room(object):
             self.zrange = range(z0,z1+1)
         else:
             self.zrange = range(z1+1,z0)
-        self.doors = []
         self.victims = []
 
     def in_room(self, _x, _z):
         if _x in self.xrange and _z in self.zrange:
             return True   
-        else:
-            return False
-
-class door(object):
-    def __init__(self, x0, z0, x1, z1, room1, room2):
-        self.room1 = room1
-        self.room2 = room2
-        self.x0 = x0
-        self.x1 = x1
-        self.z0 = z0
-        self.z1 = z1
-        self.center = [x0,z0] # default to corner
-        self.xrange = range(x0,x1+1)
-        self.zrange = range(z0,z1+1)
-        # calc center half the span of x & z 
-        xlen = math.floor(abs(x0 - x1)/2)
-        zlen = math.floor(abs(z0 - z1)/2)
-        self.center = [x0+xlen,z0+zlen]
-
-    def at_this_door(self, _x, _z):
-        if _x in self.xrange and _z in self.zrange:
-            return True
         else:
             return False
 
@@ -74,16 +51,15 @@ class msg(object):
         self.linenum = 0
 
 class msgreader(object):
-    def __init__(self, fname, room_list, portal_list, verbose=False):
+    def __init__(self, fname, room_list, verbose=False):
         self.psychsim_tags = ['mission_timer', 'sub_type'] # maybe don't need here
         self.nmessages = 0
         self.rooms = []
-        self.doors = [] # actually portals
         self.victims = []
         self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
-        self.msg_types = ['Event:Triage', 'Event:Door', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'Event:Beep','state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped']
+        self.msg_types = ['Event:Triage', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:location']
         self.messages = []
         self.mission_running = False
         self.locations = []
@@ -96,8 +72,6 @@ class msgreader(object):
             self.load_rooms(room_list)
         else:
             self.load_rooms_semantic(room_list)
-        self.load_doors(portal_list)
-        self.add_doors_to_rooms()
 
     def load_fovs(self, fname):
         victim_arr = []
@@ -145,44 +119,6 @@ class msgreader(object):
                 rm = r
                 break
         return rm
-
-    # find closest portal (closest room may not be accessible)--NOW FINDING ATTACHED ROOMS
-    # then find the rooms that portal adjoins & select the one we're not already in
-    # if no victim there just find closest victim
-    def find_beep_room(self,m):
-        x = int(m.mdict['beep_x'])
-        z = int(m.mdict['beep_z'])
-        best_dist = 99999
-        victim_room = 'NONE'
-        vidx = 0
-        bestd = -1
-        didx = 0
-        all_attached_rooms = []
-        attached_victim_rooms = []
-        agent_room = self.get_room_from_name(self.curr_room)
-
-        # first check if player has changed rooms on this move (in case beep msg preceeds state observation msg)
-        for r in self.rooms:
-            if r.in_room(x,z) and self.curr_room != r.name: # agent moved, need to add event:location message
-              self.make_location_event(m.mdict['mission_timer'],r.name,m.mdict['timestamp']) # adds msg, changes agent room
-              agent_room = r
-              break
-
-        # get list of attached rooms containing victims
-        for d in agent_room.doors:
-            if d.room1 != agent_room.name and d.room1 in self.victim_rooms:
-                attached_victim_rooms.append(self.get_room_from_name(d.room1))
-            elif d.room2 != agent_room.name and d.room2 in self.victim_rooms:
-                attached_victim_rooms.append(self.get_room_from_name(d.room2))
-                
-        # for each victim in each attached room, find closest
-        for r in attached_victim_rooms:
-            for v in r.victims: # maybe don't need? just iterate thru full victim list skip adding victims to rooms
-                distance = math.sqrt(pow((v.x-x),2) + pow((v.z-z),2))
-                if distance < best_dist:
-                    best_dist = distance
-                    victim_room = v.room
-        return victim_room
 
     def get_obs_timer(self,fmessage):
         obsnum = fmessage.mdict['observation']
@@ -237,7 +173,7 @@ class msgreader(object):
             if line.find("mission_victim_list") > -1:
                 self.mission_running = True # count this as mission start, start will occur just after list
                 self.add_message(line,nlines)
-            elif line.find("mission_state\":\"Stop") > -1 or line.find('Mission Timer not initialized') > -1:
+            elif line.find("mission_state\":\"Stop") > -1: # or line.find('Mission Timer not initialized') > -1:
                 self.mission_running = False
             elif line.find("paused\":true") > -1:
                 self.mission_running = False
@@ -282,22 +218,14 @@ class msgreader(object):
                 self.add_room(m.mdict) 
             if m.mtype == 'Event:RubbleDestroyed':
                 self.add_room(m.mdict) 
-            elif m.mtype == 'Event:Door':
-                self.add_door_rooms(m.mdict,m.mtype)
-            #elif m.mtype == 'Event:ToolUsed':
-                #self.add_room(m.mdict)
+            elif m.mtype == 'Event:ToolUsed': # not sure why commented out?? don't need room?
+                self.add_room(m.mdict)
+            elif m.mtype == 'Event:location':
+                self.add_room(m.mdict) # possibly can replace obs?
+                add_msg = False # won't add here, will be added in add_room. TODO: keep tally make sure all end up added? 
             elif m.mtype == 'Mission:VictimList':
                 self.make_victims_msg(jtxt,m)
                 self.add_victims_to_rooms()
-            elif m.mtype == 'Event:Beep':
-                room_name = self.find_beep_room(m)
-                if room_name == 'NONE': #for now filtering if not in psychsim room
-                    add_msg = False
-                elif not self.verbose:
-                    del m.mdict['beep_x']
-                    del m.mdict['beep_z']
-                    m.mdict.update({'room_name':room_name})
-                    m.mdict.update({'playername':self.playername})
             elif m.mtype == 'FoV':
                 victim_arr = []
                 self.get_obs_timer(m) # do at end??
@@ -331,12 +259,12 @@ class msgreader(object):
             obsz = data['z']
             obsdict = {'x':obsx,'z':obsz}
             room_name = self.add_room_obs(obsdict)
-            # SKIP when no fov's, otherwise generates unnecessary location message
+            # SKIP when no fov's, otherwise generates unnecessary location message??
             #if room_name != self.curr_room and room_name != '':
-            #    m = msg('state')
-            #    m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
-            #    self.messages.append(m)
-            #    self.curr_room = room_name
+             #   m = msg('state')
+             #   m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
+             #   self.messages.append(m)
+             #   self.curr_room = room_name
             #self.observations.append([obsnum,mtimer,nln,realtime,obsx,obsz]) # add to obs even if is location change
 
     def make_location_event(self,mtimer, room_name, tstamp): # generates & adds message
@@ -374,28 +302,6 @@ class msgreader(object):
                         vcolor = GOLD_STR
                     victim_arr.append(vcolor)
         m.mdict.update({'victim_list':victim_arr})
-        return victim_arr
-
-    def get_fov_blocks_nope(self,m,jtxt):
-        victim_arr = []
-        obs = json.loads(jtxt)
-        data = obs[u'data']
-        blocks = data['blocks']
-        for b in blocks:
-            btype = str(b['type']).strip()
-            if btype == 'block_victim_2' or btype == 'block_victim_1':
-                vloc = b['location']
-                vx = vloc[0]
-                vz = vloc[2]
-                if self.verbose:
-                    greenstr = GREEN_STR + str(vloc)
-                    goldstr = GOLD_STR + str(vloc)
-            if btype == 'block_victim_1':
-                vcolor = GREEN_STR
-                victim_arr.append(greenstr)
-            elif btype == 'block_victim_2':
-                vcolor = GOLD_STR
-                victim_arr.append(goldstr)
         return victim_arr
 
     def make_victims_msg(self,line,vmsg):
@@ -480,32 +386,6 @@ class msgreader(object):
                 room_name = r.name
         return room_name
 
-    def add_door_rooms(self, msgdict, msg_type):
-        doors_found = 0
-        x = 0
-        z = 0
-        for (k,v) in msgdict.items():
-            if k.find('_x') > -1:
-                x = float(v)
-            elif k.find('_z') > -1:
-                z = int(v)
-        for d in self.doors:
-            if d.at_this_door(x,z):
-                msgdict.update({'room1':d.room1})
-                msgdict.update({'room2':d.room2})
-                if not self.verbose:
-                    del msgdict['door_x'] # no longer needed once have ajoining rooms
-                    del msgdict['door_z']
-                doors_found += 1
-                break
-        # if we did not find this door's adjoining rooms, it's not a portal, still need to update its fields
-        if doors_found == 0:
-            msgdict.update({'room1':'null'})
-            msgdict.update({'room2':'null'})
-            if not self.verbose:
-                del msgdict['door_x'] # no longer needed once have ajoining rooms
-                del msgdict['door_z']
-        
     # check what kind of event to determine tags to look for
     # if doesn't match any, we don't care about it so
     # message won't be processed
@@ -517,11 +397,8 @@ class msgreader(object):
             m.mtype = 'Event:Triage'
             if jtxt.find('SUCCESS') > -1:
                 self.rescues += 1
-        elif jtxt.find('Event:Door') > -1:
-            self.psychsim_tags += ['open', 'door_x', 'door_z', 'room1', 'room2']
-            m.mtype = 'Event:Door'
         elif jtxt.find('Event:ToolUsed') > -1:
-            self.psychsim_tags += ['tool_type', 'durability', 'target_block_type']
+            self.psychsim_tags += ['tool_type', 'durability', 'target_block_type', 'target_block_x', 'target_block_z']
             m.mtype = 'Event:ToolUsed'
         elif jtxt.find('Event:RoleSelected') > -1:
             self.psychsim_tags += ['new_role', 'prev_role']
@@ -550,9 +427,6 @@ class msgreader(object):
         elif jtxt.find('Mission:VictimList') > -1:
             self.psychsim_tags += ['mission_victim_list', 'room_name', 'message_type']
             m.mtype = 'Mission:VictimList'
-        elif jtxt.find('Event:Beep') > -1:
-            self.psychsim_tags += ['message', 'room_name', 'beep_x', 'beep_z']
-            m.mtype = 'Event:Beep'
         elif jtxt.find('FoV') > -1 and jtxt.find('victim') > -1:
             self.psychsim_tags += ['observation']
             m.mtype = 'FoV'
@@ -611,30 +485,13 @@ class msgreader(object):
                 rm = room(rid, x0, z0, x1, z1)
                 self.rooms.append(rm)
         rfile.close()
-
-    def load_doors(self, fname):
-        with open(fname) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            line_count = 0
-            for row in csv_reader:
-                if line_count == 0:
-                    line_count += 1
-                else:
-                    d = door(int(row[1]), int(row[2]), int(row[3]), int(row[4]), str(row[5]), str(row[6]))
-                    self.doors.append(d)
-                    line_count += 1
-
-    def add_doors_to_rooms(self):
-        for d in self.doors:
-            for r in self.rooms:
-                if d.room1 == r.name or d.room2 == r.name and d not in r.doors:
-                    r.doors.append(d)
-                    #print("--- added door to room---")
+    
     def add_victims_to_rooms(self):
         for v in self.victims:
             for r in self.rooms:
                 if v.room == r.name:
                     r.victims.append(v)
+
 
 
 def get_rescues(msgfile):
@@ -658,35 +515,8 @@ def get_rescues(msgfile):
         print('yellow rescues: '+str(num_yellow))
         print("TOTAL RESCUED : "+str(num_rescues))
 
-def proc_gc_files(gcdir, prefix, tmpdir='/var/tmp/'):
-    file_list = tmpdir+'/metafiles.txt'
-    cmd = 'gsutil ls gs://studies.aptima.com/'+gcdir+'/'+prefix+'*metadata > '+file_list
-    print("getting file list from:: "+cmd)
-    subprocess.getstatusoutput(cmd)
-    metafile = open(file_list, 'r')
-    cpcnt = 0 # for testing only do first 2 files
-    for line in metafile.readlines():
-        fname = line.split(gcdir+'/')[1].strip()
-        msgfile = tmpdir+fname
-        outfile = tmpdir+fname+'.json'
-        cmd = 'gsutil cp '+line.strip()+' '+tmpdir # fetch file
-        print("processing file:: "+fname)
-        subprocess.getstatusoutput(cmd)
-        reader = msgreader(msgfile, room_list, portal_list)
-        reader.add_all_messages(msgfile)
-        # write msgs to file
-        msgout = open(outfile,'w')
-        for m in reader.messages:
-            del m.mdict['timestamp']
-            json.dump(m.mdict,msgout)
-            msgout.write('\n')
-        msgout.close()
-        subprocess.getstatusoutput('rm '+msgfile)
-        cpcnt += 1
-    metafile.close()
-
-def proc_msg_file(msgfile, room_list, portal_list, psychsimdir):
-    reader = msgreader(msgfile, room_list, portal_list)
+def proc_msg_file(msgfile, room_list, psychsimdir):
+    reader = msgreader(msgfile, room_list)
     reader.add_all_messages(msgfile)
     outname = msgfile.split('/')
     outfile = psychsimdir+'/'+outname[len(outname)-1]+'.json'
@@ -703,8 +533,6 @@ def proc_msg_file(msgfile, room_list, portal_list, psychsimdir):
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
 def getMessages(args):    
     ## Defaults
-    #portal_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Portals_v1.1_EMH_OCN_VU.csv'
-    portal_list = 'saturn_doors.csv'
     #room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     room_list = 'saturn_rooms.csv'
     
@@ -716,12 +544,7 @@ def getMessages(args):
     
     ## Output directory to store parsed content if parsing more than 1 file
     psychsimdir = '.'
-    
-    ## Used if parsing files residing on Google Cloud
-    gcdir = 'study-1_2020.08'
-    gcprefix = ''
-    
-    files_from_gc = False
+   
     print_rescues = False
     multitrial = False
     verbose = False
@@ -737,8 +560,6 @@ def getMessages(args):
         elif a == '--multitrial':
             multitrial = True
             msgdir = args[a]
-        elif a == '--portalfile':
-            portal_list = args[a]
         elif a == '--psychsimdir':
             psychsimdir = args[a]
         elif a == '--verbose':
@@ -749,22 +570,13 @@ def getMessages(args):
             print("--rescues: count number of rescues in a message file (or for all message files in a directory specified with --multitrial")
             print("--msgfile <trial messages file>")
             print("--roomfile <.json or .csv list of rooms>")
-            print("--portalfile <list of portals>")
             print("--multitrial <directory with message files to be processed>")
             print("--verbose : will provide extra info for each message, e.g. x/z coords") 
-            print("--gcprefix <prefix>: prefix for files you want to pull from the google cloud in studies.aptima.com/study-1_2020.08")
             print("--psychsimdir <directory to store processed message files>")
             return
 
-    # If reading from a google cloud a directory and writing to files (syncs dir)
-    if files_from_gc:
-        if gcdir == '':
-            gcdir = 'HSRData_TrialMessages'
-        proc_gc_files(gcdir,gcprefix, psychsimdir+"/")
-        return None, None
-    
     # if ONLY getting number of rescues
-    elif print_rescues:
+    if print_rescues:
         if multitrial:
             if msgdir == '':
                 print("ERROR: must provide message directory --multitrial <directory>")
@@ -792,13 +604,13 @@ def getMessages(args):
             full_path = os.path.join(msgdir,f)
             if os.path.isfile(full_path):
                 print("processing file "+str(filecnt)+" of "+str(len(file_arr))+" :: "+str(full_path))
-                proc_msg_file(full_path, room_list, portal_list, psychsimdir)
+                proc_msg_file(full_path, room_list, psychsimdir)
                 filecnt += 1
         return
 
     # default to procesing single file, returning a list of dictionaries
     else:
-        reader = msgreader(msgfile, room_list, portal_list, verbose)
+        reader = msgreader(msgfile, room_list, verbose)
         reader.add_all_messages(msgfile)
         for m in reader.messages:
             if not reader.verbose:
