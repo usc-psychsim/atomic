@@ -48,7 +48,6 @@ class msg(object):
     def __init__(self, msg_type):
         self.mtype = msg_type
         self.mdict = {}
-        self.linenum = 0
 
 class msgreader(object):
     def __init__(self, fname, room_list, verbose=False):
@@ -59,7 +58,9 @@ class msgreader(object):
         self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
-        self.msg_types = ['Event:Triage', 'Event:Lever', 'Event:VictimsExpired', 'Mission:VictimList', 'state','FoV', 'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:location']
+        self.msg_types = ['Event:Triage', 'Event:VictimsExpired', 'Mission:VictimList', 'state','FoV', \
+                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 'Event:VictimPlaced', 'Event:VictimPickedUp', \
+                          'Event:RubbleDestroyed', 'Event:ItemEquipped']
         self.messages = []
         self.mission_running = False
         self.locations = []
@@ -163,16 +164,13 @@ class msgreader(object):
         fmessage.mdict.update({'mission_timer':timer})
 
     # add to msgreader obj
-    # TODO: add counter to know nlines btwn start/stop
     def add_all_messages(self,fname):
-        message_arr = []
         jsonfile = open(fname, 'rt')
-        nlines = 1 # start 1 so aligns with line num in file
         for line in jsonfile.readlines():
             # first filter messages before mission start & record observations
             if line.find("mission_victim_list") > -1:
                 self.mission_running = True # count this as mission start, start will occur just after list
-                self.add_message(line,nlines)
+                self.add_message(line)
             elif line.find("mission_state\":\"Stop") > -1: # or line.find('Mission Timer not initialized') > -1:
                 self.mission_running = False
             elif line.find("paused\":true") > -1:
@@ -180,17 +178,15 @@ class msgreader(object):
             elif line.find("paused\":false") > -1:
                 self.mission_running = True
             elif line.find('observation_number') > -1 and self.mission_running:
-                if self.mission_running:
-                    self.add_observation(line,nlines) # also adds message if room change
+                self.add_observation(line) # also adds message if room change
             # now get actual messages
             elif line.find('data') > -1: # should check for types here, don't pass all?
-                self.add_message(line,nlines)
-            nlines += 1
+                self.add_message(line)
             
         jsonfile.close()
 
     # adds single message to msgreader.messages list
-    def add_message(self,jtxt,linenum): 
+    def add_message(self,jtxt): 
         add_msg = True
         m = self.make_message(jtxt) # generates message, sets psychsim_tags
         if m.mtype in self.msg_types and (self.mission_running or m.mtype == 'FoV'): # mission not running for many fovs in .metadata due to timing
@@ -245,20 +241,18 @@ class msgreader(object):
     # OBS & STATE ARE SAME, CHECK ROOM HERE
     # this also generates a message if room has changed
     # only used for getting timer of fov's
-    def add_observation(self,jtxt,nln):
+    def add_observation(self,jtxt):
         obs = json.loads(jtxt)
         # message = obs[u'msg']
         data = obs[u'data']
-        obsnum = int(data['observation_number'])
+        if obs['msg']['sub_type'] not in self.msg_types:
+            return
         playername = data['playername']
         if playername == self.playername: # only add if not ghost
-            mtimer = data['mission_timer']
-            tstamp = data['timestamp'].split('T')[1].split('.')[0] # don't need?
-            realtime = data['timestamp']
             obsx = data['x']
             obsz = data['z']
             obsdict = {'x':obsx,'z':obsz}
-            room_name = self.add_room_obs(obsdict)
+            self.add_room_obs(obsdict)
             # SKIP when no fov's, otherwise generates unnecessary location message??
             #if room_name != self.curr_room and room_name != '':
              #   m = msg('state')
@@ -374,10 +368,6 @@ class msgreader(object):
             self.curr_room = room_name
 
     def add_room_obs(self, msgdict):
-        x = 0
-        z = 0
-        xkey = ''
-        zkey = ''
         room_name = ''
         x = float(round(msgdict['x']))
         z = float(round(msgdict['z']))
