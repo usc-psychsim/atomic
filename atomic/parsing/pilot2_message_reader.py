@@ -7,13 +7,9 @@
 from builtins import range
 import os
 import sys
-import time
 import functools
 import json
-import math
 import csv
-import subprocess
-import time
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 
@@ -21,21 +17,14 @@ class room(object):
     def __init__(self, name, x0, z0, x1, z1):
         self.name = name
         # coords in new file using top rt corner, bottom left (unlike previous) so need to adjust for calculating range
-        if x0 < x1:
-            self.xrange = range(x0,x1+1)
-        else:
-            self.xrange = range(x1+1,x0)
-        if z0 < z1:
-            self.zrange = range(z0,z1+1)
-        else:
-            self.zrange = range(z1+1,z0)
+        self.x0= min(x0, x1)
+        self.x1= max(x0, x1)
+        self.z0= min(z0, z1)
+        self.z1= max(z0, z1)        
         self.victims = []
 
     def in_room(self, _x, _z):
-        if _x in self.xrange and _z in self.zrange:
-            return True   
-        else:
-            return False
+        return (self.x0 <= _x) and (_x <= self.x1) and (self.z0 <= _z) and (_z <= self.z1)
 
 class victim(object):
     def __init__(self, loc, color, x, z):
@@ -55,7 +44,6 @@ class msgreader(object):
         self.nmessages = 0
         self.rooms = []
         self.victims = []
-        self.victimcoords = []
         self.victim_rooms = []
         self.fov_messages = []
         self.msg_types = ['Event:Triage', 'Event:VictimsExpired', 'Mission:VictimList', 'state','FoV', \
@@ -66,7 +54,6 @@ class msgreader(object):
         self.locations = []
         self.observations = []
         self.curr_room = ''
-        self.rescues = 0
         self.verbose = verbose
         self.playername = self.get_player(fname)
         if (room_list.endswith('.csv')):
@@ -83,15 +70,14 @@ class msgreader(object):
                 data = obs[u'data']
                 playername = data['playername']    # maybe don't need, assume no ghosts?
                 obsnum = data['observation']
-                blocks = data['blocks']
                 fmsg = msg('FoV')
                 fmsg.mdict.update({'sub_type':'FoV','playername':playername, 'observation':obsnum})
                 victim_arr = self.get_fov_blocks_f(fmsg, line)
                 if len(victim_arr) > 0:
                     fmsg.mdict.update({'victim_list':victim_arr})
-                    self.fov_messages.append(fmsg)
-                
-    # if there are multiple players use triage to get 'real' one, otherwise just grab first playername found
+                    self.fov_messages.append(fmsg)                
+
+ # if there are multiple players use triage to get 'real' one, otherwise just grab first playername found
     def get_player(self, msgfile):
         playername = 'NONE'
         jsonfile = open(msgfile, 'rt')
@@ -203,22 +189,8 @@ class msgreader(object):
             if m.mtype in ['Event:Triage']:
                 if m.mdict['color'] == 'Yellow':
                     m.mdict.update({'color':GOLD_STR})
-                self.add_room(m.mdict)
                 if self.playername != m.mdict['playername']: # ghost player, don't care abt so won't add msg
                     add_msg = False
-            if m.mtype == 'Event:Lever':
-                self.add_room(m.mdict) 
-            if m.mtype == 'Event:VictimPickedUp':
-                self.add_room(m.mdict) 
-            if m.mtype == 'Event:VictimPlaced':
-                self.add_room(m.mdict) 
-            if m.mtype == 'Event:RubbleDestroyed':
-                self.add_room(m.mdict) 
-            elif m.mtype == 'Event:ToolUsed': # not sure why commented out?? don't need room?
-                self.add_room(m.mdict)
-            elif m.mtype == 'Event:location':
-                self.add_room(m.mdict) # possibly can replace obs?
-                add_msg = False # won't add here, will be added in add_room. TODO: keep tally make sure all end up added? 
             elif m.mtype == 'Mission:VictimList':
                 self.make_victims_msg(jtxt,m)
                 self.add_victims_to_rooms()
@@ -246,20 +218,26 @@ class msgreader(object):
         # message = obs[u'msg']
         data = obs[u'data']
         if obs['msg']['sub_type'] not in self.msg_types:
-            return
+            return        
+        obsnum = int(data['observation_number'])
         playername = data['playername']
         if playername == self.playername: # only add if not ghost
+            mtimer = data['mission_timer']
+            realtime = data['timestamp']
             obsx = data['x']
             obsz = data['z']
+            
             obsdict = {'x':obsx,'z':obsz}
-            self.add_room_obs(obsdict)
-            # SKIP when no fov's, otherwise generates unnecessary location message??
-            #if room_name != self.curr_room and room_name != '':
-             #   m = msg('state')
-             #   m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
-             #   self.messages.append(m)
-             #   self.curr_room = room_name
-            #self.observations.append([obsnum,mtimer,nln,realtime,obsx,obsz]) # add to obs even if is location change
+            room_name = self.add_room_obs(obsdict)
+            if room_name != self.curr_room and room_name != '':
+                if (room_name == 'ca4') or (room_name == 'ca1'):
+                    print("%s coords %.1f %.1f" %(room_name, obsx, obsz))        
+                m = msg('state')
+#                print('==Injecting location event from', self.curr_room, 'to', room_name, obsdict, mtimer, obs['msg']['sub_type'])
+                m.mdict = {'sub_type':'Event:Location','playername':playername,'room_name':room_name,'mission_timer':mtimer,'timestamp':realtime}
+                self.messages.append(m)
+                self.curr_room = room_name
+            self.observations.append([obsnum,mtimer,-1,realtime,obsx,obsz]) # add to obs even if is location change
 
     def make_location_event(self,mtimer, room_name, tstamp): # generates & adds message
         m = msg('state')
@@ -342,35 +320,10 @@ class msgreader(object):
         vmsg.mdict.update({'mission_victim_list':victim_list_dicts})
         vmsg.mdict.update({'playername':self.playername})
 
-    # adds which room event is occurring in 
-    def add_room(self, msgdict):
-        x = 0
-        z = 0
-        xkey = ''
-        zkey = ''
-        room_name = ''
-        for (k,v) in msgdict.items():
-            if k.find('_x') > -1:
-                x = float(v)
-                xkey = k
-            elif k.find('_z') > -1:
-                z = int(v)
-                zkey = k
-        for r in self.rooms:
-            if r.in_room(x,z):
-                room_name = r.name
-        if not self.verbose:
-            del msgdict[xkey]
-            del msgdict[zkey]
-        msgdict.update({'room_name':room_name})
-        if self.curr_room != room_name:
-            self.make_location_event(msgdict['mission_timer'], room_name, msgdict['timestamp'])
-            self.curr_room = room_name
-
     def add_room_obs(self, msgdict):
         room_name = ''
-        x = float(round(msgdict['x']))
-        z = float(round(msgdict['z']))
+        x = msgdict['x']
+        z = msgdict['z']
         for r in self.rooms:
             if r.in_room(x,z):
                 room_name = r.name
@@ -385,8 +338,6 @@ class msgreader(object):
         if jtxt.find('Event:Triage') > -1:
             self.psychsim_tags += ['triage_state', 'color', 'victim_x', 'victim_z']
             m.mtype = 'Event:Triage'
-            if jtxt.find('SUCCESS') > -1:
-                self.rescues += 1
         elif jtxt.find('Event:ToolUsed') > -1:
             self.psychsim_tags += ['tool_type', 'durability', 'target_block_type', 'target_block_x', 'target_block_z']
             m.mtype = 'Event:ToolUsed'
@@ -482,29 +433,6 @@ class msgreader(object):
                 if v.room == r.name:
                     r.victims.append(v)
 
-
-
-def get_rescues(msgfile):
-    num_rescues = 0
-    num_green = 0
-    num_yellow = 0
-    mfile = ''
-    if msgfile == '':
-        print("ERROR: must provide --msgfile <filename>")
-    else:
-        mfile = open(msgfile, 'rt')
-        for line in mfile.readlines():
-            if line.find('triage') > -1 and line.find('SUCCESS') > -1:
-                num_rescues += 1
-                if line.find('Yellow') > -1:
-                    num_yellow += 1
-                else:
-                    num_green += 1
-        mfile.close()
-        print('green rescues : '+str(num_green))
-        print('yellow rescues: '+str(num_yellow))
-        print("TOTAL RESCUED : "+str(num_rescues))
-
 def proc_msg_file(msgfile, room_list, psychsimdir):
     reader = msgreader(msgfile, room_list)
     reader.add_all_messages(msgfile)
@@ -522,28 +450,22 @@ def proc_msg_file(msgfile, room_list, psychsimdir):
 # MAIN
 # create reader object then use to read all messages in trial file -- returns array of dictionaries
 def getMessages(args):    
-    ## Defaults
-    #room_list = '../../maps/Falcon_EMH_PsychSim/ASIST_FalconMap_Rooms_v1.1_EMH_OCN_VU.csv'
     room_list = 'saturn_rooms.csv'
     
     ## Local directory containing multiple json files, if multitrial
     msgdir = ''
     ## Single json file, if not multitrial
     msgfile = '../data/pilot2/NotHSRData_TrialMessages_CondBtwn-IdvPlan_CondWin-MapA_Trial-T000276_Team-TM000002_Member-P000106-P000107-P000108_Vers-1.metadata'
-    #msgfile = '../data/HSRData_TrialMessages_CondBtwn-NoTriageNoSignal_CondWin-FalconEasy-StaticMap_Trial-120_Team-na_Member-51_Vers-3.metadata'
     
     ## Output directory to store parsed content if parsing more than 1 file
     psychsimdir = '.'
    
-    print_rescues = False
     multitrial = False
     verbose = False
     
     # Grab inputs, where available
-    for a,val in args.items():            
-        if a == '--rescues':
-            print_rescues = True
-        elif a == '--msgfile':
+    for a,val in args.items():     
+        if a == '--msgfile':
             msgfile = args[a]
         elif a == '--roomfile':
             room_list = args[a]
@@ -554,37 +476,18 @@ def getMessages(args):
             psychsimdir = args[a]
         elif a == '--verbose':
             verbose = True
+            print("Going verbose")
         elif a == '--help':
             print("USAGE:")
             print('--home: specify atomic home')
-            print("--rescues: count number of rescues in a message file (or for all message files in a directory specified with --multitrial")
             print("--msgfile <trial messages file>")
             print("--roomfile <.json or .csv list of rooms>")
             print("--multitrial <directory with message files to be processed>")
             print("--verbose : will provide extra info for each message, e.g. x/z coords") 
             print("--psychsimdir <directory to store processed message files>")
             return
-
-    # if ONLY getting number of rescues
-    if print_rescues:
-        if multitrial:
-            if msgdir == '':
-                print("ERROR: must provide message directory --multitrial <directory>")
-                return
-            file_arr = os.listdir(msgdir)
-            for f in file_arr:
-                full_path = os.path.join(msgdir,f)
-                if os.path.isfile(full_path):
-                    print(full_path)
-                    get_rescues(full_path)
-        else: # just want rescues for single file
-            if msgfile == '':
-                print("ERROR: must provide --msgfile <filename>")
-                return
-            get_rescues(msgfile)
-        return None, None
-    # if running message reader on a directory -- will write results to cwd
-    elif multitrial: 
+    
+    if multitrial: 
         if msgdir == '':
             print("ERROR: must provide message directory --multitrial <directory>")
             return
@@ -603,19 +506,15 @@ def getMessages(args):
         reader = msgreader(msgfile, room_list, verbose)
         reader.add_all_messages(msgfile)
         for m in reader.messages:
-            if not reader.verbose:
-                del m.mdict['timestamp']
-            allMs = [m.mdict for m in reader.messages]
-        return allMs, reader.playername
+            del m.mdict['timestamp']
+        allMs = [m.mdict for m in reader.messages]
+        return allMs, reader
 
 if __name__ == "__main__":
     argDict = {}
     for i in range(1, len(sys.argv)):
         if sys.argv[i] == '--verbose':
             k = '--verbose'
-            v = True
-        elif sys.argv[i] == '--rescues':
-            k = '--rescues'
             v = True
         elif sys.argv[i] == '--help':
             k = '--help'
