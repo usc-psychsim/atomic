@@ -220,7 +220,7 @@ class msgreader(object):
         if obs['msg']['sub_type'] not in self.msg_types:
             return        
         obsnum = int(data['observation_number'])
-        playername = data['playername']
+        playername = data.get('playername', self.playername)
         if playername == self.playername: # only add if not ghost
             mtimer = data['mission_timer']
             realtime = data['timestamp']
