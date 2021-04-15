@@ -13,3 +13,5 @@ GOLD_STR = 'yellow'
 WHITE_STR = 'white'
 RED_STR = 'red'
 MISSION_DURATION = 60 * 15
+
+COLOR_TRANSLATION = {'Green': 'green', 'Gold': 'yellow'}

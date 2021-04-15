@@ -4,7 +4,7 @@ from psychsim.world import WORLD
 from atomic.definitions.world_map import WorldMap
 from atomic.definitions.world import SearchAndRescueWorld
 from atomic.util.psychsim import anding
-from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, RED_STR
+from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, RED_STR, COLOR_TRANSLATION
 
 """
 Contains classes and methods for dealing with victims in the ASIST S&R problem.
@@ -54,7 +54,7 @@ class Victims(object):
             if loc.startswith('2'):
                 loc = 'R' + loc
             for clr in vics:
-                self.victimClrCounts[loc][clr] += 1
+                self.victimClrCounts[loc][COLOR_TRANSLATION.get(clr, clr)] += 1
 
         # Create the psychsim version of these counters, including WHITE and RED
         for loc in world_map.all_locations:
