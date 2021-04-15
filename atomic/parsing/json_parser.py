@@ -181,10 +181,10 @@ class ProcessParsedJson(GameLogParser):
         self.logger.debug(self.actions[start])
         if start == 0:
             loc = self.actions[0]
-            world.setState(self.human, 'loc', loc)
-            world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
-            world.setState(self.human, 'locvisits_' + loc, 1)
-            world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
+            world.setState(self.human, 'loc', loc, recurse=True)
+#            world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
+            world.setState(self.human, 'locvisits_' + loc, 1, recurse=True)
+#            world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
             start = 1
 
         clockKey = stateKey(WORLD, 'seconds')
