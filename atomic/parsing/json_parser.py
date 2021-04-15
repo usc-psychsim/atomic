@@ -25,6 +25,7 @@ class ProcessParsedJson(GameLogParser):
         self.actions = []
         self.locations = set()
         self.triageStartTime = 0
+        self.setVictimLocations(map_data.victims)
         if len(filename) > 0:
             inputFiles = {
                 '--msgfile': filename,
@@ -49,7 +50,7 @@ class ProcessParsedJson(GameLogParser):
         """ Pick a player who spent time as a medic. Ignore everyone else!
         """
         players = set([m['playername'] for m in self.allMs if m['sub_type'] == 'Event:Triage'])
-        print("all plauers", players)
+        print("all players", players)
         chosenOne = players.pop()
         self.allMs = [m for m in self.allMs if ('playername' in m.keys()) and (m['playername'] == chosenOne)]
         self.human = chosenOne
@@ -135,8 +136,11 @@ class ProcessParsedJson(GameLogParser):
                 continue
             ## time elapsed in seconds
             mtime = m['mission_timer']
-            ts = [int(x) for x in mtime.split(':')]
-
+            try:
+                ts = [int(x) for x in mtime.split(':')]
+            except ValueError:
+                # Mission timer error message
+                pass
             #            print(numMsgs)
 #            if ffwd > 0 and numMsgs >= ffwd:
 #                input('press any key.. ')
@@ -144,7 +148,7 @@ class ProcessParsedJson(GameLogParser):
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
                 vicColor = m['color'].lower()
-                if m['room_name'] != self.lastParsedLoc:
+                if m.get('room_name', self.lastParsedLoc) != self.lastParsedLoc:
                     self.logger.error(
                         'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))
 
