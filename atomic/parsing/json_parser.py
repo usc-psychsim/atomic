@@ -247,8 +247,8 @@ class ProcessParsedJson(GameLogParser):
         for clr in clrs:
             self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
         self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))
-        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
-        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
+#        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
+#        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
 
 # f = open('/home/mostafh/Documents/psim/new_atomic/atomic/data/tryj', 'rt')
 # lines = f.readlines()
