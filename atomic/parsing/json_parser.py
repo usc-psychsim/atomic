@@ -10,7 +10,7 @@ import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.parsing import GameLogParser
-from atomic.parsing.pilot2_message_reader import getMessages
+from atomic.parsing.pilot2_message_reader import createJSONParser
 from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, MISSION_DURATION
 
 MOVE = 0
@@ -23,22 +23,23 @@ class ProcessParsedJson(GameLogParser):
         super().__init__(filename, processor, logger)
         self.lastParsedLoc = None
         self.actions = []
+        self.allMs = []
         self.locations = set()
         self.triageStartTime = 0
+        self.jsonFile = filename
         if len(filename) > 0:
-            inputFiles = {
-                '--msgfile': filename,
-                '--roomfile': map_data.room_file,
-                '--portalfile': map_data.portals_file,
-                '--victimfile' : map_data.victim_file
-            }
-            print('Reading json with these input files', inputFiles)
-            self.allMs, self.human = getMessages(inputFiles)
-            self.originalMs = self.allMs
-            self.pickTriager()
+            print('Reading json with these input files', filename)
+            self.jsonParser = createJSONParser(map_data.room_file)
+            
+    def startProcessing(self, featuresToExtract): 
+        self.jsonParser.registerFeatures(featuresToExtract)
+        self.jsonParser.process_json_file(self.jsonFile)
+        self.allPlayersMs = self.jsonParser.messages
+        self.vList = self.jsonParser.vList
+        print(len(self.allPlayersMs))
+        self.pickTriager()
         
     def useParsedFile(self, msgfile):
-        self.allMs = []
         jsonfile = open(msgfile, 'rt')
         for line in jsonfile.readlines():
             self.allMs.append(json.loads(line))
@@ -48,11 +49,21 @@ class ProcessParsedJson(GameLogParser):
     def pickTriager(self):
         """ Pick a player who spent time as a medic. Ignore everyone else!
         """
-        players = set([m['playername'] for m in self.allMs if m['sub_type'] == 'Event:Triage'])
-        print("all plauers", players)
-        chosenOne = players.pop()
-        self.allMs = [m for m in self.allMs if ('playername' in m.keys()) and (m['playername'] == chosenOne)]
-        self.human = chosenOne
+        players = set([m['playername'] for m in self.allPlayersMs])
+        print("all players", players)
+        msgTypes = {pl:set([m['sub_type'] for m in self.allPlayersMs if (m['playername'] == pl) and ('sub_type' in m)]) for pl in players}
+        print("all msgTypes", msgTypes)
+        triagePlayers = set([m['playername'] for m in self.allPlayersMs if m['sub_type'] == 'Event:Triage'])
+        print("all players who triaged", triagePlayers )
+        self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in players}
+        if len(triagePlayers) > 0:
+            chosenOne = triagePlayers.pop()
+            # Get messages of this player AND ANY victim pick up/drop off messages
+            self.allMs = [m for m in self.allPlayersMs if (m['playername'] == chosenOne) or
+                                                  ( m['sub_type']=='Event:VictimPickedUp') or
+                                                  ( m['sub_type']=='Event:VictimPlaced') or 
+                                                  ( m['sub_type']=='Event:RoleSelected') ]
+            self.human = chosenOne
         
     def player_name(self):
         return self.human
@@ -86,7 +97,9 @@ class ProcessParsedJson(GameLogParser):
             ## Record it as happening at self.triageStartTime
             self.actions.append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime])
         else:
-            self.logger.warn("ERROR: triaged non-existent %s victim in %s" % (vicColor, self.lastParsedLoc))
+            self.logger.warn("ERROR: triaged non-existent %s victim in %s at %s" % (vicColor, self.lastParsedLoc, ts))
+            return 1
+        return 0
 
     def parseMove(self, newRoom, msgIdx, ts):
         self.locations.add(newRoom)
@@ -110,6 +123,17 @@ class ProcessParsedJson(GameLogParser):
         self.logger.debug('moved to %s at %s' % (newRoom, ts))
         self.lastParsedLoc = newRoom
         return 0
+    
+    def parseVictimPicked(self, vicColor, room, ts):
+        if (room in self.roomToVicDict) and (vicColor in self.roomToVicDict[room]):
+            self.roomToVicDict[room].remove(vicColor)
+        else:
+            self.logger.warn("ERROR: picked up non-existent %s victim in %s at %s" % (vicColor, room, ts))
+
+    def parseVictimPlaced(self, vicColor, room, ts):
+        if room not in self.roomToVicDict:
+            self.roomToVicDict[room] = []
+        self.roomToVicDict[room].append(vicColor)
 
     ###############################################
     #######  Processing the json messages
@@ -128,6 +152,7 @@ class ProcessParsedJson(GameLogParser):
         triageInProgress = False
 
         while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):
+            err = 0
             mtype = m['sub_type']
             if mtype in ignore:
                 m = next(jsonMsgIter)
@@ -140,20 +165,19 @@ class ProcessParsedJson(GameLogParser):
             #            print(numMsgs)
 #            if ffwd > 0 and numMsgs >= ffwd:
 #                input('press any key.. ')
-
+            if 'color' in m.keys():                
+                vicColor = m['color'].lower()
+            else:
+                vicColor = None
+                
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
-                vicColor = m['color'].lower()
-                if m['room_name'] != self.lastParsedLoc:
-                    self.logger.error(
-                        'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))
-
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(vicColor, ts)
                     triageInProgress = True
                 else:
                     success = (tstate == 'SUCCESSFUL')
-                    self.parseTriageEnd(vicColor, success, numMsgs, ts)
+                    err = self.parseTriageEnd(vicColor, success, numMsgs, ts)
                     triageInProgress = False
 
             elif mtype == 'Event:Location':
@@ -161,10 +185,22 @@ class ProcessParsedJson(GameLogParser):
                     self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
                     triageInProgress = False
                 loc = m['room_name']
-                ret = self.parseMove(loc, numMsgs, ts)
-                if ret > 0:
-                    self.logger.error('That was msg %d' % (numMsgs))
+                err = self.parseMove(loc, numMsgs, ts)
+                    
+            elif mtype == 'Event:VictimPickedUp':
+                self.logger.info(m['playername'] + " picked " + vicColor + " in " + m['room_name'])
+                self.parseVictimPicked(vicColor, m['room_name'], ts)
 
+            elif mtype == 'Event:VictimPlaced':
+                self.logger.info(m['playername'] + " placed " + vicColor + " in " + m['room_name'])
+                self.parseVictimPlaced(vicColor, m['room_name'], ts)
+                
+            elif mtype == 'Event:RoleSelected':
+                self.logger.info(m['playername'] + " was " + m['prev_role'] + " became " + m['new_role'])
+
+
+            if err > 0:
+                self.logger.error('That was msg %d' % (numMsgs))
             m = next(jsonMsgIter, None)
             numMsgs = numMsgs + 1
         self.locations = list(self.locations)
@@ -243,8 +279,8 @@ class ProcessParsedJson(GameLogParser):
         for clr in clrs:
             self.logger.debug('%s count: %s' % (clr, world.getState(WORLD, 'ctr_' + loc + '_' + clr, unique=True)))
         self.logger.info('Visits: %d' % (world.getState(self.human, 'locvisits_' + loc, unique=True)))
-        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_Green', unique=True)))
-        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_Gold', unique=True)))
+        self.logger.info('JustSavedGr: %s' % (world.getState(self.human, 'numsaved_' + GREEN_STR, unique=True)))
+        self.logger.info('JustSavedGd: %s' % (world.getState(self.human, 'numsaved_' + GOLD_STR, unique=True)))
 
 # f = open('/home/mostafh/Documents/psim/new_atomic/atomic/data/tryj', 'rt')
 # lines = f.readlines()

@@ -35,7 +35,7 @@ class Feature(ABC):
     def getHistoryOfPlayer(self, player):
         return [m for m in self.history if m['playername'] == player]
     
-class visitCountPerRole(Feature):
+class CountVisitsPerRole(Feature):
     def __init__(self, logger=logging):
         super().__init__("visit count per room per role", logger)    
         self.roomToRoleToCount = dict()
@@ -69,7 +69,7 @@ class visitCountPerRole(Feature):
     def printValue(self):
         print(self.name, self.roomToRoleToCount)
                 
-class countRoleChanges(Feature):
+class CountRoleChanges(Feature):
     def __init__(self, logger=logging):
         super().__init__("count role changes", logger)
         self.playerToCount = dict()
@@ -87,7 +87,7 @@ class countRoleChanges(Feature):
     def printValue(self):
         print(self.name, self.playerToCount)
             
-class countEnterExit(Feature):
+class CountEnterExit(Feature):
     def __init__(self, roomsToTrack, logger=logging):
         super().__init__("enter-exit", logger)
         self.playerToCount = dict()
@@ -104,7 +104,7 @@ class countEnterExit(Feature):
         if player not in self.playerToCount.keys():
             self.playerToCount[player] = 0
         if player not in self.playerToPrevLoc.keys():
-            self.playerToPrevLoc[player] = 'xxx'
+            self.playerToPrevLoc[player] = ''
         
         if mtype == 'Event:Location':
             prevRoom = self.playerToPrevLoc[player]
@@ -113,19 +113,19 @@ class countEnterExit(Feature):
                 if not self.playerToActed[player]:
                     self.playerToCount[player] = self.playerToCount[player] + 1
             if (prevRoom in self.roomsToTrack) or (room in self.roomsToTrack):
-                self.history.append()
+                self.history.append(msg)
             self.playerToPrevLoc[player] = room
             self.playerToActed[player] = False
             
         if mtype == 'Event:ToolUsed':
             self.playerToActed[player] = True
-            self.history.append()
+            self.history.append(msg)
             
     def printValue(self):
         print(self.name, self.playerToCount)
             
 
-class fractionTriageInHallways(Feature):
+class CountTriageInHallways(Feature):
     def __init__(self, hallways, logger=logging):
         super().__init__("fraction of victims triaged in hallways", logger)
         self.triagesInHallways = 0
@@ -146,3 +146,4 @@ class fractionTriageInHallways(Feature):
     def printValue(self):
         print('Total triaged', self.triagesInRooms + self.triagesInHallways, 
               'Fraction in hallways', self.triagesInHallways / (self.triagesInRooms + self.triagesInHallways))
+        

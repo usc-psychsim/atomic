@@ -102,11 +102,11 @@ srbn,-2133,11,-2122,21,scn6,,scw1,
 srbs,-2133,22,-2122,32,,,scw2,
 sran,-2133,33,-2122,43,,,scw3,
 sras,-2133,44,-2122,54,,,scw4,
-mce2,-2135,55,-2116,60,scw4,,mce3,mce2
+mce2,-2135,55,-2116,60,scw4,,mce3,mce1
 scn2,-2122,-1,-2116,3,,scn7,scn3,scn1
 scw1,-2122,10,-2116,22,scn7,scw2,srdn,srbn
 scw2,-2122,22,-2116,33,scw1,scw3,srds,srbs
-scw3,-2122,33,-2116,44,scw2,scw3,srcn,sran
+scw3,-2122,33,-2116,44,scw2,scw4,srcn,sran
 scw4,-2122,44,-2116,55,scw3,mce2,srcs,sras
 scn3,-2116,-1,-2103,3,,scn8,scn4,scn2
 scn6,-2134,3,-2122,10,scn1,srbn,scn7,
