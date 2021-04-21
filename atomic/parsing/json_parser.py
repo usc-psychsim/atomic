@@ -160,8 +160,11 @@ class ProcessParsedJson(GameLogParser):
                 continue
             ## time elapsed in seconds
             mtime = m['mission_timer']
-            ts = [int(x) for x in mtime.split(':')]
-
+            try:
+                ts = [int(x) for x in mtime.split(':')]
+            except ValueError:
+                # Mission timer error message
+                pass
             #            print(numMsgs)
 #            if ffwd > 0 and numMsgs >= ffwd:
 #                input('press any key.. ')
@@ -172,6 +175,11 @@ class ProcessParsedJson(GameLogParser):
                 
             if mtype == 'Event:Triage':
                 tstate = m['triage_state']
+                vicColor = m['color'].lower()
+                if m.get('room_name', self.lastParsedLoc) != self.lastParsedLoc:
+                    self.logger.error(
+                        'Msg %d Triaging in %s but I am in %s' % (numMsgs, m['room_name'], self.lastParsedLoc))
+
                 if tstate == 'IN_PROGRESS':
                     self.parseTriageStart(vicColor, ts)
                     triageInProgress = True
@@ -213,10 +221,10 @@ class ProcessParsedJson(GameLogParser):
         self.logger.debug(self.actions[start])
         if start == 0:
             loc = self.actions[0]
-            world.setState(self.human, 'loc', loc)
-            world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
-            world.setState(self.human, 'locvisits_' + loc, 1)
-            world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
+            world.setState(self.human, 'loc', loc, recurse=True)
+#            world.agents[self.human].setBelief(stateKey(self.human, 'loc'), loc)
+            world.setState(self.human, 'locvisits_' + loc, 1, recurse=True)
+#            world.agents[self.human].setBelief(stateKey(self.human, 'locvisits_' + loc), 1)
             start = 1
 
         clockKey = stateKey(WORLD, 'seconds')
