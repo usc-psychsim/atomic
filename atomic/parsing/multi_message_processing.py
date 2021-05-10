@@ -14,8 +14,8 @@ from atomic.parsing.json_parser import createJSONParser
 from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, MISSION_DURATION, INJECT_PSYCH_ACTIONS
 import numpy as np
 
-MOVE = 0
-TRIAGE = 1
+MOVE = 'mv'
+TRIAGE = 'tr'
 
 
 class ProcessParsedJson(GameLogParser):
@@ -27,6 +27,7 @@ class ProcessParsedJson(GameLogParser):
         self.agentToPlayer = {}
         self.locations = set()
         self.jsonFile = filename
+        self.grouping_res = 10
         if len(filename) > 0:
             print('Reading json with these input files', filename)
             self.jsonParser = createJSONParser(room_list)
@@ -38,22 +39,24 @@ class ProcessParsedJson(GameLogParser):
         self.vList = self.jsonParser.vList
         print(len(self.allPlayersMs))
         
-        self.createActionQs()
+        self.separateMsgs()
         
     def useParsedFile(self, msgfile):
         jsonfile = open(msgfile, 'rt')
         for line in jsonfile.readlines():
-            self.allMs.append(json.loads(line))
+            self.allPlayersMs.append(json.loads(line))
             
-        self.createActionQs()
+        self.separateMsgs()
         
-    def createActionQs(self):
+    def separateMsgs(self):
         """ Create an action queue per player
         """
         self.players = set([m['playername'] for m in self.allPlayersMs])
         print("all players", self.players)
+        
         msgTypes = {pl:set([m['sub_type'] for m in self.allPlayersMs if (m['playername'] == pl) and ('sub_type' in m)]) for pl in self.players}
         print("all msgTypes", msgTypes)
+        
         triagePlayers = set([m['playername'] for m in self.allPlayersMs if m['sub_type'] == 'Event:Triage'])
         print("all players who triaged", triagePlayers )
         
@@ -92,7 +95,7 @@ class ProcessParsedJson(GameLogParser):
             if INJECT_PSYCH_ACTIONS:
                 triageAct = self.victimsObj.getTriageAction(player, vicColor)
             else:
-                triageAct = None
+                triageAct = 'triage ' + str(isSuccessful)
             
             ## Record it as happening at self.triageStartTime
             self.actions[player].append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime[player]])
@@ -114,7 +117,7 @@ class ProcessParsedJson(GameLogParser):
         if INJECT_PSYCH_ACTIONS:
             mv = self.world_map.getMoveAction(player, self.lastParsedLoc[player], newRoom)
         else:
-            mv = [True]
+            mv = ['mv to ' + newRoom]
 
         if mv == []:
             self.logger.error('unreachable %s to %s at %s' % (self.lastParsedLoc[player], newRoom, ts))
@@ -133,7 +136,7 @@ class ProcessParsedJson(GameLogParser):
         # TODO Inject action
         if (room in self.roomToVicDict) and (vicColor in self.roomToVicDict[room]):
             self.roomToVicDict[room].remove(vicColor)
-            self.actions[player].append([-1, ['pickV'], msgIdx, ts])
+            self.actions[player].append(['pick', ['pickV'], msgIdx, ts])
         else:
             self.logger.warn("ERROR: picked up non-existent %s victim in %s at %s" % (vicColor, room, ts))
 
@@ -142,7 +145,7 @@ class ProcessParsedJson(GameLogParser):
         if room not in self.roomToVicDict:
             self.roomToVicDict[room] = []
         self.roomToVicDict[room].append(vicColor)
-        self.actions[player].append([-1, ['placeV'], msgIdx, ts])
+        self.actions[player].append(['place', ['placeV'], msgIdx, ts])
 
     ###############################################
     #######  Processing the json messages
@@ -151,73 +154,109 @@ class ProcessParsedJson(GameLogParser):
     def setVictimLocations(self, SandRVics):
         self.roomToVicDict = dict(SandRVics)
 
+    def _getGroupedMsgs(self, player, maxTime):
+        nextMsg = self.nextMsgIdx[player]
+        groupedMsgs = []
+        while nextMsg < len(self.playerToMsgs[player]):
+            msg = self.playerToMsgs[player][nextMsg]
+            ts = [int(x) for x in msg['mission_timer'].split(':')]
+            timeInSec = MISSION_DURATION - (ts[0] * 60) - ts[1]
+#            print('%s time %d' %(player, timeInSec))
+            if timeInSec > maxTime:
+                break
+            groupedMsgs.append(nextMsg)
+            nextMsg = nextMsg + 1
+        self.nextMsgIdx[player] = nextMsg
+        return groupedMsgs
+    
+    def actionPeek(self):
+        pToMsgtypes = {}
+        for player in self.players:
+            acts = set(entry[0] for entry in self.actions[player])
+            pToMsgtypes[player] = acts
+        return pToMsgtypes
+        
+
     def getActionsAndEvents(self, victims, world_map, maxActions=-1):
-        jsonMsgIter = iter(self.allMs)
         self.world_map = world_map
         self.victimsObj = victims
-        numMsgs = 0
-        m = next(jsonMsgIter)
-        ignore = ['Mission:VictimList']
-        triageInProgress = {p:False for p in self.players}
+        self.triageInProgress = {p:False for p in self.players}
+        self.nextMsgIdx = {p:0 for p in self.players}
 
-        while (m != None) and ((maxActions < 0) or (numMsgs < maxActions)):
-            err = 0
-            mtype = m['sub_type']
-            player = m['playername']
-            loc = m.get('room_name', None)
-            if 'color' in m.keys():                
-                vicColor = m['color'].lower()
-            
-            if mtype in ignore:
-                m = next(jsonMsgIter)
-                numMsgs = numMsgs + 1
-                continue
-            
-            ## time elapsed in seconds
-            try:
-                ts = [int(x) for x in m['mission_timer'].split(':')]
-            except ValueError:
-                pass
-                                
-            self.firstLocation(player, loc, ts)
- 
-            if mtype == 'Event:Triage':
-                tstate = m['triage_state']
-                if m.get('room_name', self.lastParsedLoc[player]) != self.lastParsedLoc[player]:
-                    self.logger.error(
-                        'Msg %d Triaging in %s but %s in %s' % (numMsgs, loc, player, self.lastParsedLoc[player]))
-
-                if tstate == 'IN_PROGRESS':
-                    self.parseTriageStart(player, vicColor, ts)
-                    triageInProgress[player] = True
-                else:
-                    success = (tstate == 'SUCCESSFUL')
-                    err = self.parseTriageEnd(player, vicColor, success, numMsgs, ts)
-                    triageInProgress[player] = False
-
-            elif mtype == 'Event:Location':
-                if triageInProgress[player]:
-                    self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], numMsgs))
-                    triageInProgress[player] = False                
-                err = self.parseMove(player, loc, numMsgs, ts)
-                    
-            elif mtype == 'Event:VictimPickedUp':
-                self.logger.info(m['playername'] + " picked " + vicColor + " in " + loc)
-                self.parseVictimPicked(player, vicColor, loc, numMsgs, ts)
-
-            elif mtype == 'Event:VictimPlaced':
-                self.logger.info(m['playername'] + " placed " + vicColor + " in " + loc)
-                self.parseVictimPlaced(player, vicColor, loc, numMsgs, ts)
-                
-            elif mtype == 'Event:RoleSelected':
-                self.logger.info(m['playername'] + " was " + m['prev_role'] + " became " + m['new_role'])
-
-
-            if err > 0:
-                self.logger.error('That was msg %d' % (numMsgs))
-            m = next(jsonMsgIter, None)
-            numMsgs = numMsgs + 1
+        for timeNow in np.arange(0, MISSION_DURATION+1, self.grouping_res):
+            print('=== Seconds %d to %d' %(timeNow, timeNow + self.grouping_res))
+            playerToMs = {p:self._getGroupedMsgs(p, timeNow + self.grouping_res) for p in self.players}
+            maxNumActs = np.max([len(msgs) for msgs in playerToMs.values()])
+            if maxNumActs == 0:
+                print('Everyone done')
+                break
+            for player in self.players:
+                if len(playerToMs[player]) < maxNumActs:
+                    playerToMs[player].extend(np.repeat([-1], maxNumActs - len(playerToMs[player]), 0))
+            for ai in range(maxNumActs):
+                for player in self.players:
+                    msgIdx = playerToMs[player][ai]
+                    if msgIdx == -1:
+                        self.actions[player].append(['noop', [None], msgIdx, timeNow])
+                    else:
+                        msg = self.playerToMsgs[player][msgIdx]
+                        self.createActionFromMsg(msg, msgIdx)
+                        
+            if timeNow > 10000:
+                break
+        
         self.locations = list(self.locations)
+            
+    def createActionFromMsg(self, m, msgIdx):        
+        err = 0
+        mtype = m['sub_type']
+        player = m['playername']
+        loc = m.get('room_name', None)
+        if 'type' in m.keys():                
+            vicColor = m['type'].lower()       
+        
+        ## time elapsed in seconds
+        try:
+            ts = [int(x) for x in m['mission_timer'].split(':')]
+        except ValueError:
+            pass
+                            
+        self.firstLocation(player, loc, ts)
+ 
+        if mtype == 'Event:Triage':
+            tstate = m['triage_state']
+            if m.get('room_name', self.lastParsedLoc[player]) != self.lastParsedLoc[player]:
+                self.logger.error(
+                    'Msg %d Triaging in %s but %s in %s' % (msgIdx, loc, player, self.lastParsedLoc[player]))
+
+            if tstate == 'IN_PROGRESS':
+                self.parseTriageStart(player, vicColor, ts)
+                self.triageInProgress[player] = True
+            else:
+                success = (tstate == 'SUCCESSFUL')
+                err = self.parseTriageEnd(player, vicColor, success, msgIdx, ts)
+                self.triageInProgress[player] = False
+
+        elif mtype == 'Event:Location':
+            if self.triageInProgress[player]:
+                self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], msgIdx))
+                self.triageInProgress[player] = False                
+            err = self.parseMove(player, loc, msgIdx, ts)
+                
+        elif mtype == 'Event:VictimPickedUp':
+            self.logger.info(m['playername'] + " picked " + vicColor + " in " + loc)
+            self.parseVictimPicked(player, vicColor, loc, msgIdx, ts)
+
+        elif mtype == 'Event:VictimPlaced':
+            self.logger.info(m['playername'] + " placed " + vicColor + " in " + loc)
+            self.parseVictimPlaced(player, vicColor, loc, msgIdx, ts)
+            
+        elif mtype == 'Event:RoleSelected':
+            self.logger.info(m['playername'] + " was " + m['prev_role'] + " became " + m['new_role'])
+
+
+        if err > 0:
+            self.logger.error('That was msg %d' % (msgIdx))
 
     ###############################################
     #######  Running the actions we collected
