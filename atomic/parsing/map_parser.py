@@ -1,10 +1,11 @@
 import argparse
 import csv
+import itertools as its
+import json
 
 from psychsim.action import ActionSet
 from atomic.definitions.map_utils import getSandRMap
 from atomic.parsing.replayer import accumulate_files, Replayer
-from atomic.parsing.parser import ACTION
 
 def verify_adjacency(fname, adjacency_matrix):
     errors = set()
@@ -22,6 +23,48 @@ def verify_adjacency(fname, adjacency_matrix):
                         errors.add((last_room, row['Room_in']))
                     last_room = row['Room_in']
     return errors
+
+
+def read_semantic_map(map_file):    
+    #extract parent room and child areas from JSON file
+    orig_map = json.load(open(map_file,'r'))
+    #extracting portal names and storing them to use in edge creation
+    #indices from this list become the portal IDs in the graph
+    portal_node_names = []
+    for n in orig_map['connections']:
+        if n['bounds']['type'] == 'rectangle':
+            portal_node_names.append(n['id'])
+    #ditto
+    room_node_names = {}
+    for m in orig_map['locations']:
+        if 'child_locations' not in m:
+            room_node_names[m['id']] = m['bounds']['coordinates']
+    # creating edges
+    # room edges contains edges going each direction
+    # portal edges are split into two directions for DGL
+    # bidirectional edges can also be done in DGL, but is explicit here for clarity
+    # aget edges go to every physical node and vice-versa
+    room_edges = []
+    portal_room_edges = []
+    room_portal_edges = []
+    for i in orig_map['connections']:
+        if 'extension' in i['type']:
+            room_indices = []
+            for k in i['connected_locations']:
+                room_indices.append(k)
+            room_edges.extend(list(its.permutations(room_indices, 2)))
+            del room_indices
+        else:
+            room_indices = []
+            for k in i['connected_locations']:
+                room_indices.append(k)
+            portal_index = portal_node_names.index(i['id'])
+            portal_room_edges.extend(its.product([portal_index], room_indices))
+            room_portal_edges.extend(its.product(room_indices, [portal_index]))
+            del room_indices
+            del portal_index
+            
+    return room_node_names, room_edges
 
 def extract_adjacency(fname, adjacency=None):
     if adjacency is None:

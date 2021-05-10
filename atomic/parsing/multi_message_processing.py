@@ -10,8 +10,8 @@ import json
 from psychsim.pwl import stateKey
 from psychsim.world import WORLD
 from atomic.parsing import GameLogParser
-from atomic.parsing.pilot2_message_reader import createJSONParser
-from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, MISSION_DURATION
+from atomic.parsing.json_parser import createJSONParser
+from atomic.definitions import GOLD_STR, GREEN_STR, WHITE_STR, MISSION_DURATION, INJECT_PSYCH_ACTIONS
 import numpy as np
 
 MOVE = 0
@@ -20,7 +20,7 @@ TRIAGE = 1
 
 class ProcessParsedJson(GameLogParser):
 
-    def __init__(self, filename, map_data, processor=None, logger=logging):
+    def __init__(self, filename, room_list, processor=None, logger=logging):
         super().__init__(filename, processor, logger)
         self.world = None
         self.playerToAgent = {}
@@ -29,7 +29,7 @@ class ProcessParsedJson(GameLogParser):
         self.jsonFile = filename
         if len(filename) > 0:
             print('Reading json with these input files', filename)
-            self.jsonParser = createJSONParser(map_data.room_file)
+            self.jsonParser = createJSONParser(room_list)
             
     def startProcessing(self, featuresToExtract): 
         self.jsonParser.registerFeatures(featuresToExtract)
@@ -50,7 +50,7 @@ class ProcessParsedJson(GameLogParser):
     def createActionQs(self):
         """ Create an action queue per player
         """
-        self.players = list([m['playername'] for m in self.allPlayersMs])
+        self.players = set([m['playername'] for m in self.allPlayersMs])
         print("all players", self.players)
         msgTypes = {pl:set([m['sub_type'] for m in self.allPlayersMs if (m['playername'] == pl) and ('sub_type' in m)]) for pl in self.players}
         print("all msgTypes", msgTypes)
@@ -89,7 +89,11 @@ class ProcessParsedJson(GameLogParser):
             (vicColor in self.roomToVicDict[self.lastParsedLoc[player]]):
             if isSuccessful:
                 self.roomToVicDict[self.lastParsedLoc[player]].remove(vicColor)
-            triageAct = self.victimsObj.getTriageAction(player, vicColor)
+            if INJECT_PSYCH_ACTIONS:
+                triageAct = self.victimsObj.getTriageAction(player, vicColor)
+            else:
+                triageAct = None
+            
             ## Record it as happening at self.triageStartTime
             self.actions[player].append([TRIAGE, [triageAct, duration], msgIdx, self.triageStartTime[player]])
         else:
@@ -106,8 +110,12 @@ class ProcessParsedJson(GameLogParser):
 
     def parseMove(self, player, newRoom, msgIdx, ts):
         self.locations.add(newRoom)
-        # Add one or more move actions
-        mv = self.world_map.getMoveAction(player, self.lastParsedLoc[player], newRoom)
+        # Add one or more move actions        
+        if INJECT_PSYCH_ACTIONS:
+            mv = self.world_map.getMoveAction(player, self.lastParsedLoc[player], newRoom)
+        else:
+            mv = [True]
+
         if mv == []:
             self.logger.error('unreachable %s to %s at %s' % (self.lastParsedLoc[player], newRoom, ts))
             self.lastParsedLoc[player] = newRoom
