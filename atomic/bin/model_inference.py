@@ -36,7 +36,7 @@ class AnalysisParseProcessor(ParsingProcessor):
         self.expectation = None
 
     def draw_plot(self):
-        name = os.path.splitext(os.path.basename(self.parser.file_name))[0]
+        name = os.path.splitext(os.path.basename(self.filename))[0]
         if self.model_data:
             fig = plot_data(self.model_data, 'Model', 'Model Inference {}'.format(name))
             fig.show()
@@ -155,8 +155,8 @@ class Analyzer(Replayer):
         self.models = models
 
     def post_replay(self):
-        for data_type, data in {'models': self.parser.model_data, 'conditions': self.parser.condition_data,
-            'predictions': self.parser.prediction_data}.items():
+        for data_type, data in {'models': self.processor.model_data, 'conditions': self.processor.condition_data,
+            'predictions': self.processor.prediction_data}.items():
             for entry in data:
                 now = entry['Timestep'].to_pydatetime()
                 epsilon = 1
@@ -171,7 +171,7 @@ class Analyzer(Replayer):
                     epsilon = 0
                 minutes, seconds = self.mission_times[t]
                 assert minutes < 10
-                if data is self.parser.prediction_data and minutes < 5:
+                if data is self.processor.prediction_data and minutes < 5:
                     entry['Belief'] = 1 if entry['Color'] == 'Green' else 0
                 entry['Timestep'] = (9-minutes)*60 + (60-seconds)
             if data:
@@ -180,7 +180,7 @@ class Analyzer(Replayer):
                     writer.writeheader()
                     for entry in data:
                         writer.writerow(entry)
-        self.parser.draw_plot()
+        self.processor.draw_plot()
 
 def load_clusters(fname):
     ignore = {'Cluster', 'Player name', 'Filename'}
