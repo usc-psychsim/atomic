@@ -30,6 +30,9 @@ class ProcessParsedJson(GameLogParser):
         if len(filename) > 0:
             print('Reading json with these input files', filename)
             self.jsonParser = createJSONParser(map_data.room_file)
+        if map_data:
+            self.setVictimLocations(map_data.victims)
+
             
     def startProcessing(self, featuresToExtract): 
         self.jsonParser.registerFeatures(featuresToExtract)
