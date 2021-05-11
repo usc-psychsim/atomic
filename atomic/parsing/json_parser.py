@@ -39,7 +39,6 @@ class ProcessParsedJson(GameLogParser):
         self.jsonParser.process_json_file(self.jsonFile)
         self.allPlayersMs = self.jsonParser.messages
         self.vList = self.jsonParser.vList
-        print(len(self.allPlayersMs))
         self.pickTriager()
         
     def useParsedFile(self, msgfile):
