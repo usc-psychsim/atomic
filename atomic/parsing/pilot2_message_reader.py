@@ -51,6 +51,7 @@ class JSONReader(object):
                         'Event:RubbleDestroyed': [],
                         'Event:ItemEquipped': ['equippeditemname']}
         self.verbose = verbose
+        self.vList = []
         if room_list.endswith('.csv'):
             self.load_rooms(room_list)
         else:
@@ -106,7 +107,7 @@ class JSONReader(object):
                 
         if mtype == "state":
             room_name = self.getRoom(m['x'], m['y'])
-            player = m['playername']
+            player = m.get('playername', None)
             if player not in self.player_to_curr_room:
                 self.player_to_curr_room[player] = ''
             if room_name == self.player_to_curr_room[player]:
