@@ -36,7 +36,7 @@ class AnalysisParseProcessor(ParsingProcessor):
         self.expectation = None
 
     def draw_plot(self):
-        name = os.path.splitext(os.path.basename(self.filename))[0]
+        name = os.path.splitext(os.path.basename(self.parser.filename))[0]
         if self.model_data:
             fig = plot_data(self.model_data, 'Model', 'Model Inference {}'.format(name))
             fig.show()
