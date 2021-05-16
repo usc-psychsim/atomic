@@ -1,0 +1,55 @@
+domain sar_ps3 {
+	requirements = { 
+		reward-deterministic,
+		concurrent
+	};	
+	types {
+  		agent : object;
+ 	  	loc    : object;
+	}; 	
+	pvariables { 	
+		pLoc(agent, loc) : { state-fluent, bool, default = false };
+		move(agent, loc): { action-fluent, bool, default = false};
+		nbr(loc, loc)  : { non-fluent, bool, default = false };
+	};
+	cpfs {		
+		pLoc'(?p, ?lc) = 
+			if (move(?p, ?lc))
+				then KronDelta(true)
+			else if (forall_{?lc2 : loc} ~move(?p, ?lc2))				
+			    	then pLoc(?p, ?lc)
+			else  KronDelta(false);
+	};
+		
+	reward = sum_{?p: agent, ?lc: loc}[ pLoc(?p, ?lc) ] ;
+
+
+	state-action-constraints {
+		// Precondition: let's say we should not set a cell if it is already alive
+		forall_{?p : agent, ?lc : loc} move(?p, ?lc) =>  exists_{?lc2 : loc} [pLoc(?p, ?lc2) ^ nbr(?lc2, ?lc) ] ;
+	};
+
+}
+
+non-fluents sar_ps3_inst1{
+	domain = sar_ps3; 
+	objects { 
+		agent : {p1, p2};
+		loc : {LOCSTR};
+	}; 
+	non-fluents {
+		NBRSTR
+ 	}; 
+ }
+instance sar_ps3_inst1 { 
+	domain = sar_ps3; 
+ 	non-fluents = sar_ps3_inst1;
+	init-state { 
+		pLoc(p1,tkt_1) = true;
+		pLoc(p2,tkt_1) = true;
+	};
+	max-nondef-actions = 2;
+	horizon = 20;
+	discount = 1.0;
+} 
+

@@ -109,6 +109,8 @@ class ProcessParsedJson(GameLogParser):
             self.actions[player].insert(0, [newRoom, ts])
             self.lastParsedLoc[player] = newRoom
             self.logger.debug('%s moved to %s at %s' % (player, self.lastParsedLoc[player], ts))
+            return True
+        return False
             
 
     def parseMove(self, player, newRoom, msgIdx, ts):
@@ -184,7 +186,7 @@ class ProcessParsedJson(GameLogParser):
         self.nextMsgIdx = {p:0 for p in self.players}
 
         for timeNow in np.arange(0, MISSION_DURATION+1, self.grouping_res):
-            print('=== Seconds %d to %d' %(timeNow, timeNow + self.grouping_res))
+            self.logger.debug('=== Seconds %d to %d' %(timeNow, timeNow + self.grouping_res))
             playerToMs = {p:self._getGroupedMsgs(p, timeNow + self.grouping_res) for p in self.players}
             maxNumActs = np.max([len(msgs) for msgs in playerToMs.values()])
             if maxNumActs == 0:
@@ -221,7 +223,7 @@ class ProcessParsedJson(GameLogParser):
         except ValueError:
             pass
                             
-        self.firstLocation(player, loc, ts)
+        wasFirstLoc = self.firstLocation(player, loc, ts)
  
         if mtype == 'Event:Triage':
             tstate = m['triage_state']
@@ -237,7 +239,7 @@ class ProcessParsedJson(GameLogParser):
                 err = self.parseTriageEnd(player, vicColor, success, msgIdx, ts)
                 self.triageInProgress[player] = False
 
-        elif mtype == 'Event:Location':
+        elif (mtype == 'Event:Location') and not wasFirstLoc:
             if self.triageInProgress[player]:
                 self.logger.error('At %s msg %d walked out of room while triaging' % (m['mission_timer'], msgIdx))
                 self.triageInProgress[player] = False                

@@ -1,0 +1,9 @@
+psysim,args,select,msg_type,conditions
+move,room_name,,Event:Location,
+triage_critical,,duration,Event:Triage,"outcome=SUCCESS, type=critical"
+triage_regular,,duration,Event:Triage,"outcome=SUCCESS, type=regular"
+pickup_critical,,,Event:VictimPickedUp,type=critical
+pickup_regular,,,Event:VictimPickedUp,type=regular
+dropVictim,,,Event:VictimPlaced,
+pickTool,tool,,Event:ItemEquipped,
+applyHammer,,,Event:RubbleDestroyed,
