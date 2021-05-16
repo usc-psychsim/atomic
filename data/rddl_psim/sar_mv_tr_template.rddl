@@ -1,0 +1,116 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		concurrent
+	};
+	
+	types {
+  		agent : object;
+ 	  	loc    : object;
+	}; 	
+	pvariables { 	
+		pLoc(agent, loc) : { state-fluent, bool, default = false };
+		move(agent, loc): { action-fluent, bool, default = false};
+		nbr(loc, loc)  : { non-fluent, bool, default = false };
+
+		// victim counters
+		vcounter_saved_critical(loc): {state-fluent, int, default=0};
+		vcounter_unsaved_critical(loc): {state-fluent, int, default=0};
+		vcounter_saved_regular(loc): {state-fluent, int, default=0};
+		vcounter_unsaved_regular(loc): {state-fluent, int, default=0};
+						
+		// Victim predicates
+		triage_critical(agent): { action-fluent, bool, default = false };
+		triage_regular(agent): { action-fluent, bool, default = false };
+	};
+  
+	cpfs {		
+		pLoc'(?p, ?lc) = 
+			if (move(?p, ?lc))
+				then KronDelta(true)
+			else if (forall_{?lc2 : loc} ~move(?p, ?lc2))				
+			    	then pLoc(?p, ?lc)
+			else  KronDelta(false);
+		
+
+		vcounter_unsaved_critical'(?lc) = 	
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_critical(?p)  ] )
+				then vcounter_unsaved_critical(?lc) - 1
+			else 
+				vcounter_unsaved_critical(?lc);
+			
+		// If either victim type was triaged, increment
+		vcounter_saved_critical'(?lc) = 
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_critical(?p)  ] )
+				then vcounter_saved_critical(?lc) + 1
+			else 
+				vcounter_saved_critical(?lc);
+
+
+		vcounter_unsaved_regular'(?lc) = 	
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+				then vcounter_unsaved_regular(?lc) - 1
+			else 
+				vcounter_unsaved_regular(?lc);
+			
+		// If either victim type was triaged, increment
+		vcounter_saved_regular'(?lc) = 
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+				then vcounter_saved_regular(?lc) + 1
+			else 
+				vcounter_saved_regular(?lc);
+	};		
+	reward = 	
+		[sum_{?lc : loc}
+			[vcounter_saved_critical(?lc) * 50 ]
+		]
+//		 +
+//		[ sum_{?vi: victim} 
+//			[ sum_{?p : agent} 
+//				[ hasVictim(?p, ?vi) ]  ] ]
+//		 +
+//		[ sum_{?vi: victim} 
+//			[ sum_{?p : agent} 
+//				[ dropVictim(?p, ?vi) ]  ] ]
+		;
+
+	state-action-constraints {
+		// Precondition: let's say we should not set a cell if it is already alive
+		forall_{?p : agent, ?lc : loc} move(?p, ?lc) =>  exists_{?lc2 : loc} [pLoc(?p, ?lc2) ^ nbr(?lc2, ?lc) ] ;
+	};
+
+
+    action-preconditions {
+	// To triage a victim, you must be a medic, and there are unsaved victims in your location 
+	forall_{?p : agent} 
+		[ triage_critical(?p) => exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_critical(?lc) > 0) ] ]  ;	
+		[ triage_regular(?p) => exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;	
+			
+	};
+}
+
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1; 
+	objects { 
+		agent : {p1, p2};
+		loc : {LOCSTR};
+	}; 
+	non-fluents {
+		NBRSTR
+ 	}; 
+ }
+instance mv_tr_v1_inst1 { 
+	domain = mv_tr_v1; 
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state { 
+		pLoc(p1,tkt_1) = true;
+		pLoc(p2,tkt_1) = true;
+		VICSTR
+	};
+	max-nondef-actions = 2;
+	horizon = 20;
+	discount = 1.0;
+} 

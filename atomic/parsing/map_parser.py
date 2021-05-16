@@ -24,14 +24,6 @@ def verify_adjacency(fname, adjacency_matrix):
                     last_room = row['Room_in']
     return errors
 
-def generate_rddl_str(map_file):
-    rooms, edges = read_semantic_map(map_file)
-    nbr_str = ''
-    for (rm1, rm2) in edges:
-        nbr_str = nbr_str + 'nbr(%s, %s) = true;' % (rm1, rm2) + '\n'
-    loc_str = ','.join(rooms)
-    return loc_str, nbr_str
-
 
 def read_semantic_map(map_file):    
     #extract parent room and child areas from JSON file

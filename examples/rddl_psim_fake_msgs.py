@@ -7,7 +7,8 @@ from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 
 THRESHOLD = 0
 #RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
-RDDL_FILE = '../data/rddl_psim/sar_v3_inst1_small.rddl'
+#RDDL_FILE = '../data/rddl_psim/sar_v3_inst1_small.rddl'
+RDDL_FILE = '../data/rddl_psim/mv_tr_tool_template_small.rddl'
 
 
 #################  R D D L  2  P S Y C H S I M    W O R L D
@@ -36,6 +37,7 @@ parser.add_argument('--log-actions', action='store_true',
 parser.add_argument('--log-rewards', action='store_true',
                     help='Whether to log agents\' rewards wrt chosen actions in addition to current state.')
 args = parser.parse_args()
+#args.log_rewards = True
 
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
@@ -49,6 +51,8 @@ Msg2ActionEntry.read_psysim_msg_conversion(fname)
 all_msgs = []
 all_msgs.append({'p1': {'room_name':'tkt_2', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
 all_msgs.append({'p1': {'room_name':'tkt_3', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}})
+all_msgs.append({'p1': {'room_name':'tkt_3', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'CRITICAL', 'triage_state':'SUCCESS'}, 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}})
+all_msgs.append({'p1': {'room_name':'tkt_3', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'CRITICAL', 'triage_state':'SUCCESS'}, 'p2':{'room_name':'tkt_3', 'playername':'p2', 'sub_type':'Event:Location'}})
 
 #################  S T E P    T H R O U G H
 for msgs in all_msgs:
