@@ -116,15 +116,18 @@ class JSONReader(object):
                 m['sub_type'] = 'Event:Location'
                 m['room_name'] = room_name 
                 self.player_to_curr_room[player] = room_name
-        
+
         ## If this is a message type we append room name to
         if mtype in self.typeToLocationFields:
             fields = self.typeToLocationFields[mtype]
             x, z = m[fields[0]], m[fields[1]]
             m['room_name'] = self.getRoom(x,z)
 
-        if m['mission_timer'] == 'Mission Timer not initialized.':
-            m['mission_timer'] = '15 : 0'
+        if 'mission_timer' in m:
+            if m['mission_timer'] == 'Mission Timer not initialized.':
+                m['mission_timer'] = '15 : 0'
+        else:
+            m['mission_timer'] = jmsg['msg']['timestamp']
         
         smallMsg = {k:m[k] for k in m.keys() if k in self.generalFields + self.typeToFields[m['sub_type']]}
         self.messages.append(smallMsg)
