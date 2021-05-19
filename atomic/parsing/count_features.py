@@ -147,3 +147,21 @@ class CountTriageInHallways(Feature):
         print('Total triaged', self.triagesInRooms + self.triagesInHallways, 
               'Fraction in hallways', self.triagesInHallways / (self.triagesInRooms + self.triagesInHallways))
         
+#This was written to work w/T000315
+class CountPlayerDialogueEvents(Feature):
+    def __init__(self, logger=logging):
+        super().__init__("count number of times a player talks", logger)
+        self.playerToCount = dict()
+        
+    def processMsg(self, msg):
+        mtype = msg['sub_type']
+        player = msg['playername']
+        
+        if mtype == 'Event:dialogue_event':
+            if player not in self.playerToCount.keys():
+                self.playerToCount[player] = 0
+            self.playerToCount[player] = self.playerToCount[player] + 1
+            self.history.append()
+            
+    def printValue(self):
+        print(self.name, self.playerToCount)
