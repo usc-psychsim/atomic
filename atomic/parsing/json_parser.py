@@ -160,13 +160,17 @@ class ProcessParsedJson(GameLogParser):
                 m = next(jsonMsgIter)
                 numMsgs = numMsgs + 1
                 continue
-            ## time elapsed in seconds
-            mtime = m['mission_timer']
-            try:
-                ts = [int(x) for x in mtime.split(':')]
-            except ValueError:
-                # Mission timer error message
-                pass
+            if 'mission_timer' in m:
+                ## time elapsed in seconds
+                mtime = m['mission_timer']
+                try:
+                    ts = [int(x) for x in mtime.split(':')]
+                except ValueError:
+                    # Mission timer error message
+                    pass
+            else:
+                # Use timestamp
+                raise ValueError(f'Missing mission timer value in message: {m}')
             #            print(numMsgs)
 #            if ffwd > 0 and numMsgs >= ffwd:
 #                input('press any key.. ')
