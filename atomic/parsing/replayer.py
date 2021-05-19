@@ -154,6 +154,7 @@ class Replayer(object):
     def pre_replay(self, logger=logging):
         # Create PsychSim model
         logger.info('Creating world with "{}" map'.format(self.map_table.name))
+        self.parser.startProcessing([])
         try:
             self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
                 make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
