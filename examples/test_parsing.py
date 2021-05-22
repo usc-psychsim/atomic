@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Apr  5 17:00:50 2020
+Created on Wed Apr 21 10:28:16 2021
 
 @author: mostafh
 """
-import logging
-import sys
-from atomic.definitions.map_utils import get_default_maps
+
+import logging, sys
 from atomic.parsing.message_processing import ProcessParsedJson
-from atomic.scenarios.single_player import make_single_player_world
 from atomic.parsing.count_features import CountEnterExit
 from atomic.parsing.map_parser import read_semantic_map
 
@@ -48,17 +46,5 @@ parser = ProcessParsedJson(fname, room_node_names, logger=logging)
 parser.startProcessing(derivedFeats)
 
 SandRVics = getVictimsFromBus(parser.vList)
-#world, triageAgent, agent, victimsObj, world_map = make_single_player_world(
-#    parser.player_name(), None, SandRLocs, SandRVics, False, True)
-#
-#maxNumEvents = 9999
-#runStartsAt = 0
-#runEndsAt = 9999
-#parseFastFwdTo = 9999
-#runFastFwdTo = 9999
-#
-##### Process the list of dicts into psychsim actions
-#parser.setVictimLocations(SandRVics)
-#parser.getActionsAndEvents(victimsObj, world_map, maxNumEvents)
-######## Replay sequence of actions 
-#parser.runTimeless(world, runStartsAt, runEndsAt, runFastFwdTo)
+parser.setVictimLocations(SandRVics)
+parser.getActionsAndEvents(None, None, 99)
