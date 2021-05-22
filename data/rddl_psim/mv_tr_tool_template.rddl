@@ -10,6 +10,7 @@ domain mv_tr_v1 {
 	types {
   		agent : object;
  	  	loc    : object;
+		role      : { @Search_Specialist, @Hazardous_Material_Specialist, @Medical_Specialist};
 	}; 	
 	pvariables { 	
 		pLoc(agent, loc) : { state-fluent, bool, default = false };
@@ -21,10 +22,13 @@ domain mv_tr_v1 {
 		vcounter_unsaved_critical(loc): {state-fluent, int, default=0};
 		vcounter_saved_regular(loc): {state-fluent, int, default=0};
 		vcounter_unsaved_regular(loc): {state-fluent, int, default=0};
+
+		isRole(agent, role) : { state-fluent, bool, default = false} ;
 						
 		// Victim predicates
 		triage_critical(agent): { action-fluent, bool, default = false };
 		triage_regular(agent): { action-fluent, bool, default = false };
+		noop(agent): { action-fluent, bool, default = false };
 	};
   
 	cpfs {		
@@ -34,6 +38,8 @@ domain mv_tr_v1 {
 			else if (triage_critical(?p))
 			    	then pLoc(?p, ?lc)
 			else if (triage_regular(?p))
+			    	then pLoc(?p, ?lc)
+			else if (noop(?p))
 			    	then pLoc(?p, ?lc)
 			else  KronDelta(false);
 		
@@ -79,8 +85,8 @@ domain mv_tr_v1 {
     action-preconditions {
 	// To triage a victim, you must be a medic, and there are unsaved victims in your location 
 	forall_{?p : agent} 
-		[ triage_critical(?p) => exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_critical(?lc) > 0) ] ]  ;	
-		[ triage_regular(?p) => exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;	
+		[ triage_critical(?p) => isRole(?p,Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_critical(?lc) > 0) ] ]  ;	
+		[ triage_regular(?p) => isRole(?p,Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;	
 			
 	};
 }
@@ -89,7 +95,7 @@ domain mv_tr_v1 {
 non-fluents mv_tr_v1_inst1{
 	domain = mv_tr_v1; 
 	objects { 
-		agent : {p1, p2};
+		agent : {p1, p2, p3};
 		loc : {LOCSTR};
 	}; 
 	non-fluents {
@@ -100,11 +106,12 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1; 
  	non-fluents = mv_tr_v1_inst1;
 	init-state { 
-		pLoc(p1,tkt_1) = true;
-		pLoc(p2,tkt_1) = true;
+		pLoc(p1,el_3) = true;
+		pLoc(p2,el_3) = true;
+		pLoc(p3,el_3) = true;
 		VICSTR
 	};
-	max-nondef-actions = 2;
-	horizon = 20;
+	max-nondef-actions = 3;
+	horizon = 2;
 	discount = 1.0;
 } 
