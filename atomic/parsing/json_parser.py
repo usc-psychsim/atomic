@@ -32,7 +32,7 @@ class JSONReader(object):
         self.victims = []
         self.fov_messages = []
         self.derivedFeatures = []
-        self.msg_types = ['Event:Triage', 'Mission:VictimList', 'state',
+        self.msg_types = ['Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
                           'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
                           'Event:RubbleDestroyed', 'Event:ItemEquipped']
@@ -75,11 +75,15 @@ class JSONReader(object):
         jsonfile = open(fname, 'rt')
         jsonMsgs = [json.loads(line) for line in jsonfile.readlines()]
         jsonfile.close()        
+        self.allMTypes = set()
         for jmsg in jsonMsgs:
             self.process_message(jmsg)
+            self.allMTypes.add(jmsg['msg']['sub_type'])
         
     def process_message(self, jmsg):
         mtype = jmsg['msg']['sub_type']
+        if mtype not in self.msg_types:
+            return
         m = jmsg['data']
         m['sub_type'] = mtype
         
@@ -178,7 +182,7 @@ class JSONReader(object):
             return relaxed[0].name
         
         if len(relaxed) == 0:
-            print('ERROR relaxed %f %f not in any rooms' %(x, z))
+#            print('ERROR relaxed %f %f not in any rooms' %(x, z))
             return ''
         
         if len(relaxed) > 1:
@@ -187,7 +191,7 @@ class JSONReader(object):
             print('second time worked')
             return matches[0].name
         
-        print('ERROR relaxed in multiple, strict in %f %f in %d rooms' %(x, z, len(matches)))
+#        print('ERROR relaxed in multiple, strict in %f %f in %d rooms' %(x, z, len(matches)))
         return ''
 
 
