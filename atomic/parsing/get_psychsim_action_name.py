@@ -60,3 +60,10 @@ class Msg2ActionEntry:
                 return ret
             
         return None
+
+    @classmethod
+    def get_msg_types(cls):
+        mtypes = set()
+        for conv in Msg2ActionEntry.conversions:
+            mtypes.add(conv.msg_type)
+        return mtypes
