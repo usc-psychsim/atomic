@@ -39,7 +39,7 @@ def generate_rddl_victims(victim_pickle):
     return vic_str
 
 def make_rddl_inst(victim_pickle = '../data/rddl_psim/victims.pickle',
-                    map_file =       '../maps/Saturn/Saturn_1.4_3D_sm_v1.0.json',
+                    map_file =       '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json',
                     rddl_template =  '../data/rddl_psim/sar_mv_tr_template.rddl',
                     inst_name = 'inst1'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info 
@@ -54,7 +54,7 @@ def make_rddl_inst(victim_pickle = '../data/rddl_psim/victims.pickle',
     rddl_str = rddl_temp_file.read()
     rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str)
     
-    rddl_out = rddl_template[0:rddl_template.find('.', 3)] + '_' + inst_name + '.rddl'
+    rddl_out = rddl_template.replace('template', inst_name)
     rddl_inst_file = open(rddl_out, "w")
     rddl_inst_file.write(rddl_str)
     

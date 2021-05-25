@@ -61,7 +61,10 @@ class ProcessParsedJson(GameLogParser):
         print("all players who triaged", triagePlayers )
         
         ## Initialize player-specific data structures
-        self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}        
+        self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}
+        # Establish a player name to RDDL agent name mapping. Arbitrary.
+        for i,p in enumerate(self.players):
+            self.playerToAgent[p] = 'p' + str(i+1)
         self.lastParsedLoc = {p:None for p in self.players}
         self.triageStartTime = {p:0 for p in self.players}
         self.actions = {p:[] for p in self.players}
