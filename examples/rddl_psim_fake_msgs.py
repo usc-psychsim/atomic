@@ -8,8 +8,8 @@ from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 THRESHOLD = 0
 #RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
 #RDDL_FILE = '../data/rddl_psim/mv_tr_tool_template_small.rddl'
-RDDL_FILE = '../data/rddl_psim/mv_tr_tool_big.rddl'
-#RDDL_FILE = '../data/rddl_psim/test_enum.rddl'
+#RDDL_FILE = '../data/rddl_psim/mv_tr_tool_big.rddl'
+RDDL_FILE = '../data/rddl_psim/test_enum.rddl'
 
 
 #################  R D D L  2  P S Y C H S I M    W O R L D
@@ -50,19 +50,20 @@ Msg2ActionEntry.read_psysim_msg_conversion(fname)
 
 #################  F A K E    M S G S
 all_msgs = []
-#all_msgs.append({'p1': {'room_name':'tkt_4', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'kco_1', 'playername':'p2', 'sub_type':'Event:Location'}})
-#all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'kco_2', 'playername':'p2', 'sub_type':'Event:Location'}})
-#all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}, 'p2':{'room_name':'kco_1', 'playername':'p2', 'sub_type':'Event:Location'}})
-#all_msgs.append({'p1': {'room_name':'tkt_6', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'kco_1', 'playername':'p2', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}})
 all_msgs.append({'p1': {'room_name':'tkt_4', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
-all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}})
-all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
+all_msgs.append({'p1': {'room_name':'tkt_1', 'playername':'p1', 'sub_type':'Event:Location'}, 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}})
+#all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
 
 
 #################  S T E P    T H R O U G H
 for msgs in all_msgs:
     logging.info('\n__________________________________________________')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
+    
+    ## Print legal actions
+    print('legal actions')
+    for player_name, msg in msgs.items():
+        print(conv.world.agents[player_name].getLegalActions())
     
     actions = {}
     any_none = False
@@ -72,7 +73,7 @@ for msgs in all_msgs:
             any_none = True
             logging.warning(f'Msg {msg} has no associated action')
         else:
-            logging.info(f'Msg {msg} becomes {action_name}')
+            logging.info(f'Player {player_name} does {action_name}')
             action = conv.actions[player_name][action_name]
             actions[player_name] = action
     
