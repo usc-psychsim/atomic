@@ -13,7 +13,7 @@ from atomic.definitions import GOLD_STR, GREEN_STR
 
 
 #with open('../data/rddl_psim/victims.pickle', 'wb') as f:    
-#    pickle.dump(SandRVics, f)
+#    pickle.dump(msg_qs.jsonParser.vList, f)
 
 def generate_rddl_map(rooms, edges):
     nbr_str = ''
@@ -24,17 +24,29 @@ def generate_rddl_map(rooms, edges):
 
 def generate_rddl_victims(victim_pickle):
     with open(victim_pickle, 'rb') as f:    
-        SandRVics = pickle.load(f)
-    vic_str = ''
-    for room, vics in SandRVics.items():
-        if room == '':
+        vList = pickle.load(f)
+    
+    reg_dict = {}
+    crit_dict = {}
+    
+    for vic in vList:
+        rm = vic['room_name']
+        if rm == '':
             continue
-        gold_ct = vics.count(GOLD_STR)
-        green_ct = vics.count(GREEN_STR)
-        if gold_ct > 0:
-            vic_str = vic_str + 'vcounter_unsaved_critical(%s) = %d;\n' % (room, gold_ct)
-        if green_ct > 0:
-            vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (room, green_ct)
+        if vic['block_type'] == 'critical':
+            d = crit_dict
+        else:
+            d = reg_dict
+        
+        if rm not in d.keys():
+            d[rm] = 0
+        d[rm] = d[rm] +1
+
+    vic_str = ''
+    for rm, ctr in crit_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_critical(%s) = %d;\n' % (rm, ctr)
+    for rm, ctr in reg_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (rm, ctr)
     return vic_str
 
 def make_rddl_inst(rooms, edges,
