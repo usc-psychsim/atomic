@@ -7,14 +7,14 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 from atomic.parsing import GameLogParser
-from atomic.parsing.json_parser import createJSONParser
+from atomic.parsing.json_parser import JSONReader
 from atomic.definitions import MISSION_DURATION
 import numpy as np
 
 
 class MsgQCreator(GameLogParser):
 
-    def __init__(self, filename, room_list, processor=None, logger=logging):
+    def __init__(self, filename, processor=None, logger=logging):
         super().__init__(filename, processor, logger)
         self.playerToAgent = {}
         self.agentToPlayer = {}
@@ -23,7 +23,7 @@ class MsgQCreator(GameLogParser):
         self.grouping_res = 10
         if len(filename) > 0:
             print('Reading json with these input files', filename)
-            self.jsonParser = createJSONParser(room_list)
+            self.jsonParser = JSONReader(True)
             
     def startProcessing(self, featuresToExtract, msg_types): 
         self.jsonParser.registerFeatures(featuresToExtract)

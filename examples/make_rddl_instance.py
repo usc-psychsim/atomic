@@ -15,8 +15,7 @@ from atomic.definitions import GOLD_STR, GREEN_STR
 #with open('../data/rddl_psim/victims.pickle', 'wb') as f:    
 #    pickle.dump(SandRVics, f)
 
-def generate_rddl_map(map_file):
-    rooms, edges = read_semantic_map(map_file)
+def generate_rddl_map(rooms, edges):
     nbr_str = ''
     for (rm1, rm2) in edges:
         nbr_str = nbr_str + 'nbr(%s, %s) = true;' % (rm1, rm2) + '\n'
@@ -38,15 +37,15 @@ def generate_rddl_victims(victim_pickle):
             vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (room, green_ct)
     return vic_str
 
-def make_rddl_inst(victim_pickle = '../data/rddl_psim/victims.pickle',
-                    map_file =       '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json',
+def make_rddl_inst(rooms, edges,
+                   victim_pickle = '../data/rddl_psim/victims.pickle',                    
                     rddl_template =  '../data/rddl_psim/sar_mv_tr_template.rddl',
                     inst_name = 'inst1'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info 
         which are obtained from a semantic map.    '''
 
 
-    loc_str, nbr_str = generate_rddl_map(map_file)
+    loc_str, nbr_str = generate_rddl_map(rooms, edges)
     vic_str = generate_rddl_victims(victim_pickle)
     
     rddl_temp_file = open(rddl_template, "r")

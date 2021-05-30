@@ -5,7 +5,6 @@ import json
 
 from psychsim.action import ActionSet
 from atomic.definitions.map_utils import getSandRMap
-from atomic.parsing.replayer import accumulate_files, Replayer
 
 def verify_adjacency(fname, adjacency_matrix):
     errors = set()
@@ -28,6 +27,10 @@ def verify_adjacency(fname, adjacency_matrix):
 def read_semantic_map(map_file):    
     #extract parent room and child areas from JSON file
     orig_map = json.load(open(map_file,'r'))
+    
+    extract_map(orig_map)
+    
+def extract_map(orig_map):
     #extracting portal names and storing them to use in edge creation
     #indices from this list become the portal IDs in the graph
     portal_node_names = []
@@ -104,6 +107,7 @@ def extract_adjacency(fname, adjacency=None):
                     last_room['z'] = row['z']
 
 if __name__ == '__main__':
+    from atomic.parsing.replayer import accumulate_files
     parser = argparse.ArgumentParser()
     parser.add_argument('adjacency_file', nargs=1, help='Adjacency file to use')
     parser.add_argument('fname', nargs='+', help='Log file(s) (or directory of CSV files) to process')
