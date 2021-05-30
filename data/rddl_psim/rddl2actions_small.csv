@@ -5,4 +5,5 @@ triage_regular,,Event:Triage,"triage_state=SUCCESSFUL, type=REGULAR"
 pickup_critical,,Event:VictimPickedUp,type=CRITICAL
 pickup_regular,,Event:VictimPickedUp,type=REGULAR
 dropVictim,,Event:VictimPlaced,
+becomeRole,new_role,Event:RoleSelected,
 noop,,noop,

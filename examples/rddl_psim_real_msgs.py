@@ -12,7 +12,8 @@ THRESHOLD = 0
 #RDDL_FILE = '../data/rddl_psim/sar_mv_tr_big.rddl'
 #RDDL_FILE = '../data/rddl_psim/mv_tr_tool_template_small.rddl'
 #RDDL_FILE = '../data/rddl_psim/mv_tr_tool_big.rddl'
-RDDL_FILE = '../data/rddl_psim/vic_move_big.rddl'
+#RDDL_FILE = '../data/rddl_psim/vic_move_big.rddl'
+RDDL_FILE = '../data/rddl_psim/role_big.rddl'
 
 #################  R D D L  2  P S Y C H S I M    W O R L D
 logging.root.setLevel(logging.INFO)
@@ -87,7 +88,8 @@ for i, msgs in enumerate(msg_qs.actions):
         for ag_name in conv.actions.keys():
             _log_agent_reward(ag_name)
     conv.verify_constraints()
-    input('cont..')
+    if  (i%10) == 0:
+        input('cont..')
 
 
 
