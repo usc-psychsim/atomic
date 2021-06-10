@@ -23,7 +23,8 @@ class MsgQCreator(GameLogParser):
         self.grouping_res = 10
         if len(filename) > 0:
             print('Reading json with these input files', filename)
-            self.jsonParser = JSONReader(True)
+            self.jsonParser = JSONReader(filename, True)
+            self.jsonParser.read_semantic_map()
             
     def startProcessing(self, featuresToExtract, msg_types): 
         self.jsonParser.registerFeatures(featuresToExtract)

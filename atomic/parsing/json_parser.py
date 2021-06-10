@@ -34,7 +34,7 @@ LOCATION_MONITOR = 0
 STATE_MSGS = 1
 
 class JSONReader(object):
-    def __init__(self, verbose=False):
+    def __init__(self, fname, verbose=False):
         self.victims = []
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
@@ -47,7 +47,8 @@ class JSONReader(object):
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer']
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
-                        'Event:VictimPlaced': ['victim_x', 'victim_z']}
+                        'Event:VictimPlaced': ['victim_x', 'victim_z'],
+                        'Event:Triage': ['victim_x', 'victim_z']}
         self.typeToFields = {
                         'Event:Triage':['triage_state', 'type'], 
                         'Event:RoleSelected': ['new_role', 'prev_role'], 
@@ -59,6 +60,8 @@ class JSONReader(object):
                         'Event:RubbleDestroyed': [],
                         'Event:ItemEquipped': ['equippeditemname']}
         self.verbose = verbose
+        self.rooms = {}
+        self.fname = fname
             
     def registerFeatures(self, feats):
         for f in feats:
@@ -78,8 +81,19 @@ class JSONReader(object):
         jsonfile.close()        
         self.allMTypes = set()
         
-        self.rooms = {}
-        semantic_map = self.get_sm(jsonMsgs)
+        for jmsg in jsonMsgs:
+            self.process_message(jmsg)
+            self.allMTypes.add(jmsg['msg']['sub_type'])
+            
+    def read_semantic_map(self):        
+        jsonfile = open(self.fname, 'rt')
+        
+        for line in jsonfile.readlines():
+            jmsg = json.loads(line)
+            if 'semantic_map' in jmsg['data'].keys():
+                semantic_map = jmsg['data']['semantic_map']
+                break
+
         room_dict, self.room_edges = extract_map(semantic_map)
         for rid, coords in room_dict.items():
             x0 = coords[0]['x']
@@ -88,16 +102,8 @@ class JSONReader(object):
             z1 = coords[1]['z']
             rm = room(rid, [x0, z0, x1, z1])
             self.rooms[rid] = rm
-        
-        for jmsg in jsonMsgs:
-            self.process_message(jmsg)
-            self.allMTypes.add(jmsg['msg']['sub_type'])
-            
-    def get_sm(self, jsonMsgs):
-        for jmsg in jsonMsgs:
-            if 'semantic_map' in jmsg['data'].keys():
-                return jmsg['data']['semantic_map']
-            
+                    
+        jsonfile.close()       
         
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']

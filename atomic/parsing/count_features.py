@@ -17,6 +17,7 @@ class Feature(ABC):
         self.name = nm
         self.history = list()
         super().__init__()
+        self.rooms_to_track = []
     
     @abstractmethod
     def processMsg(self, msg):
@@ -25,6 +26,14 @@ class Feature(ABC):
     @abstractmethod
     def printValue(self):
         pass
+    
+    
+    def tracked(self, room):
+        for hw in self.rooms_to_track:
+            if room.startswith(hw):
+                return True
+        return False
+        
     
     def warn(self, text):
         self.logger.warn(text)
@@ -36,7 +45,7 @@ class Feature(ABC):
         return [m for m in self.history if m['playername'] == player]
     
 class CountVisitsPerRole(Feature):
-    def __init__(self, logger=logging):
+    def __init__(self, roomsToTrack, logger=logging):
         super().__init__("visit count per room per role", logger)    
         self.roomToRoleToCount = dict()
         self.playerToRole = dict()        
@@ -82,7 +91,7 @@ class CountRoleChanges(Feature):
             if player not in self.playerToCount.keys():
                 self.playerToCount[player] = 0
             self.playerToCount[player] = self.playerToCount[player] + 1
-            self.history.append()
+            self.history.append(msg)
             
     def printValue(self):
         print(self.name, self.playerToCount)
@@ -95,6 +104,7 @@ class CountEnterExit(Feature):
         self.playerToActed = dict()
         self.playerToPrevLoc = dict()
         
+        
     def processMsg(self, msg):
         mtype = msg['sub_type']
         player = msg['playername']
@@ -106,13 +116,13 @@ class CountEnterExit(Feature):
         if player not in self.playerToPrevLoc.keys():
             self.playerToPrevLoc[player] = ''
         
-        if mtype == 'Event:Location':
+        if mtype == 'Event:location':
             prevRoom = self.playerToPrevLoc[player]
             room = msg['room_name']
-            if prevRoom in self.roomsToTrack:
+            if self.tracked(prevRoom):
                 if not self.playerToActed[player]:
                     self.playerToCount[player] = self.playerToCount[player] + 1
-            if (prevRoom in self.roomsToTrack) or (room in self.roomsToTrack):
+            if self.tracked(prevRoom) or self.tracked(room):
                 self.history.append(msg)
             self.playerToPrevLoc[player] = room
             self.playerToActed[player] = False
@@ -130,22 +140,46 @@ class CountTriageInHallways(Feature):
         super().__init__("fraction of victims triaged in hallways", logger)
         self.triagesInHallways = 0
         self.triagesInRooms = 0
-        self.hallways = hallways
-            
+        self.rooms_to_track = hallways
+        
     def processMsg(self, msg):
         mtype = msg['sub_type']
         
         if (mtype == 'Event:Triage') and (msg['triage_state'] == 'SUCCESSFUL'):
-            room = msg['room']
-            if room in self.hallways:
+            room = msg['room_name']
+            if self.tracked(room):
                 self.triagesInHallways = self.triagesInHallways + 1
             else:
                 self.triagesInRooms = self.triagesInRooms + 1
-            self.history.append()    
+            self.history.append(msg)
         
     def printValue(self):
         print('Total triaged', self.triagesInRooms + self.triagesInHallways, 
               'Fraction in hallways', self.triagesInHallways / (self.triagesInRooms + self.triagesInHallways))
+
+class CountAction(Feature):
+    def __init__(self, msg_type, arg_values, logger=logging):
+        super().__init__("count number of times a player sees msg %s with args %s" % (msg_type, arg_values), logger)
+        self.playerToCount = dict()
+        self.msg_type = msg_type
+        self.arg_values = arg_values
+        
+    def processMsg(self, msg):
+        mtype = msg['sub_type']
+        player = msg['playername']
+        
+        if mtype == self.msg_type:
+            for arg, value in self.arg_values.items():
+                if msg[arg] != value:
+                    return
+            if player not in self.playerToCount.keys():
+                self.playerToCount[player] = 0
+            self.playerToCount[player] = self.playerToCount[player] + 1
+            self.history.append(msg)
+            
+    def printValue(self):
+        print(self.name, self.playerToCount)
+
         
 #This was written to work w/T000315
 class CountPlayerDialogueEvents(Feature):
@@ -161,7 +195,7 @@ class CountPlayerDialogueEvents(Feature):
             if player not in self.playerToCount.keys():
                 self.playerToCount[player] = 0
             self.playerToCount[player] = self.playerToCount[player] + 1
-            self.history.append()
+            self.history.append(msg)
             
     def printValue(self):
         print(self.name, self.playerToCount)
