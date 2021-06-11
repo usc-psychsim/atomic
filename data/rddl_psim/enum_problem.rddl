@@ -1,0 +1,74 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+	
+	types {
+  		agent : object;
+ 	  	loc    : object;
+		marker_type      : { @regular_mark, @noner_mark, @unmarked};
+	}; 	
+	pvariables { 	
+		place_marker(agent, marker_type) : { action-fluent, bool, default = false};
+		pLoc(agent, loc) : { state-fluent, bool, default = false };
+		move(agent, loc): { action-fluent, bool, default = false};
+		nbr(loc, loc)  : { non-fluent, bool, default = false };
+
+	};
+  
+	cpfs {		
+		pLoc'(?p, ?lc) = 
+			if (move(?p, ?lc))
+				then KronDelta(true)
+			else if (noop(?p))
+			    	then pLoc(?p, ?lc)
+			else  KronDelta(false);
+
+		room_marker'(?lc) = 
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ place_marker(?p, regular_mark)  ] )
+				then @regular_mark
+			else
+				room_marker(?lc);
+
+	};		
+	reward = 	
+		[sum_{?lc : loc}
+			[vcounter_saved_regular(?lc) * 10 ]
+		]
+		;
+
+	state-action-constraints {
+		forall_{?p : agent, ?lc : loc} move(?p, ?lc) =>  exists_{?lc2 : loc} [pLoc(?p, ?lc2) ^ nbr(?lc2, ?lc) ] ;
+	};
+
+}
+
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1; 
+	objects { 
+		agent : {p1, p2};
+		loc : {loc11, loc12, loc13};
+	}; 
+	non-fluents {
+		nbr(loc11, loc12) = true;
+		nbr(loc12, loc11) = true;
+		nbr(loc12, loc13) = true;
+		nbr(loc13, loc12) = true;
+ 	}; 
+ }
+instance mv_tr_v1_inst1 { 
+	domain = mv_tr_v1; 
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state { 
+		pLoc(p1,loc11) = true;
+		pLoc(p2,loc13) = true;
+	};
+	max-nondef-actions = 2;
+	horizon = 2;
+	discount = 1.0;
+} 
