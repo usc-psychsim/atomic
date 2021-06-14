@@ -14,6 +14,7 @@ domain mv_tr_v1 {
 	}; 	
 	pvariables { 	
 		place_marker(agent, marker_type) : { action-fluent, bool, default = false};
+		room_marker(loc)  : { state-fluent, marker_type, default = @unmarked};
 		pLoc(agent, loc) : { state-fluent, bool, default = false };
 		move(agent, loc): { action-fluent, bool, default = false};
 		nbr(loc, loc)  : { non-fluent, bool, default = false };
@@ -24,20 +25,17 @@ domain mv_tr_v1 {
 		pLoc'(?p, ?lc) = 
 			if (move(?p, ?lc))
 				then KronDelta(true)
-			else if (noop(?p))
-			    	then pLoc(?p, ?lc)
 			else  KronDelta(false);
 
 		room_marker'(?lc) = 
-			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ place_marker(?p, regular_mark)  ] )
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ place_marker(?p, @regular_mark)  ] )
 				then @regular_mark
 			else
 				room_marker(?lc);
 
 	};		
 	reward = 	
-		[sum_{?lc : loc}
-			[vcounter_saved_regular(?lc) * 10 ]
+		[1
 		]
 		;
 
