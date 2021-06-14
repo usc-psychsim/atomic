@@ -1,0 +1,116 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+	
+	types {
+  		agent : object;
+ 	  	loc    : object;
+		marker_type      : { @regular_mark, @none_mark, @unmarked};
+	}; 	
+	pvariables { 	
+		correct_sem(agent) : { non-fluent, bool, default = true };		
+		room_marker(loc) : {state-fluent, marker_type, default=@unmarked};
+		place_reg_mark(agent) : { action-fluent, bool, default = false};
+		place_none_mark(agent) : { action-fluent, bool, default = false};
+
+		dum(loc): { state-fluent, bool, default = false };
+
+		placed_good(agent)  : { state-fluent, bool, default = false };
+
+		pLoc(agent, loc) : { state-fluent, bool, default = false };
+		move(agent, loc): { action-fluent, bool, default = false};
+		nbr(loc, loc)  : { non-fluent, bool, default = false };
+
+		vcounter_saved_regular(loc): {state-fluent, int, default=0};
+		vcounter_unsaved_regular(loc): {state-fluent, int, default=0};
+
+		// Victim predicates
+		triage_regular(agent): { action-fluent, bool, default = false };
+		noop(agent): { action-fluent, bool, default = false };
+	};
+  
+	cpfs {		
+		pLoc'(?p, ?lc) = 
+			if (move(?p, ?lc))
+				then KronDelta(true)
+			else if (triage_regular(?p))
+			    	then pLoc(?p, ?lc)
+			else if (noop(?p))
+			    	then pLoc(?p, ?lc)
+			else  KronDelta(false);
+
+		vcounter_unsaved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+				then vcounter_unsaved_regular(?lc) - 1
+			else 
+				vcounter_unsaved_regular(?lc);
+
+		vcounter_saved_regular'(?lc) = 
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+				then vcounter_saved_regular(?lc) + 1
+			else 
+				vcounter_saved_regular(?lc);
+
+		room_marker'(?lc) = 
+			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ place_reg_mark(?p)  ] )
+				then @regular_mark
+			else if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ place_none_mark(?p)  ] )
+				then @none_mark
+			else
+				room_marker(?lc);
+
+		placed_good'(?p) = 
+			if (place_reg_mark(?p))
+				then if (correct_sem(?p) ^ exists_{?lc : loc} [ pLoc(?p, ?lc) ^ vcounter_unsaved_regular(?lc)] )
+						then  KronDelta(true)
+					else
+						 KronDelta(false)
+			else
+				 KronDelta(false);
+
+	};		
+	reward = 	
+		[sum_{?lc : loc}
+			[vcounter_saved_regular(?lc) * 1 ]
+		]  +
+ 		[sum_{?p : agent} placed_good(?p) ]
+		;
+
+	state-action-constraints {
+		forall_{?p : agent, ?lc : loc} 	move(?p, ?lc) 		=>	exists_{?lc2 : loc} [pLoc(?p, ?lc2) ^ nbr(?lc2, ?lc) ] ;
+		forall_{?p : agent}  			triage_regular(?p) 	=>	exists_{?lc : loc}   [pLoc(?p, ?lc) ^ dum(?lc)  ]    ;	
+	};
+}
+
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1; 
+	objects { 
+		agent : {p1, p2};
+		loc : {loc11, loc12, loc13};
+	}; 
+	non-fluents {
+		nbr(loc11, loc12) = true;
+		nbr(loc12, loc11) = true;
+		nbr(loc12, loc13) = true;
+		nbr(loc13, loc12) = true;
+ 	}; 
+ }
+instance mv_tr_v1_inst1 { 
+	domain = mv_tr_v1; 
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state { 
+		pLoc(p1,loc11) = true;
+		pLoc(p2,loc13) = true;
+
+		vcounter_unsaved_regular(loc12) = 2;
+	};
+	max-nondef-actions = 2;
+	horizon = 2;
+	discount = 1.0;
+} 
