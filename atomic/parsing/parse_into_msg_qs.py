@@ -29,7 +29,7 @@ class MsgQCreator(GameLogParser):
     def startProcessing(self, featuresToExtract, msg_types): 
         self.jsonParser.registerFeatures(featuresToExtract)
         self.jsonParser.process_json_file(self.jsonFile)
-        self.allPlayersMs = [m for m in self.jsonParser.messages if m['sub_type'] in msg_types]
+        self.allPlayersMs = [m for m in self.jsonParser.messages if msg_types is None or m['sub_type'] in msg_types]
         
         self.players = set([m['playername'] for m in self.allPlayersMs])
         print("all players", self.players)
