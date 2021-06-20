@@ -6,4 +6,5 @@ pickup_critical,,Event:VictimPickedUp,type=CRITICAL
 pickup_regular,,Event:VictimPickedUp,type=REGULAR
 dropVictim,,Event:VictimPlaced,
 becomeRole,new_role,Event:RoleSelected,
+place_reg_mark,,Event:MarkerPlaced,"type=Marker Block 1"
 noop,,noop,

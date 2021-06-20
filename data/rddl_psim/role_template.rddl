@@ -139,13 +139,13 @@ domain mv_tr_v1 {
 	};
 
 
-    action-preconditions {
-	// To triage a victim, you must be a medic, and there are unsaved victims in your location 
-	forall_{?p : agent} 
-		[ triage_critical(?p) => isRole(?p,Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_critical(?lc) > 0) ] ]  ;	
-		[ triage_regular(?p) => isRole(?p,Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;	
-			
-	};
+	action-preconditions {
+	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
+	    forall_{?p : agent}
+		[ triage_critical(?p) => isRole(?p,@Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_critical(?lc) > 0) ] ]  ;
+	    forall_{?p : agent}
+		[ triage_regular(?p) => isRole(?p,@Medical_Specialist ) ^ exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;
+	    };
 }
 
 
