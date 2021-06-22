@@ -27,7 +27,9 @@ def hopkins_statistic(datapoints: np.ndarray, seed: float = 0) -> float:
     will tend to result in values close to 0.
     """
     rng = np.random.RandomState(seed)
-    sample_size = int(datapoints.shape[0] * 0.05)  # 0.05 (5%) based on paper by Lawson and Jures
+    sample_size = int(datapoints.shape[0] * 0.05)  # 0.05 (5%) based on paper by Lawson and Jurs
+    if sample_size == 0:
+        return -1
 
     # a uniform random sample in the original data space
     simulated_points = rng.uniform(np.min(datapoints, axis=0), np.max(datapoints, axis=0),
