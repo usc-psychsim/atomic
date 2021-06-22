@@ -3,8 +3,10 @@ import logging
 import os
 import tqdm
 import re
+import itertools as it
 import pandas as pd
-from typing import Dict
+import numpy as np
+from typing import Dict, List
 from sklearn import preprocessing
 from sklearn.cluster import AgglomerativeClustering
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
@@ -52,7 +54,7 @@ def main():
     parser.add_argument('--affinity', '-a', type=str, default='euclidean',
                         help='Metric used to compute the linkage. Can be “euclidean”, “l1”, “l2”, '
                              '“manhattan” or “cosine”. If linkage is “ward”, only “euclidean” is accepted.')
-    parser.add_argument('--linkage', '-l', type=str, default='average',
+    parser.add_argument('--linkage', '-l', type=str, default='ward',
                         help='Which linkage criterion to use. The linkage criterion '
                              'determines which distance to use between sets of observation. '
                              'The algorithm will merge the pairs of cluster that minimize '
@@ -84,14 +86,20 @@ def main():
         files = get_files_with_extension(args.input, LOG_FILE_EXTENSION)
 
     # checks files
-    files = [file for file in files if file.endswith(LOG_FILE_EXTENSION) and os.path.isfile(file)]
+    files = _filter_files(files)
     if len(files) == 0:
         raise ValueError(f'Could not find any {LOG_FILE_EXTENSION} files in provided argument: {args.input}!')
 
+    # check cache dir
+    cache_dir = os.path.join(args.output, 'data')
+    os.makedirs(cache_dir, exist_ok=True)
+
     # loads data from logs
     logging.info(f'Loading {len(files)} game log files...')
-    pool, map_func = get_pool_and_map(args.processes, star=False, iterator=True)
-    results = list(tqdm.tqdm(map_func(_parse_log_file, files), total=len(files)))
+    pool, map_func = get_pool_and_map(args.processes, star=True, iterator=True)
+    f_args = list(it.product(files, [cache_dir]))
+    results = list(tqdm.tqdm(map_func(_parse_log_file, f_args), total=len(files)))
+    results = [result for result in results if result is not None]
 
     # converts to dataframe and saves to file
     df = pd.DataFrame(results).fillna(0)
@@ -110,6 +118,7 @@ def main():
     df.to_csv(file_path, index=False)
 
     # split
+    features = df.columns[1:]
     file_names = df[FILE_NAME_COL].values
     data = df.iloc[:, 1:].values
 
@@ -117,18 +126,20 @@ def main():
     logging.info('Computing Hopkins statistic for the data...')
     h = hopkins_statistic(data)
     logging.info(f'\tH={h:.2f}')
-    if h <= 0.3:
-        logging.info('\tTrace data is regularly spaced')
+    if h < 0:
+        logging.info('\tInsufficient data to compute Hopkins statistic')
+    elif h <= 0.3:
+        logging.info('\tData is regularly spaced')
     elif 0.45 <= h <= 0.55:
-        logging.info('\tTrace data is random')
+        logging.info('\tData is random')
     elif h > 0.75:
-        logging.info('\tTrace data has a high tendency to cluster')
+        logging.info('\tData has a high tendency to cluster')
 
     # cluster data
     logging.info('========================================')
     logging.info(f'Clustering {data.shape[0]} datapoints...')
     clustering = AgglomerativeClustering(n_clusters=None if args.n_clusters == -1 else args.n_clusters,
-                                         affinity=args.affinity,
+                                         affinity=args.affinity if args.linkage != 'ward' else 'euclidean',
                                          linkage=args.linkage,
                                          compute_distances=True,
                                          distance_threshold=args.distance_threshold if args.n_clusters == -1 else None)
@@ -151,44 +162,89 @@ def main():
     df = pd.DataFrame([{CLUSTER_ID_COL: cluster,
                         CLUSTER_COUNT_COL: len(idxs),
                         FILE_NAMES_COL: [file_names[idx] for idx in idxs]}
-                       for cluster, idxs in clusters.items()], index=CLUSTER_ID_COL)
+                       for cluster, idxs in clusters.items()])
+    df.set_index([CLUSTER_ID_COL], inplace=True)
     df.sort_index(inplace=True)
-    file_path = os.path.join(args.output, 'cluster-traces.csv')
+    file_path = os.path.join(args.output, 'cluster-ids.csv')
     df.to_csv(file_path)
 
-    # TODO evaluate (at least internally)
+    # TODO evaluate (at least internally), pick best cluster #?
 
+    # saves mean feature vectors
+    logging.info('========================================')
+    logging.info('Computing mean feature vectors for each cluster...')
+    mean_vecs = [[cluster] + np.mean(data[idxs], axis=0).tolist() for cluster, idxs in clusters.items()]
+    df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features.tolist())
+    df.set_index([CLUSTER_ID_COL], inplace=True)
+    df.sort_index(inplace=True)
+    file_path = os.path.join(args.output, 'cluster-mean-feats.csv')
+    df.to_csv(file_path)
     logging.info('Done!')
 
 
-def _parse_log_file(log_file: str) -> Dict[str, float]:
-    msg_qs = MsgQCreator(log_file, logger=logging)
+def _filter_files(files: List[str]) -> List[str]:
+    files = set(files)
+    filtered = set()
+    for file in files:
+        if file in filtered or not file.endswith(LOG_FILE_EXTENSION) or not os.path.isfile(file):
+            continue
+        i = re.search(r'Vers-(\d+)', file)
+        if i is None:
+            filtered.add(file)  # did not find version info
+            continue
+        i = int(i.group(1)) + 1  # search for higher version
+        while True:
+            file_ = re.sub(r'Vers-\d+', f'Vers-{i}', file)
+            if file_ not in files:
+                break
+            file = file_
+            i += 1  # continue searching
+        filtered.add(file)
+    return sorted(filtered)
 
-    # processes room names
-    all_loc_name = list(msg_qs.jsonParser.rooms.keys())
-    main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
-    main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
-    hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
-    room_names = main_names.difference(hallways)
 
-    # adds feature counters
-    derived_features = []
-    for args in COUNT_ACTIONS_ARGS:
-        derived_features.append(CountAction(*args))
-    derived_features.append(CountEnterExit(room_names))
-    derived_features.append(CountTriageInHallways(hallways))
-    # derived_features.append(CountVisitsPerRole(room_names))
-    derived_features.append(CountRoleChanges())
+def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
+    try:
+        # check file in cache, load and skip if exits
+        file_path = os.path.join(cache_dir, f'{get_file_name_without_extension(log_file)}.csv')
+        if os.path.isfile(file_path):
+            df = pd.read_csv(file_path)
+            return df.iloc[0].to_dict()
 
-    # process messages
-    msg_qs.startProcessing(derived_features, msg_types=None)  # use all msg types available
+        msg_qs = MsgQCreator(log_file, logger=logging)
 
-    # processes data to extract features depending on type of count
-    features = {FILE_NAME_COL: get_file_name_without_extension(log_file)}
-    for derived_feature in derived_features:
-        features.update(_get_feature_values(derived_feature))
+        # processes room names
+        all_loc_name = list(msg_qs.jsonParser.rooms.keys())
+        main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
+        main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
+        hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
+        room_names = main_names.difference(hallways)
 
-    return features
+        # adds feature counters
+        derived_features = []
+        for args in COUNT_ACTIONS_ARGS:
+            derived_features.append(CountAction(*args))
+        derived_features.append(CountEnterExit(room_names))
+        derived_features.append(CountTriageInHallways(hallways))
+        # derived_features.append(CountVisitsPerRole(room_names))
+        derived_features.append(CountRoleChanges())
+
+        # process messages
+        msg_qs.startProcessing(derived_features, msg_types=None)  # use all msg types available
+
+        # processes data to extract features depending on type of count
+        features = {FILE_NAME_COL: get_file_name_without_extension(log_file)}
+        for derived_feature in derived_features:
+            features.update(_get_feature_values(derived_feature))
+
+        # save to output (cache)
+        df = pd.DataFrame([features])
+        df.to_csv(file_path, index=False)
+
+        return features
+    except (KeyError, AttributeError, ValueError, UnboundLocalError) as e:
+        logging.info(f'Could not process log file {log_file}, {e}!')
+        return None
 
 
 def _get_feature_values(derived_feature: Feature) -> Dict[str, float]:
