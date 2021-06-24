@@ -28,6 +28,9 @@ class Msg2ActionEntry:
             for cond in conds:
                 [var, val] = cond.split('=')
                 self.conditions[var.strip()] = val.strip()
+                
+    def __repr__(self):
+        return '%s %s %s %s' %(self.psysim_name, self.msg_type, self.psysim_args, self.conditions)
         
     def get_psysim_name(self, msg):
         player = msg['playername']
@@ -67,3 +70,10 @@ class Msg2ActionEntry:
         for conv in Msg2ActionEntry.conversions:
             mtypes.add(conv.msg_type)
         return mtypes
+    
+    
+    @classmethod
+    def print_all(cls):
+        for conv in Msg2ActionEntry.conversions:
+            print(conv)    
+        

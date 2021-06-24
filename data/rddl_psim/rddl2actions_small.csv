@@ -1,5 +1,10 @@
 psysim,args,msg_type,conditions
-move,room_name,Event:Location,
+move,room_name,Event:location,
 triage_critical,,Event:Triage,"triage_state=SUCCESSFUL, type=CRITICAL"
 triage_regular,,Event:Triage,"triage_state=SUCCESSFUL, type=REGULAR"
+pickup_critical,,Event:VictimPickedUp,type=CRITICAL
+pickup_regular,,Event:VictimPickedUp,type=REGULAR
+dropVictim,,Event:VictimPlaced,
+becomeRole,new_role,Event:RoleSelected,
+place_reg_mark,,Event:MarkerPlaced,"type=Marker Block 1"
 noop,,noop,

@@ -13,10 +13,9 @@ from atomic.definitions import GOLD_STR, GREEN_STR
 
 
 #with open('../data/rddl_psim/victims.pickle', 'wb') as f:    
-#    pickle.dump(SandRVics, f)
+#    pickle.dump(msg_qs.jsonParser.vList, f)
 
-def generate_rddl_map(map_file):
-    rooms, edges = read_semantic_map(map_file)
+def generate_rddl_map(rooms, edges):
     nbr_str = ''
     for (rm1, rm2) in edges:
         nbr_str = nbr_str + 'nbr(%s, %s) = true;' % (rm1, rm2) + '\n'
@@ -25,28 +24,40 @@ def generate_rddl_map(map_file):
 
 def generate_rddl_victims(victim_pickle):
     with open(victim_pickle, 'rb') as f:    
-        SandRVics = pickle.load(f)
-    vic_str = ''
-    for room, vics in SandRVics.items():
-        if room == '':
+        vList = pickle.load(f)
+    
+    reg_dict = {}
+    crit_dict = {}
+    
+    for vic in vList:
+        rm = vic['room_name']
+        if rm == '':
             continue
-        gold_ct = vics.count(GOLD_STR)
-        green_ct = vics.count(GREEN_STR)
-        if gold_ct > 0:
-            vic_str = vic_str + 'vcounter_unsaved_critical(%s) = %d;\n' % (room, gold_ct)
-        if green_ct > 0:
-            vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (room, green_ct)
+        if vic['block_type'] == 'critical':
+            d = crit_dict
+        else:
+            d = reg_dict
+        
+        if rm not in d.keys():
+            d[rm] = 0
+        d[rm] = d[rm] +1
+
+    vic_str = ''
+    for rm, ctr in crit_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_critical(%s) = %d;\n' % (rm, ctr)
+    for rm, ctr in reg_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (rm, ctr)
     return vic_str
 
-def make_rddl_inst(victim_pickle = '../data/rddl_psim/victims.pickle',
-                    map_file =       '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json',
+def make_rddl_inst(rooms, edges,
+                   victim_pickle = '../data/rddl_psim/victims.pickle',                    
                     rddl_template =  '../data/rddl_psim/sar_mv_tr_template.rddl',
                     inst_name = 'inst1'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info 
         which are obtained from a semantic map.    '''
 
 
-    loc_str, nbr_str = generate_rddl_map(map_file)
+    loc_str, nbr_str = generate_rddl_map(rooms, edges)
     vic_str = generate_rddl_victims(victim_pickle)
     
     rddl_temp_file = open(rddl_template, "r")

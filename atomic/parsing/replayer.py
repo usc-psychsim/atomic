@@ -4,7 +4,6 @@ import os.path
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
-from atomic.parsing import ParsingProcessor
 from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.message_processing import ProcessParsedJson
 from atomic.scenarios.single_player import make_single_player_world

@@ -1,11 +1,8 @@
 import argparse
 import logging
 import sys
-import numpy as np
 
 from rddl2psychsim.conversion.converter import Converter
-from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
-from atomic.parsing.parse_into_msg_qs import MsgQCreator
 
 THRESHOLD = 0
 #RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
@@ -23,12 +20,14 @@ logging.basicConfig(
     format='%(message)s', level=logging.INFO)
 
 def _log_agent_reward(ag_name):
+    if '__decision__' not in debug[ag_name]:
+        return
     true_model = conv.world.agents[ag_name].get_true_model()
-    action = debug[ag_name]['__decision__'][true_model]['action']
-    rwd = debug[ag_name]['__decision__'][true_model]['V'][action]['__ER__']
+    decision = debug[ag_name]['__decision__'][true_model]
+    action = decision['action']
+    rwd = decision['V'][action]['__ER__'] if 'V' in decision else []
     rwd = None if len(rwd) == 0 else rwd[0]
-    logging.info(f'{ag_name}\'s reward: {rwd}')
-
+    logging.info(f'{ag_name}\'s action: {action} reward: {rwd}')
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', type=str, default=RDDL_FILE, help='RDDL file to be converted to PsychSim.')
@@ -46,50 +45,15 @@ args = parser.parse_args()
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
-###################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
-#
-fname = '../data/rddl_psim/rddl2actions_small.csv'
-Msg2ActionEntry.read_psysim_msg_conversion(fname)
-usable_msg_types = Msg2ActionEntry.get_msg_types()
-#
-##################  M S G S
-ddir = '../data/ASU_DATA/'
-fname = ddir + 'study-2_pilot-2_2021.02_NotHSRData_TrialMessages_Trial-T000315_Team-TM000021_Member-na_CondBtwn-1_CondWin-SaturnA_Vers-1.metadata'
-
-
-msg_qs = MsgQCreator(fname, logger=logging)
-derived_features = []
-msg_qs.startProcessing(derived_features, usable_msg_types)
-
 #################  S T E P    T H R O U G H
-num = len(msg_qs.actions)
-for i, msgs in enumerate(msg_qs.actions):
-    logging.info(f'\n__________________________________________________{i} out of {num}')
+steps  = 10
+for i in range(steps):
+    logging.info(f'\n__________________________________________________{i}')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
     
-    actions = {}
-    any_none = False
-    for player_name, msg in msgs.items():
-        action_name = Msg2ActionEntry.get_action(msg)
-        if action_name not in conv.actions[player_name]:
-            any_none = True
-            logging.warning(f'Msg {msg} has no associated action')
-        else:
-            logging.info(f'Msg {msg} becomes {action_name}')
-            action = conv.actions[player_name][action_name]
-            actions[player_name] = action
-    
-    if any_none:
-        input('cont..')
-        continue
-    conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
+    conv.world.step(debug=debug, threshold=args.threshold, select=args.select)
     conv.log_state(log_actions=args.log_actions)
     if args.log_rewards:
         for ag_name in conv.actions.keys():
             _log_agent_reward(ag_name)
     conv.verify_constraints()
-    if  (i%10) == 0:
-        input('cont..')
-
-
-
