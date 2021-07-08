@@ -3,6 +3,7 @@ import logging
 import sys
 
 from rddl2psychsim.conversion.converter import Converter
+from psychsim.pwl import modelKey
 
 THRESHOLD = 0
 #RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
@@ -46,6 +47,16 @@ args = parser.parse_args()
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
+agents = set(conv.world.agents.keys())
+for agent in conv.world.agents.values():
+    agent.create_belief_state()
+zeros = {name: agent.zero_level() for name, agent in conv.world.agents.items()}
+for name, agent in conv.world.agents.items():
+    beliefs = agent.getBelief()
+    model = agent.get_true_model()
+    belief = agent.getBelief(model=model)
+    for other in agents-{name}:
+        conv.world.setFeature(modelKey(other), zeros[other], belief)
 #################  S T E P    T H R O U G H
 steps  = 10
 for i in range(steps):
