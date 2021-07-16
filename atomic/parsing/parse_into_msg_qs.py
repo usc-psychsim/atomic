@@ -52,12 +52,22 @@ class MsgQCreator(GameLogParser):
         groupedMsgs = []
         while nextMsg < len(self.playerToMsgs[player]):
             msg = self.playerToMsgs[player][nextMsg]
-            ts = [int(x) for x in msg['mission_timer'].split(':')]
+            nextMsg = nextMsg + 1
+            
+            if ':' not in msg['mission_timer']:
+                continue
+            
+            ## If malformed time, skip
+            nums = msg['mission_timer'].split(':')
+            if np.any([not n.strip().isdigit() for n in nums]):
+                continue
+            
+            ts = [int(n) for n in nums]
             timeInSec = MISSION_DURATION - (ts[0] * 60) - ts[1]
             if timeInSec > maxTime:
                 break
             groupedMsgs.append(nextMsg)
-            nextMsg = nextMsg + 1
+            
         self.nextMsgIdx[player] = nextMsg
         return groupedMsgs
     
