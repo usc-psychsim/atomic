@@ -130,8 +130,11 @@ class JSONReader(object):
         if mtype == 'Mission:VictimList':
             self.vList = self.make_victims_list(m['mission_victim_list'])
             return
-                        
-        player = m['playername']
+
+        player = m.get('playername', m.get('participant_id', None))
+        m['playername'] = player
+#        if player == None:
+#            print('hi')
         
         is_location_event = False
         if mtype == "state":
@@ -169,6 +172,8 @@ class JSONReader(object):
             self.player_to_curr_room[player] = room_name
             if self.verbose:
                 print('%s moved to %s' %(player, room_name))
+                
+#            if 'playername' not in 
             
         
         ## If this is a message type we append room name to

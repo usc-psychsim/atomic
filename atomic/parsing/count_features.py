@@ -24,7 +24,7 @@ class Feature(ABC):
     
     def processMsg(self, msg):
         self.msg_type = msg['sub_type']
-        self.msg_player = msg.get('playername', None)
+        self.msg_player = msg.get('playername', msg.get('participant_id', None))
         self.msg_time = msg['mission_timer']
 
     @abstractmethod
