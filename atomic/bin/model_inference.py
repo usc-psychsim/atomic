@@ -133,8 +133,8 @@ class AnalysisParseProcessor(ParsingProcessor):
 
 class Analyzer(Replayer):
 
-    def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, logger=logging):
-        super().__init__(files, maps, models, ignore_models, True, AnalysisParseProcessor(), logger)
+    def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, rddl_file=None, logger=logging):
+        super().__init__(files, maps, models, ignore_models, True, AnalysisParseProcessor(), rddl_file, logger)
 
         self.mission_times = mission_times
         # Set player models for observer agent
@@ -239,6 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--ignore_reward', action='store_true', help='Do not consider alternate reward functions')
     parser.add_argument('--ignore_rationality', action='store_true', help='Do not consider alternate skill levels')
     parser.add_argument('--ignore_horizon', action='store_true', help='Do not consider alternate horizons')
+    parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
     parser.add_argument('--reward_file', help='Name of CSV file containing alternate reward functions')
     parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
     parser.add_argument('--metadata', help='Name of JSON file containing raw game log for this trial')
@@ -269,7 +270,7 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], get_default_maps(logging), DEFAULT_MODELS, ignore, mission_times, logging)
+    replayer = Analyzer(args['fname'], get_default_maps(logging), DEFAULT_MODELS, ignore, mission_times, args['rddl'], logging)
     if args['profile']:
         cProfile.run('replayer.process_files(args["number"])', sort=1)
     elif args['1']:

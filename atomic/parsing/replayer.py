@@ -5,8 +5,9 @@ import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.csv_parser import ProcessCSV
-from atomic.parsing.message_processing import ProcessParsedJson
+from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from atomic.scenarios.single_player import make_single_player_world
+from rddl2psychsim.conversion.converter import Converter
 
 COND_MAP_TAG = 'CondWin'
 COND_TRAIN_TAG = 'CondBtwn'
@@ -14,7 +15,7 @@ SUBJECT_ID_TAG = 'Member'
 TRIAL_TAG = 'Trial'
 
 
-def accumulate_files(files):
+def accumulate_files(files, ext='.metadata'):
     """
     Accumulate a list of files from a given list of names of files and directories
     :type files: List(str)
@@ -25,7 +26,7 @@ def accumulate_files(files):
         if os.path.isdir(fname):
             # We have a directory full of log files to process
             result += [os.path.join(fname, name) for name in os.listdir(fname)
-                       if os.path.splitext(name)[1] == '.csv' and os.path.join(fname, name) not in result]
+                       if os.path.splitext(name)[1] == ext and os.path.join(fname, name) not in result]
         elif fname not in result:
             # We have a lonely single log file (that is not already in the list)
             result.append(fname)
@@ -38,13 +39,15 @@ class Replayer(object):
     :ivar files: List of names of the log files to process
     :type files: List(str)
     """
+    OBSERVER = 'ATOMIC'
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True,
-                 processor=None, logger=logging):
+                 processor=None, rddl_file=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
         self.create_observer = create_observer
         self.processor = processor
+        self.rddl_file = rddl_file
         self.logger = logger
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
@@ -81,12 +84,14 @@ class Replayer(object):
     def get_map(self, logger=logging):
         # try to get map name directly from conditions dictionary
         try:
-            map_name = self.conditions['CondWin'][0]
+            map_name = self.conditions['CondWin']
             map_table = self.maps[map_name]
             return map_name, map_table
         except KeyError:
-            # Map not given in filename, try to find fallback
-            pass
+            # Maybe Phase 1 filename scheme?
+            map_name = self.conditions['CondWin'][0]
+            map_table = self.maps[map_name]
+            return map_name, map_table
 
         # todo to be retro-compatible would have to determine the map some other way..
         logger.error('Unable to find matching map')
@@ -110,20 +115,18 @@ class Replayer(object):
             logger.debug('Full path: {}'.format(fname))
             self.conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
 
-            map_name, self.map_table = self.get_map(logger)
-            if map_name is None or self.map_table is None:
-                # could not determine map
-                continue
-
             # Parse events from log file
             logger_name = type(self.processor).__name__ if self.processor is not None else ''
             _, ext = os.path.splitext(fname)
             ext = ext.lower()
             if ext == '.csv' or ext == '.xlsx':
+                map_name, self.map_table = self.get_map(logger)
+                if map_name is None or self.map_table is None:
+                    # could not determine map
+                    continue
                 self.parser = ProcessCSV(fname, self.processor, logger.getChild(logger_name))
             elif ext == '.metadata':
-                self.parser = ProcessParsedJson(
-                    fname, self.map_table, self.processor, logger.getChild(logger_name))
+                self.parser = MsgQCreator(fname, self.processor, logger=logger.getChild(logger_name))
             else:
                 raise ValueError('Unable to parse log file: {}, unknown extension.'.format(fname))
 
@@ -152,13 +155,26 @@ class Replayer(object):
 
     def pre_replay(self, logger=logging):
         # Create PsychSim model
-        logger.info('Creating world with "{}" map'.format(self.map_table.name))
-        self.parser.startProcessing([])
+        logger.info('Creating world')
         try:
-            self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
-                make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
-                                         self.map_table.adjacency, self.map_table.victims, False, True,
-                                         self.create_observer, logger.getChild('make_single_player_world'))
+            self.parser.startProcessing([], None)
+        except:
+            logger.error(traceback.format_exc())
+            logger.error('Unable to start parser')
+            return False
+        try:
+            if self.rddl_file:
+                # Team mission
+                conv = Converter()
+                conv.convert_file(self.rddl_file)
+                self.world = conv.world
+                self.observer = make_observer(self.world, self.parserplayers, self.OBSERVER_NAME) if self.create_observer else None
+            else:
+                # Solo mission
+                self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
+                    make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
+                                             self.map_table.adjacency, self.map_table.victims, False, True,
+                                             self.create_observer, logger.getChild('make_single_player_world'))
         except:
             logger.error(traceback.format_exc())
             logger.error('Unable to create world')
