@@ -108,10 +108,10 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1; 
  	non-fluents = mv_tr_v1_inst1;
 	init-state { 
-		pLoc(p1,loc11) = true;
-		pLoc(p2,loc13) = true;
+		pLoc(p1,loc12) = true;
+		pLoc(p2,loc11) = true;
 
-		vcounter_unsaved_regular(loc12) = 2;
+		vcounter_unsaved_regular(loc13) = 2;
 	};
 	max-nondef-actions = 2;
 	horizon = 2;
