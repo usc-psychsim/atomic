@@ -95,23 +95,25 @@ non-fluents mv_tr_v1_inst1{
 	domain = mv_tr_v1; 
 	objects { 
 		agent : {p1, p2};
-		loc : {loc11, loc12, loc13};
+		loc : {loc11, loc12, loc13, loc14};
 	}; 
 	non-fluents {
 		nbr(loc11, loc12) = true;
 		nbr(loc12, loc11) = true;
 		nbr(loc12, loc13) = true;
 		nbr(loc13, loc12) = true;
+		nbr(loc13, loc14) = true;
+		nbr(loc14, loc13) = true;
  	}; 
  }
 instance mv_tr_v1_inst1 { 
 	domain = mv_tr_v1; 
  	non-fluents = mv_tr_v1_inst1;
 	init-state { 
-		pLoc(p1,loc12) = true;
+		pLoc(p1,loc13) = true;
 		pLoc(p2,loc11) = true;
 
-		vcounter_unsaved_regular(loc13) = 2;
+		vcounter_unsaved_regular(loc14) = 2;
 	};
 	max-nondef-actions = 2;
 	horizon = 2;
