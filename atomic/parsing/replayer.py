@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os.path
+import sys
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
@@ -25,7 +26,7 @@ def accumulate_files(files, ext='.metadata'):
     for fname in files:
         if os.path.isdir(fname):
             # We have a directory full of log files to process
-            result += [os.path.join(fname, name) for name in os.listdir(fname)
+            result += [os.path.join(fname, name) for name in sorted(os.listdir(fname))
                        if os.path.splitext(name)[1] == ext and os.path.join(fname, name) not in result]
         elif fname not in result:
             # We have a lonely single log file (that is not already in the list)
@@ -126,7 +127,12 @@ class Replayer(object):
                     continue
                 self.parser = ProcessCSV(fname, self.processor, logger.getChild(logger_name))
             elif ext == '.metadata':
-                self.parser = MsgQCreator(fname, self.processor, logger=logger.getChild(logger_name))
+                try:
+                    self.parser = MsgQCreator(fname, self.processor, logger=logger.getChild(logger_name))
+                except:
+                    logger.error('Unable to extract actions/events')
+                    logger.error(traceback.format_exc())
+                    continue
             else:
                 raise ValueError('Unable to parse log file: {}, unknown extension.'.format(fname))
 
@@ -151,6 +157,7 @@ class Replayer(object):
                 last = num_steps + 1
             self.replay(last, logger)
             self.post_replay()
+            logger.error('Success!')
             self.world_map.clear()
 
     def pre_replay(self, logger=logging):
@@ -159,8 +166,8 @@ class Replayer(object):
         try:
             self.parser.startProcessing([], None)
         except:
-            logger.error(traceback.format_exc())
             logger.error('Unable to start parser')
+            logger.error(traceback.format_exc())
             return False
         try:
             if self.rddl_file:
@@ -176,8 +183,12 @@ class Replayer(object):
                                              self.map_table.adjacency, self.map_table.victims, False, True,
                                              self.create_observer, logger.getChild('make_single_player_world'))
         except:
-            logger.error(traceback.format_exc())
             logger.error('Unable to create world')
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if exc_type is RecursionError:
+                logger.error('RecursionError: maximum recursion depth exceeded while getting the str of an object')
+            else:
+                logger.error(traceback.format_exc())
             return False
         # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
         features = None
