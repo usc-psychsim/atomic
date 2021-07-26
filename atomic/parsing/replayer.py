@@ -4,7 +4,7 @@ import os.path
 import sys
 import traceback
 from atomic.definitions.map_utils import get_default_maps
-from atomic.inference import set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.inference import make_observer, set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from atomic.scenarios.single_player import make_single_player_world
@@ -175,7 +175,7 @@ class Replayer(object):
                 conv = Converter()
                 conv.convert_file(self.rddl_file)
                 self.world = conv.world
-                self.observer = make_observer(self.world, self.parserplayers, self.OBSERVER_NAME) if self.create_observer else None
+                self.observer = make_observer(self.world, self.parser.players) if self.create_observer else None
             else:
                 # Solo mission
                 self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
@@ -185,17 +185,14 @@ class Replayer(object):
         except:
             logger.error('Unable to create world')
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            if exc_type is RecursionError:
-                logger.error('RecursionError: maximum recursion depth exceeded while getting the str of an object')
-            else:
-                logger.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return False
         # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
         features = None
         self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
                            for value in itertools.product(*self.models.values()) if len(value) > 0]
         for index, model in enumerate(self.model_list):
-            if 'name' not in model:
+            if 'name' not in model and self.triage_agent is not None:
                 model['name'] = '{}_{}'.format(self.triage_agent.name,
                                                '_'.join([model[dimension] for dimension in self.models]))
                 for dimension in self.models:
