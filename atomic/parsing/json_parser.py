@@ -139,7 +139,6 @@ class JSONReader(object):
         m['playername'] = player
 #        if player == None:
 #            print('hi')
-        
         is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
@@ -187,6 +186,8 @@ class JSONReader(object):
             m['room_name'] = self.getRoom(x,z)
             
             ## If event room doesn't match player's last room
+            if player not in self.player_to_curr_room:
+                self.player_to_curr_room[player] = ''
             if m['room_name'] != self.player_to_curr_room[player]:
                 ## If connected, inject an Event:location message
                 conn = ((self.player_to_curr_room[player], m['room_name']) in self.room_edges)
