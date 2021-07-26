@@ -107,7 +107,12 @@ class MsgQCreator(GameLogParser):
                     if msgIdx == -1:
                         msg = {'sub_type':'noop'}
                     else:
-                        msg = self.playerToMsgs[player][msgIdx]
+                        try:
+                            msg = self.playerToMsgs[player][msgIdx]
+                        except IndexError:
+                            logging.error(f'Player "{player}" has {len(self.playerToMsgs[player])} messages, '\
+                                f'so index {msgIdx} (during {timeNow}-{timeNow+self.grouping_res}) is too high.')
+                            msg = {'sub_type':'noop'}
                     msg['realname'] = player
                     msg['playername'] = self.playerToAgent[player]
                     step_actions[self.playerToAgent[player]] = msg
