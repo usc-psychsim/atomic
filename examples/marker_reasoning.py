@@ -47,15 +47,27 @@ conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
 p1 = conv.world.agents['p1']
+p2 = conv.world.agents['p2']
 p1.resetBelief(ignore={"p2's correct_sem"})
 p1.omega = [key for key in conv.world.state.keys() if key != "p2's correct_sem"]
 p1.setBelief(stateKey('p2', 'correct_sem'), Distribution({True: 0.5, False: 0.5}))
 
+p1_zero = p1.zero_level()
+p1.setAttribute('selection', 'distribution', p1_zero)
+p2_zero = p2.zero_level()
+p2.setAttribute('selection', 'distribution', p2_zero)
+conv.world.setModel(p2.name, p2_zero)
+conv.world.setModel(p1.name, p1_zero)
+
+p1.set_observations()
+p2.set_observations()
 
 beliefs = p1.getBelief()
 belief = next(iter(beliefs.values()))
-print('===p1 initial belief', belief)
+print('===p1 initial belief')
+conv.world.printState(belief)
 
+#print(conv.world.get_current_models(cycle_check=True))
 ################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
 
 fname = '../data/rddl_psim/rddl2actions_small.csv'
