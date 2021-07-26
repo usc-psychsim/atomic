@@ -28,7 +28,7 @@ def read_semantic_map(map_file):
     #extract parent room and child areas from JSON file
     orig_map = json.load(open(map_file,'r'))
     
-    extract_map(orig_map)
+    return extract_map(orig_map)
     
 def extract_map(orig_map):
     #extracting portal names and storing them to use in edge creation
