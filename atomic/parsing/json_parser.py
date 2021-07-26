@@ -4,6 +4,8 @@ import os
 import sys
 import functools
 import json
+import pprint
+import sys
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 from atomic.parsing.map_parser import extract_map
@@ -93,6 +95,8 @@ class JSONReader(object):
             if 'semantic_map' in jmsg['data'].keys():
                 semantic_map = jmsg['data']['semantic_map']
                 break
+        else:
+            raise ValueError('Unable to find semantic map')
 
         room_dict, self.room_edges = extract_map(semantic_map)
         for rid, coords in room_dict.items():
@@ -115,13 +119,13 @@ class JSONReader(object):
         if mtype == "Event:MissionState":
             mission_state = m['mission_state']
             self.mission_running = (mission_state == "Start")
-            print('mission ', mission_state)
+            if self.verbose: print('mission ', mission_state)
             return
                 
         if mtype == "Event:Pause":
             isPaused = m['paused']
             self.mission_running = (isPaused != "true")
-            print('paused', isPaused )
+            if self.verbose: print('paused', isPaused )
             return
             
         if (not self.mission_running) or mtype not in self.msg_types:
@@ -150,7 +154,7 @@ class JSONReader(object):
                 return
             room_names = [loc['id'] for loc in m['locations'] if loc['id'] in self.rooms]
             if len(room_names) != 1:
-                print('Error: cant tell which room %s' %(m['locations']))
+                if self.verbose: print('Error: cant tell which room %s' %(m['locations']))
                 return
             room_name = room_names[0]
             is_location_event = True
@@ -166,7 +170,7 @@ class JSONReader(object):
             
             ## If new and old rooms not connected
             if (prev_rm != '') and (self.room_edges is not None) and ((prev_rm,room_name) not in self.room_edges):
-                print('Error: %s and %s not connected' %(prev_rm, room_name))
+                if self.verbose: print('Error: %s and %s not connected' %(prev_rm, room_name))
 #                print('Error: %s and %s not connected' %(self.rooms[prev_rm], self.rooms[room_name]))
             
             self.player_to_curr_room[player] = room_name
@@ -191,7 +195,7 @@ class JSONReader(object):
                                      'room_name':m['room_name'], 'mission_timer':m['mission_timer']}
                     self.messages.append(injecteDd_msg)
                 else:
-                    print('Error: Player %s last moved to %s but event msg is %s. 1-away %s' 
+                    if self.verbose: print('Error: Player %s last moved to %s but event msg is %s. 1-away %s' 
                           %(player, self.player_to_curr_room[player], mtype, self.one_step_removed(self.player_to_curr_room[player], m['room_name'])))
 
         if m['mission_timer'] == 'Mission Timer not initialized.':
@@ -258,7 +262,7 @@ class JSONReader(object):
     def writeToJson(self, inJsonFileName, psychsimdir):
         outname = inJsonFileName.split('/')
         outfile = psychsimdir+'/'+outname[len(outname)-1]+'.json'
-        print("writing to "+outfile)
+        if self.verbose: print("writing to "+outfile)
         msgout = open(outfile,'w')
         for m in self.messages:
             json.dump(m,msgout)
