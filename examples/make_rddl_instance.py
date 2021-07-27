@@ -23,7 +23,17 @@ def generate_rddl_map(rooms, edges):
     return loc_str, nbr_str
 
 
-def generate_rddl_victims(victim_pickle):
+def generate_rddl_map_portals(neighbors):
+    nbr_str = ''
+    for room, nbrs in neighbors.items():
+        for i, nbr in enumerate(nbrs):
+            nbr_str += f'NBR-{i}({room}) = {nbr};\n'
+            nbr_str += f'HAS-NBR-{i}({room}) = true;\n'
+    loc_str = ','.join(rooms)
+    return loc_str, nbr_str
+
+
+def generate_rddl_victims(victim_pickle, rooms):
     with open(victim_pickle, 'rb') as f:
         vList = pickle.load(f)
 
@@ -32,7 +42,7 @@ def generate_rddl_victims(victim_pickle):
 
     for vic in vList:
         rm = vic['room_name']
-        if rm == '':
+        if rm == '' or rm not in rooms:
             continue
         if vic['block_type'] == 'critical':
             d = crit_dict
@@ -73,9 +83,46 @@ def make_rddl_inst(rooms, edges,
     rddl_inst_file.close()
 
 
+def make_rddl_inst_fol(rooms, edges,
+                       victim_pickle='../data/rddl_psim/victims.pickle',
+                       rddl_template='../data/rddl_psim/sar_mv_tr_template.rddl',
+                       rddl_out='../data/rddl_psim/sar_mv_tr_inst1.rddl'):
+    ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
+        which are obtained from a semantic map.    '''
+
+    neighbors = {}
+    for r1, r2 in edges:
+        if r1 == r2:
+            continue
+        if r1 not in neighbors:
+            neighbors[r1] = set()
+        if r2 not in neighbors:
+            neighbors[r2] = set()
+        if len(neighbors[r1]) < MAX_NBRS:
+            neighbors[r1].add(r2)
+        if len(neighbors[r2]) < MAX_NBRS:
+            neighbors[r2].add(r1)
+
+    loc_str, nbr_str = generate_rddl_map_portals(neighbors)
+    vic_str = generate_rddl_victims(victim_pickle, rooms)
+
+    rddl_temp_file = open(rddl_template, "r")
+
+    rddl_str = rddl_temp_file.read()
+    rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str)
+
+    rddl_inst_file = open(rddl_out, "w")
+    rddl_inst_file.write(rddl_str)
+
+    rddl_temp_file.close()
+    rddl_inst_file.close()
+
+
 if __name__ == '__main__':
+    MAX_NBRS = 4  # TODO just for testing, this block will be removed once we have the new portals representation
+
     rooms, edges = read_semantic_map('atomic/maps/Saturn/Saturn_1.4_3D_sm_v1.0.json')
-    make_rddl_inst(rooms, edges,
-                   'atomic/data/rddl_psim/victims.pickle',
-                   'atomic/data/rddl_psim/role_fol_template.rddl',
-                   'atomic/data/rddl_psim/role_big_fol.rddl')
+    make_rddl_inst_fol(rooms, edges,
+                       'atomic/data/rddl_psim/victims.pickle',
+                       'atomic/data/rddl_psim/role_fol_template.rddl',
+                       'atomic/data/rddl_psim/role_big_fol.rddl')

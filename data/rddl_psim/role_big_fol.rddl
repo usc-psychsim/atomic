@@ -1,0 +1,939 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+
+	types {
+  		agent   : object;
+ 	  	loc     : object;
+		role    : { @Search_Specialist, @Hazardous_Material_Specialist, @Medical_Specialist};
+	};
+	pvariables {
+
+	    // neighbors (constants)
+		NBR-0(loc)      : { non-fluent, loc, default = null };
+		NBR-1(loc)      : { non-fluent, loc, default = null };
+		NBR-2(loc)      : { non-fluent, loc, default = null };
+		NBR-3(loc)      : { non-fluent, loc, default = null };
+		HAS-NBR-0(loc)  : { non-fluent, bool, default = false };
+		HAS-NBR-1(loc)  : { non-fluent, bool, default = false };
+		HAS-NBR-2(loc)  : { non-fluent, bool, default = false };
+		HAS-NBR-3(loc)  : { non-fluent, bool, default = false };
+
+        // agent state
+	    pLoc(agent)         : { state-fluent, loc, default = null };
+		pRole(agent)        : { state-fluent, role, default = @Search_Specialist } ;
+		has_critical(agent) : { state-fluent, bool, default = false };
+		has_regular(agent)  : { state-fluent, bool, default = false };
+
+        // victim counters
+		vcounter_saved_critical(loc)    : {state-fluent, int, default=0};
+		vcounter_unsaved_critical(loc)  : {state-fluent, int, default=0};
+		vcounter_saved_regular(loc)     : {state-fluent, int, default=0};
+		vcounter_unsaved_regular(loc)   : {state-fluent, int, default=0};
+
+        // move actions
+		move-0(agent) : { action-fluent, bool, default = false};
+		move-1(agent) : { action-fluent, bool, default = false};
+		move-2(agent) : { action-fluent, bool, default = false};
+		move-3(agent) : { action-fluent, bool, default = false};
+
+		// victim-related actions
+		triage_critical(agent)  : { action-fluent, bool, default = false };
+		triage_regular(agent)   : { action-fluent, bool, default = false };
+		pickup_critical(agent)  : { action-fluent, bool, default = false };
+		pickup_regular(agent)   : { action-fluent, bool, default = false };
+		dropVictim(agent)       : { action-fluent, bool, default = false };
+
+		becomeRole(agent, role) : { action-fluent, bool, default = false} ;
+        noop(agent)             : { action-fluent, bool, default = false };
+	};
+
+	cpfs {
+
+	    pLoc'(?p) =
+	        if ( move-0(?p) ) then
+	            NBR-0(pLoc(?p))
+	        else if ( move-1(?p) ) then
+	            NBR-1(pLoc(?p))
+	        else if ( move-2(?p) ) then
+	            NBR-2(pLoc(?p))
+	        else if ( move-3(?p) ) then
+	            NBR-3(pLoc(?p))
+	        else
+	            pLoc(?p);
+
+		pRole'(?p) =
+			if (becomeRole(?p, @Search_Specialist)) then
+			    @Search_Specialist
+			else if (becomeRole(?p, @Hazardous_Material_Specialist)) then
+			    @Hazardous_Material_Specialist
+			else if (becomeRole(?p, @Medical_Specialist)) then
+			    @Medical_Specialist
+			else
+			    pRole(?p);
+
+		vcounter_unsaved_critical'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_critical(?p)  ] )
+				then vcounter_unsaved_critical(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_critical(?p) ])
+				then vcounter_unsaved_critical(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_critical(?p) ^ dropVictim(?p) ])
+				then vcounter_unsaved_critical(?lc) + 1
+			else
+				vcounter_unsaved_critical(?lc);
+
+
+		// If either victim type was triaged, increment
+		vcounter_saved_critical'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_critical(?p)  ] )
+				then vcounter_saved_critical(?lc) + 1
+			else
+				vcounter_saved_critical(?lc);
+
+		vcounter_unsaved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_regular(?p) ])
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_regular(?p) ^ dropVictim(?p) ])
+				then vcounter_unsaved_regular(?lc) + 1
+			else
+				vcounter_unsaved_regular(?lc);
+
+		// If either victim type was triaged, increment
+		vcounter_saved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_saved_regular(?lc) + 1
+			else
+				vcounter_saved_regular(?lc);
+
+
+		has_critical'(?p) =
+			if (pickup_critical(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_critical(?p);
+
+		has_regular'(?p) =
+			if (pickup_regular(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_regular(?p);
+	};
+
+	reward = [sum_{?lc : loc} [vcounter_saved_critical(?lc) * 50 ] ];
+
+	action-preconditions {
+
+	    // to move through a portal, current loc has to have neighbor through that portal
+	    forall_{?p: agent} [ move-0(?p) => HAS-NBR-0(pLoc(?p)) ];
+	    forall_{?p: agent} [ move-1(?p) => HAS-NBR-1(pLoc(?p)) ];
+	    forall_{?p: agent} [ move-2(?p) => HAS-NBR-2(pLoc(?p)) ];
+	    forall_{?p: agent} [ move-3(?p) => HAS-NBR-3(pLoc(?p)) ];
+
+	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
+	    forall_{?p : agent} [
+	        triage_critical(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_critical( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        triage_regular(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+    };
+}
+
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1;
+	objects {
+		agent : {p1, p2};
+		loc : {tkt_1,tkt_2,tkt_3,tkt_4,tkt_5,tkt_6,kco_1,kco_2,kco_3,kco_4,kco_5,kco_6,kco_7,kco_8,kco_9,lib_1,lib_2,lib_3,lib_4,lib_5,lib_6,lib_7,lib_8,lib_9,lib_10,oba,so,ccw,mcw,ccn,hcr_1,hcr_2,hcr_3,hcr_4,hcr_5,hcr_6,crc,acr,jc_1,jc_2,rrc,cf_1,cf_2,cf_3,cf_4,cf_5,cf_6,cf_7,cf_8,cf_9,cf_10,cf_11,cf_12,cf_13,cf_14,cf_15,r101_1,r101_2,r101_3,r101_4,mb_1,mb_2,mb_3,mb_4,mb_5,mkcr,r102_1,r102_2,r102_3,r102_4,wb_1,wb_2,wb_3,wb_4,wb_5,cce,r103_1,r103_2,r103_3,r103_4,r103_5,r104_1,r104_2,r104_3,r104_4,r104_5,r105_1,r105_2,r105_3,r105_4,r105_5,r106_1,r106_2,r106_3,r106_4,r106_5,r106_6,r107_1,r107_2,r107_3,r107_4,r108_1,r108_2,r108_3,r108_4,r109_1,r109_2,r109_3,r109_4,r109_5,r110_1,r110_2,r110_3,r110_4,r110_5,llcn,ds_1,ds_2,ca,llc_1,llc_2,llc_3,llc_4,llc_5,llc_6,llc_7,llc_8,llc_9,llc_10,llc_11,llc_12,llc_13,llc_14,llc_15,llc_16,llc_17,llc_18,llc_19,llc_20,llc_21,llc_22,llc_23,llc_24,llc_25,llc_26,llc_27,llc_28,llc_29,llc_30,llc_31,llc_32,llc_33,llc_34,llc_35,br_1,br_2,br_3,o100_1,o100_2,o101,sga_1,sga_2,sga_3,sga_4,sga_5,sga_6,sga_7,sga_8,sga_9,sga_10,sga_11,sga_12,sga_13,sga_14,sga_15,sga_16,sga_17,sga_18,el_1,el_2,el_3,ew_1,ew_2,sdc_1,sdc_2,sdc_3,sdc_4,sdc_5,mce,buf_1,buf_2,buf_3,buf_4,buf_5,buf_6,buf_7,buf_8,buf_9,buf_10,buf_11,buf_12,buf_13,kit_1,kit_2,kit_3,kit_4,scn_1,scn_2,scn_3,scn_4,srh,srf,srd,srb,srg,sre,src,sra,scw,srl,srk,srj,sri,srp_1,srp_2,sro_1,sro_2,srn_1,srn_2,srm_1,srm_2,scc,srv,srs,sru,srr,srt,srq,sce};
+	};
+	non-fluents {
+		NBR-0(tkt_1) = tkt_2;
+HAS-NBR-0(tkt_1) = true;
+NBR-0(tkt_2) = tkt_1;
+HAS-NBR-0(tkt_2) = true;
+NBR-1(tkt_2) = tkt_3;
+HAS-NBR-1(tkt_2) = true;
+NBR-0(tkt_3) = tkt_2;
+HAS-NBR-0(tkt_3) = true;
+NBR-1(tkt_3) = tkt_4;
+HAS-NBR-1(tkt_3) = true;
+NBR-0(tkt_4) = tkt_3;
+HAS-NBR-0(tkt_4) = true;
+NBR-1(tkt_4) = tkt_5;
+HAS-NBR-1(tkt_4) = true;
+NBR-0(tkt_5) = tkt_6;
+HAS-NBR-0(tkt_5) = true;
+NBR-1(tkt_5) = tkt_4;
+HAS-NBR-1(tkt_5) = true;
+NBR-0(tkt_6) = tkt_5;
+HAS-NBR-0(tkt_6) = true;
+NBR-0(kco_1) = kco_2;
+HAS-NBR-0(kco_1) = true;
+NBR-0(kco_2) = kco_1;
+HAS-NBR-0(kco_2) = true;
+NBR-1(kco_2) = kco_3;
+HAS-NBR-1(kco_2) = true;
+NBR-0(kco_3) = kco_2;
+HAS-NBR-0(kco_3) = true;
+NBR-1(kco_3) = kco_4;
+HAS-NBR-1(kco_3) = true;
+NBR-2(kco_3) = kco_6;
+HAS-NBR-2(kco_3) = true;
+NBR-0(kco_4) = kco_5;
+HAS-NBR-0(kco_4) = true;
+NBR-1(kco_4) = kco_3;
+HAS-NBR-1(kco_4) = true;
+NBR-0(kco_6) = kco_7;
+HAS-NBR-0(kco_6) = true;
+NBR-1(kco_6) = kco_3;
+HAS-NBR-1(kco_6) = true;
+NBR-0(kco_5) = kco_4;
+HAS-NBR-0(kco_5) = true;
+NBR-0(kco_7) = kco_8;
+HAS-NBR-0(kco_7) = true;
+NBR-1(kco_7) = kco_6;
+HAS-NBR-1(kco_7) = true;
+NBR-0(kco_8) = kco_7;
+HAS-NBR-0(kco_8) = true;
+NBR-1(kco_8) = kco_9;
+HAS-NBR-1(kco_8) = true;
+NBR-0(kco_9) = kco_8;
+HAS-NBR-0(kco_9) = true;
+NBR-0(lib_1) = lib_3;
+HAS-NBR-0(lib_1) = true;
+NBR-1(lib_1) = lib_2;
+HAS-NBR-1(lib_1) = true;
+NBR-0(lib_2) = lib_1;
+HAS-NBR-0(lib_2) = true;
+NBR-1(lib_2) = lib_4;
+HAS-NBR-1(lib_2) = true;
+NBR-2(lib_2) = lib_5;
+HAS-NBR-2(lib_2) = true;
+NBR-3(lib_2) = lib_6;
+HAS-NBR-3(lib_2) = true;
+NBR-0(lib_3) = lib_1;
+HAS-NBR-0(lib_3) = true;
+NBR-1(lib_3) = lib_4;
+HAS-NBR-1(lib_3) = true;
+NBR-2(lib_3) = lib_5;
+HAS-NBR-2(lib_3) = true;
+NBR-3(lib_3) = lib_6;
+HAS-NBR-3(lib_3) = true;
+NBR-0(lib_4) = lib_3;
+HAS-NBR-0(lib_4) = true;
+NBR-1(lib_4) = lib_2;
+HAS-NBR-1(lib_4) = true;
+NBR-0(lib_5) = lib_3;
+HAS-NBR-0(lib_5) = true;
+NBR-1(lib_5) = lib_2;
+HAS-NBR-1(lib_5) = true;
+NBR-0(lib_6) = lib_3;
+HAS-NBR-0(lib_6) = true;
+NBR-1(lib_6) = lib_2;
+HAS-NBR-1(lib_6) = true;
+NBR-0(lib_7) = lib_3;
+HAS-NBR-0(lib_7) = true;
+NBR-1(lib_7) = lib_2;
+HAS-NBR-1(lib_7) = true;
+NBR-0(lib_8) = lib_3;
+HAS-NBR-0(lib_8) = true;
+NBR-1(lib_8) = lib_2;
+HAS-NBR-1(lib_8) = true;
+NBR-0(lib_9) = lib_3;
+HAS-NBR-0(lib_9) = true;
+NBR-1(lib_9) = lib_2;
+HAS-NBR-1(lib_9) = true;
+NBR-0(lib_10) = lib_3;
+HAS-NBR-0(lib_10) = true;
+NBR-1(lib_10) = lib_2;
+HAS-NBR-1(lib_10) = true;
+NBR-0(hcr_1) = hcr_2;
+HAS-NBR-0(hcr_1) = true;
+NBR-1(hcr_1) = hcr_3;
+HAS-NBR-1(hcr_1) = true;
+NBR-0(hcr_2) = hcr_6;
+HAS-NBR-0(hcr_2) = true;
+NBR-1(hcr_2) = hcr_5;
+HAS-NBR-1(hcr_2) = true;
+NBR-2(hcr_2) = hcr_1;
+HAS-NBR-2(hcr_2) = true;
+NBR-0(hcr_3) = hcr_4;
+HAS-NBR-0(hcr_3) = true;
+NBR-1(hcr_3) = hcr_1;
+HAS-NBR-1(hcr_3) = true;
+NBR-0(hcr_5) = hcr_2;
+HAS-NBR-0(hcr_5) = true;
+NBR-1(hcr_5) = hcr_6;
+HAS-NBR-1(hcr_5) = true;
+NBR-2(hcr_5) = hcr_4;
+HAS-NBR-2(hcr_5) = true;
+NBR-0(hcr_6) = hcr_2;
+HAS-NBR-0(hcr_6) = true;
+NBR-1(hcr_6) = hcr_5;
+HAS-NBR-1(hcr_6) = true;
+NBR-0(hcr_4) = hcr_5;
+HAS-NBR-0(hcr_4) = true;
+NBR-1(hcr_4) = hcr_3;
+HAS-NBR-1(hcr_4) = true;
+NBR-0(jc_1) = jc_2;
+HAS-NBR-0(jc_1) = true;
+NBR-0(jc_2) = jc_1;
+HAS-NBR-0(jc_2) = true;
+NBR-0(cf_1) = cf_2;
+HAS-NBR-0(cf_1) = true;
+NBR-1(cf_1) = cf_4;
+HAS-NBR-1(cf_1) = true;
+NBR-2(cf_1) = cf_5;
+HAS-NBR-2(cf_1) = true;
+NBR-3(cf_1) = cf_3;
+HAS-NBR-3(cf_1) = true;
+NBR-0(cf_2) = cf_1;
+HAS-NBR-0(cf_2) = true;
+NBR-1(cf_2) = cf_15;
+HAS-NBR-1(cf_2) = true;
+NBR-2(cf_2) = cf_9;
+HAS-NBR-2(cf_2) = true;
+NBR-0(cf_3) = cf_1;
+HAS-NBR-0(cf_3) = true;
+NBR-0(cf_4) = cf_1;
+HAS-NBR-0(cf_4) = true;
+NBR-0(cf_5) = cf_1;
+HAS-NBR-0(cf_5) = true;
+NBR-0(cf_6) = cf_1;
+HAS-NBR-0(cf_6) = true;
+NBR-0(cf_7) = cf_1;
+HAS-NBR-0(cf_7) = true;
+NBR-0(cf_8) = cf_1;
+HAS-NBR-0(cf_8) = true;
+NBR-1(cf_8) = cf_15;
+HAS-NBR-1(cf_8) = true;
+NBR-2(cf_8) = cf_9;
+HAS-NBR-2(cf_8) = true;
+NBR-0(cf_9) = cf_2;
+HAS-NBR-0(cf_9) = true;
+NBR-1(cf_9) = cf_8;
+HAS-NBR-1(cf_9) = true;
+NBR-0(cf_15) = cf_2;
+HAS-NBR-0(cf_15) = true;
+NBR-1(cf_15) = cf_11;
+HAS-NBR-1(cf_15) = true;
+NBR-2(cf_15) = cf_10;
+HAS-NBR-2(cf_15) = true;
+NBR-3(cf_15) = cf_8;
+HAS-NBR-3(cf_15) = true;
+NBR-0(cf_10) = cf_15;
+HAS-NBR-0(cf_10) = true;
+NBR-0(cf_11) = cf_15;
+HAS-NBR-0(cf_11) = true;
+NBR-0(cf_12) = cf_15;
+HAS-NBR-0(cf_12) = true;
+NBR-0(cf_13) = cf_15;
+HAS-NBR-0(cf_13) = true;
+NBR-0(cf_14) = cf_15;
+HAS-NBR-0(cf_14) = true;
+NBR-0(r101_1) = r101_2;
+HAS-NBR-0(r101_1) = true;
+NBR-1(r101_1) = r101_3;
+HAS-NBR-1(r101_1) = true;
+NBR-0(r101_2) = r101_4;
+HAS-NBR-0(r101_2) = true;
+NBR-1(r101_2) = r101_1;
+HAS-NBR-1(r101_2) = true;
+NBR-0(r101_3) = r101_1;
+HAS-NBR-0(r101_3) = true;
+NBR-0(r101_4) = r101_2;
+HAS-NBR-0(r101_4) = true;
+NBR-0(mb_1) = mb_3;
+HAS-NBR-0(mb_1) = true;
+NBR-1(mb_1) = mb_2;
+HAS-NBR-1(mb_1) = true;
+NBR-2(mb_1) = mb_4;
+HAS-NBR-2(mb_1) = true;
+NBR-0(mb_2) = mb_5;
+HAS-NBR-0(mb_2) = true;
+NBR-1(mb_2) = mb_1;
+HAS-NBR-1(mb_2) = true;
+NBR-0(mb_3) = mb_1;
+HAS-NBR-0(mb_3) = true;
+NBR-0(mb_4) = mb_1;
+HAS-NBR-0(mb_4) = true;
+NBR-0(mb_5) = mb_2;
+HAS-NBR-0(mb_5) = true;
+NBR-0(r102_1) = r102_2;
+HAS-NBR-0(r102_1) = true;
+NBR-0(r102_2) = r102_1;
+HAS-NBR-0(r102_2) = true;
+NBR-1(r102_2) = r102_3;
+HAS-NBR-1(r102_2) = true;
+NBR-0(r102_3) = r102_4;
+HAS-NBR-0(r102_3) = true;
+NBR-1(r102_3) = r102_2;
+HAS-NBR-1(r102_3) = true;
+NBR-0(r102_4) = r102_3;
+HAS-NBR-0(r102_4) = true;
+NBR-0(wb_1) = wb_2;
+HAS-NBR-0(wb_1) = true;
+NBR-1(wb_1) = wb_3;
+HAS-NBR-1(wb_1) = true;
+NBR-2(wb_1) = wb_4;
+HAS-NBR-2(wb_1) = true;
+NBR-0(wb_2) = wb_1;
+HAS-NBR-0(wb_2) = true;
+NBR-0(wb_3) = wb_1;
+HAS-NBR-0(wb_3) = true;
+NBR-0(wb_4) = wb_5;
+HAS-NBR-0(wb_4) = true;
+NBR-1(wb_4) = wb_1;
+HAS-NBR-1(wb_4) = true;
+NBR-0(wb_5) = wb_4;
+HAS-NBR-0(wb_5) = true;
+NBR-0(r103_1) = r103_3;
+HAS-NBR-0(r103_1) = true;
+NBR-0(r103_3) = r103_1;
+HAS-NBR-0(r103_3) = true;
+NBR-1(r103_3) = r103_2;
+HAS-NBR-1(r103_3) = true;
+NBR-0(r103_2) = r103_3;
+HAS-NBR-0(r103_2) = true;
+NBR-1(r103_2) = r103_4;
+HAS-NBR-1(r103_2) = true;
+NBR-0(r103_4) = r103_2;
+HAS-NBR-0(r103_4) = true;
+NBR-1(r103_4) = r103_5;
+HAS-NBR-1(r103_4) = true;
+NBR-0(r103_5) = r103_4;
+HAS-NBR-0(r103_5) = true;
+NBR-0(r104_1) = r104_3;
+HAS-NBR-0(r104_1) = true;
+NBR-0(r104_3) = r104_1;
+HAS-NBR-0(r104_3) = true;
+NBR-1(r104_3) = r104_2;
+HAS-NBR-1(r104_3) = true;
+NBR-0(r104_2) = r104_4;
+HAS-NBR-0(r104_2) = true;
+NBR-1(r104_2) = r104_3;
+HAS-NBR-1(r104_2) = true;
+NBR-0(r104_4) = r104_5;
+HAS-NBR-0(r104_4) = true;
+NBR-1(r104_4) = r104_2;
+HAS-NBR-1(r104_4) = true;
+NBR-0(r104_5) = r104_4;
+HAS-NBR-0(r104_5) = true;
+NBR-0(r105_1) = r105_2;
+HAS-NBR-0(r105_1) = true;
+NBR-1(r105_1) = r105_3;
+HAS-NBR-1(r105_1) = true;
+NBR-0(r105_2) = r105_1;
+HAS-NBR-0(r105_2) = true;
+NBR-0(r105_3) = r105_4;
+HAS-NBR-0(r105_3) = true;
+NBR-1(r105_3) = r105_1;
+HAS-NBR-1(r105_3) = true;
+NBR-0(r105_4) = r105_3;
+HAS-NBR-0(r105_4) = true;
+NBR-1(r105_4) = r105_5;
+HAS-NBR-1(r105_4) = true;
+NBR-0(r105_5) = r105_4;
+HAS-NBR-0(r105_5) = true;
+NBR-0(r106_1) = r106_5;
+HAS-NBR-0(r106_1) = true;
+NBR-0(r106_5) = r106_1;
+HAS-NBR-0(r106_5) = true;
+NBR-1(r106_5) = r106_3;
+HAS-NBR-1(r106_5) = true;
+NBR-0(r106_2) = r106_3;
+HAS-NBR-0(r106_2) = true;
+NBR-1(r106_2) = r106_4;
+HAS-NBR-1(r106_2) = true;
+NBR-0(r106_3) = r106_5;
+HAS-NBR-0(r106_3) = true;
+NBR-1(r106_3) = r106_2;
+HAS-NBR-1(r106_3) = true;
+NBR-0(r106_4) = r106_6;
+HAS-NBR-0(r106_4) = true;
+NBR-1(r106_4) = r106_2;
+HAS-NBR-1(r106_4) = true;
+NBR-0(r106_6) = r106_4;
+HAS-NBR-0(r106_6) = true;
+NBR-0(r107_1) = r107_2;
+HAS-NBR-0(r107_1) = true;
+NBR-1(r107_1) = r107_3;
+HAS-NBR-1(r107_1) = true;
+NBR-0(r107_2) = r107_1;
+HAS-NBR-0(r107_2) = true;
+NBR-0(r107_3) = r107_4;
+HAS-NBR-0(r107_3) = true;
+NBR-1(r107_3) = r107_1;
+HAS-NBR-1(r107_3) = true;
+NBR-0(r107_4) = r107_3;
+HAS-NBR-0(r107_4) = true;
+NBR-0(r108_1) = r108_3;
+HAS-NBR-0(r108_1) = true;
+NBR-1(r108_1) = r108_2;
+HAS-NBR-1(r108_1) = true;
+NBR-0(r108_2) = r108_1;
+HAS-NBR-0(r108_2) = true;
+NBR-0(r108_3) = r108_1;
+HAS-NBR-0(r108_3) = true;
+NBR-1(r108_3) = r108_4;
+HAS-NBR-1(r108_3) = true;
+NBR-0(r108_4) = r108_3;
+HAS-NBR-0(r108_4) = true;
+NBR-0(r109_1) = r109_2;
+HAS-NBR-0(r109_1) = true;
+NBR-1(r109_1) = r109_3;
+HAS-NBR-1(r109_1) = true;
+NBR-0(r109_2) = r109_1;
+HAS-NBR-0(r109_2) = true;
+NBR-0(r109_3) = r109_1;
+HAS-NBR-0(r109_3) = true;
+NBR-1(r109_3) = r109_4;
+HAS-NBR-1(r109_3) = true;
+NBR-0(r109_4) = r109_3;
+HAS-NBR-0(r109_4) = true;
+NBR-1(r109_4) = r109_5;
+HAS-NBR-1(r109_4) = true;
+NBR-0(r109_5) = r109_4;
+HAS-NBR-0(r109_5) = true;
+NBR-0(r110_1) = r110_3;
+HAS-NBR-0(r110_1) = true;
+NBR-0(r110_3) = r110_2;
+HAS-NBR-0(r110_3) = true;
+NBR-1(r110_3) = r110_1;
+HAS-NBR-1(r110_3) = true;
+NBR-0(r110_2) = r110_4;
+HAS-NBR-0(r110_2) = true;
+NBR-1(r110_2) = r110_3;
+HAS-NBR-1(r110_2) = true;
+NBR-0(r110_4) = r110_5;
+HAS-NBR-0(r110_4) = true;
+NBR-1(r110_4) = r110_2;
+HAS-NBR-1(r110_4) = true;
+NBR-0(r110_5) = r110_4;
+HAS-NBR-0(r110_5) = true;
+NBR-0(ds_1) = ds_2;
+HAS-NBR-0(ds_1) = true;
+NBR-0(ds_2) = ds_1;
+HAS-NBR-0(ds_2) = true;
+NBR-0(llc_1) = llc_6;
+HAS-NBR-0(llc_1) = true;
+NBR-0(llc_6) = llc_1;
+HAS-NBR-0(llc_6) = true;
+NBR-1(llc_6) = llc_9;
+HAS-NBR-1(llc_6) = true;
+NBR-0(llc_2) = llc_7;
+HAS-NBR-0(llc_2) = true;
+NBR-0(llc_7) = llc_2;
+HAS-NBR-0(llc_7) = true;
+NBR-1(llc_7) = llc_9;
+HAS-NBR-1(llc_7) = true;
+NBR-0(llc_3) = llc_12;
+HAS-NBR-0(llc_3) = true;
+NBR-1(llc_3) = llc_11;
+HAS-NBR-1(llc_3) = true;
+NBR-0(llc_11) = llc_13;
+HAS-NBR-0(llc_11) = true;
+NBR-1(llc_11) = llc_3;
+HAS-NBR-1(llc_11) = true;
+NBR-2(llc_11) = llc_17;
+HAS-NBR-2(llc_11) = true;
+NBR-3(llc_11) = llc_9;
+HAS-NBR-3(llc_11) = true;
+NBR-0(llc_12) = llc_3;
+HAS-NBR-0(llc_12) = true;
+NBR-0(llc_4) = llc_5;
+HAS-NBR-0(llc_4) = true;
+NBR-0(llc_5) = llc_21;
+HAS-NBR-0(llc_5) = true;
+NBR-1(llc_5) = llc_19;
+HAS-NBR-1(llc_5) = true;
+NBR-2(llc_5) = llc_10;
+HAS-NBR-2(llc_5) = true;
+NBR-3(llc_5) = llc_4;
+HAS-NBR-3(llc_5) = true;
+NBR-0(llc_10) = llc_8;
+HAS-NBR-0(llc_10) = true;
+NBR-1(llc_10) = llc_5;
+HAS-NBR-1(llc_10) = true;
+NBR-0(llc_19) = llc_16;
+HAS-NBR-0(llc_19) = true;
+NBR-1(llc_19) = llc_5;
+HAS-NBR-1(llc_19) = true;
+NBR-0(llc_21) = llc_22;
+HAS-NBR-0(llc_21) = true;
+NBR-1(llc_21) = llc_20;
+HAS-NBR-1(llc_21) = true;
+NBR-2(llc_21) = llc_5;
+HAS-NBR-2(llc_21) = true;
+NBR-0(llc_27) = llc_25;
+HAS-NBR-0(llc_27) = true;
+NBR-1(llc_27) = llc_5;
+HAS-NBR-1(llc_27) = true;
+NBR-0(llc_32) = llc_5;
+HAS-NBR-0(llc_32) = true;
+NBR-0(llc_9) = llc_13;
+HAS-NBR-0(llc_9) = true;
+NBR-1(llc_9) = llc_6;
+HAS-NBR-1(llc_9) = true;
+NBR-2(llc_9) = llc_7;
+HAS-NBR-2(llc_9) = true;
+NBR-3(llc_9) = llc_11;
+HAS-NBR-3(llc_9) = true;
+NBR-0(llc_8) = llc_10;
+HAS-NBR-0(llc_8) = true;
+NBR-0(llc_13) = llc_18;
+HAS-NBR-0(llc_13) = true;
+NBR-1(llc_13) = llc_11;
+HAS-NBR-1(llc_13) = true;
+NBR-2(llc_13) = llc_17;
+HAS-NBR-2(llc_13) = true;
+NBR-3(llc_13) = llc_9;
+HAS-NBR-3(llc_13) = true;
+NBR-0(llc_17) = llc_13;
+HAS-NBR-0(llc_17) = true;
+NBR-1(llc_17) = llc_11;
+HAS-NBR-1(llc_17) = true;
+NBR-2(llc_17) = llc_15;
+HAS-NBR-2(llc_17) = true;
+NBR-3(llc_17) = llc_18;
+HAS-NBR-3(llc_17) = true;
+NBR-0(llc_18) = llc_14;
+HAS-NBR-0(llc_18) = true;
+NBR-1(llc_18) = llc_13;
+HAS-NBR-1(llc_18) = true;
+NBR-2(llc_18) = llc_17;
+HAS-NBR-2(llc_18) = true;
+NBR-3(llc_18) = llc_20;
+HAS-NBR-3(llc_18) = true;
+NBR-0(llc_14) = llc_18;
+HAS-NBR-0(llc_14) = true;
+NBR-0(llc_15) = llc_17;
+HAS-NBR-0(llc_15) = true;
+NBR-0(llc_16) = llc_19;
+HAS-NBR-0(llc_16) = true;
+NBR-0(llc_20) = llc_21;
+HAS-NBR-0(llc_20) = true;
+NBR-1(llc_20) = llc_18;
+HAS-NBR-1(llc_20) = true;
+NBR-0(llc_22) = llc_21;
+HAS-NBR-0(llc_22) = true;
+NBR-1(llc_22) = llc_26;
+HAS-NBR-1(llc_22) = true;
+NBR-2(llc_22) = llc_28;
+HAS-NBR-2(llc_22) = true;
+NBR-0(llc_26) = llc_24;
+HAS-NBR-0(llc_26) = true;
+NBR-1(llc_26) = llc_22;
+HAS-NBR-1(llc_26) = true;
+NBR-0(llc_28) = llc_23;
+HAS-NBR-0(llc_28) = true;
+NBR-1(llc_28) = llc_29;
+HAS-NBR-1(llc_28) = true;
+NBR-2(llc_28) = llc_22;
+HAS-NBR-2(llc_28) = true;
+NBR-0(llc_23) = llc_28;
+HAS-NBR-0(llc_23) = true;
+NBR-0(llc_24) = llc_26;
+HAS-NBR-0(llc_24) = true;
+NBR-0(llc_25) = llc_27;
+HAS-NBR-0(llc_25) = true;
+NBR-0(llc_29) = llc_28;
+HAS-NBR-0(llc_29) = true;
+NBR-1(llc_29) = llc_33;
+HAS-NBR-1(llc_29) = true;
+NBR-2(llc_29) = llc_34;
+HAS-NBR-2(llc_29) = true;
+NBR-0(llc_33) = llc_29;
+HAS-NBR-0(llc_33) = true;
+NBR-1(llc_33) = llc_31;
+HAS-NBR-1(llc_33) = true;
+NBR-0(llc_34) = llc_29;
+HAS-NBR-0(llc_34) = true;
+NBR-1(llc_34) = llc_35;
+HAS-NBR-1(llc_34) = true;
+NBR-2(llc_34) = llc_30;
+HAS-NBR-2(llc_34) = true;
+NBR-0(llc_30) = llc_34;
+HAS-NBR-0(llc_30) = true;
+NBR-0(llc_31) = llc_33;
+HAS-NBR-0(llc_31) = true;
+NBR-0(llc_35) = llc_34;
+HAS-NBR-0(llc_35) = true;
+NBR-0(br_1) = br_2;
+HAS-NBR-0(br_1) = true;
+NBR-0(br_2) = br_3;
+HAS-NBR-0(br_2) = true;
+NBR-1(br_2) = br_1;
+HAS-NBR-1(br_2) = true;
+NBR-0(br_3) = br_2;
+HAS-NBR-0(br_3) = true;
+NBR-0(o100_1) = o100_2;
+HAS-NBR-0(o100_1) = true;
+NBR-0(o100_2) = o100_1;
+HAS-NBR-0(o100_2) = true;
+NBR-0(sga_1) = sga_2;
+HAS-NBR-0(sga_1) = true;
+NBR-0(sga_2) = sga_3;
+HAS-NBR-0(sga_2) = true;
+NBR-1(sga_2) = sga_1;
+HAS-NBR-1(sga_2) = true;
+NBR-0(sga_3) = sga_2;
+HAS-NBR-0(sga_3) = true;
+NBR-1(sga_3) = sga_4;
+HAS-NBR-1(sga_3) = true;
+NBR-0(sga_4) = sga_3;
+HAS-NBR-0(sga_4) = true;
+NBR-1(sga_4) = sga_6;
+HAS-NBR-1(sga_4) = true;
+NBR-0(sga_6) = sga_8;
+HAS-NBR-0(sga_6) = true;
+NBR-1(sga_6) = sga_4;
+HAS-NBR-1(sga_6) = true;
+NBR-0(sga_5) = sga_7;
+HAS-NBR-0(sga_5) = true;
+NBR-0(sga_7) = sga_5;
+HAS-NBR-0(sga_7) = true;
+NBR-1(sga_7) = sga_9;
+HAS-NBR-1(sga_7) = true;
+NBR-0(sga_8) = sga_10;
+HAS-NBR-0(sga_8) = true;
+NBR-1(sga_8) = sga_6;
+HAS-NBR-1(sga_8) = true;
+NBR-0(sga_9) = sga_10;
+HAS-NBR-0(sga_9) = true;
+NBR-1(sga_9) = sga_7;
+HAS-NBR-1(sga_9) = true;
+NBR-0(sga_10) = sga_12;
+HAS-NBR-0(sga_10) = true;
+NBR-1(sga_10) = sga_11;
+HAS-NBR-1(sga_10) = true;
+NBR-2(sga_10) = sga_9;
+HAS-NBR-2(sga_10) = true;
+NBR-3(sga_10) = sga_8;
+HAS-NBR-3(sga_10) = true;
+NBR-0(sga_11) = sga_10;
+HAS-NBR-0(sga_11) = true;
+NBR-1(sga_11) = sga_13;
+HAS-NBR-1(sga_11) = true;
+NBR-0(sga_12) = sga_10;
+HAS-NBR-0(sga_12) = true;
+NBR-1(sga_12) = sga_14;
+HAS-NBR-1(sga_12) = true;
+NBR-0(sga_13) = sga_11;
+HAS-NBR-0(sga_13) = true;
+NBR-1(sga_13) = sga_15;
+HAS-NBR-1(sga_13) = true;
+NBR-0(sga_14) = sga_12;
+HAS-NBR-0(sga_14) = true;
+NBR-1(sga_14) = sga_16;
+HAS-NBR-1(sga_14) = true;
+NBR-0(sga_15) = sga_17;
+HAS-NBR-0(sga_15) = true;
+NBR-1(sga_15) = sga_13;
+HAS-NBR-1(sga_15) = true;
+NBR-0(sga_16) = sga_18;
+HAS-NBR-0(sga_16) = true;
+NBR-1(sga_16) = sga_14;
+HAS-NBR-1(sga_16) = true;
+NBR-0(sga_17) = sga_15;
+HAS-NBR-0(sga_17) = true;
+NBR-0(sga_18) = sga_16;
+HAS-NBR-0(sga_18) = true;
+NBR-0(el_1) = el_2;
+HAS-NBR-0(el_1) = true;
+NBR-0(el_2) = el_1;
+HAS-NBR-0(el_2) = true;
+NBR-1(el_2) = el_3;
+HAS-NBR-1(el_2) = true;
+NBR-0(el_3) = el_2;
+HAS-NBR-0(el_3) = true;
+NBR-0(ew_1) = ew_2;
+HAS-NBR-0(ew_1) = true;
+NBR-0(ew_2) = ew_1;
+HAS-NBR-0(ew_2) = true;
+NBR-0(sdc_1) = sdc_5;
+HAS-NBR-0(sdc_1) = true;
+NBR-0(sdc_5) = sdc_1;
+HAS-NBR-0(sdc_5) = true;
+NBR-1(sdc_5) = sdc_4;
+HAS-NBR-1(sdc_5) = true;
+NBR-0(sdc_2) = sdc_4;
+HAS-NBR-0(sdc_2) = true;
+NBR-1(sdc_2) = sdc_3;
+HAS-NBR-1(sdc_2) = true;
+NBR-0(sdc_3) = sdc_2;
+HAS-NBR-0(sdc_3) = true;
+NBR-0(sdc_4) = sdc_2;
+HAS-NBR-0(sdc_4) = true;
+NBR-1(sdc_4) = sdc_5;
+HAS-NBR-1(sdc_4) = true;
+NBR-0(buf_1) = buf_3;
+HAS-NBR-0(buf_1) = true;
+NBR-1(buf_1) = buf_2;
+HAS-NBR-1(buf_1) = true;
+NBR-0(buf_2) = buf_1;
+HAS-NBR-0(buf_2) = true;
+NBR-1(buf_2) = buf_4;
+HAS-NBR-1(buf_2) = true;
+NBR-0(buf_3) = buf_1;
+HAS-NBR-0(buf_3) = true;
+NBR-1(buf_3) = buf_6;
+HAS-NBR-1(buf_3) = true;
+NBR-2(buf_3) = buf_5;
+HAS-NBR-2(buf_3) = true;
+NBR-0(buf_4) = buf_10;
+HAS-NBR-0(buf_4) = true;
+NBR-1(buf_4) = buf_6;
+HAS-NBR-1(buf_4) = true;
+NBR-2(buf_4) = buf_8;
+HAS-NBR-2(buf_4) = true;
+NBR-3(buf_4) = buf_2;
+HAS-NBR-3(buf_4) = true;
+NBR-0(buf_5) = buf_6;
+HAS-NBR-0(buf_5) = true;
+NBR-1(buf_5) = buf_3;
+HAS-NBR-1(buf_5) = true;
+NBR-0(buf_6) = buf_7;
+HAS-NBR-0(buf_6) = true;
+NBR-1(buf_6) = buf_4;
+HAS-NBR-1(buf_6) = true;
+NBR-2(buf_6) = buf_3;
+HAS-NBR-2(buf_6) = true;
+NBR-3(buf_6) = buf_5;
+HAS-NBR-3(buf_6) = true;
+NBR-0(buf_8) = buf_9;
+HAS-NBR-0(buf_8) = true;
+NBR-1(buf_8) = buf_7;
+HAS-NBR-1(buf_8) = true;
+NBR-2(buf_8) = buf_4;
+HAS-NBR-2(buf_8) = true;
+NBR-0(buf_10) = buf_9;
+HAS-NBR-0(buf_10) = true;
+NBR-1(buf_10) = buf_4;
+HAS-NBR-1(buf_10) = true;
+NBR-0(buf_12) = buf_13;
+HAS-NBR-0(buf_12) = true;
+NBR-1(buf_12) = buf_4;
+HAS-NBR-1(buf_12) = true;
+NBR-2(buf_12) = buf_11;
+HAS-NBR-2(buf_12) = true;
+NBR-0(buf_7) = buf_6;
+HAS-NBR-0(buf_7) = true;
+NBR-1(buf_7) = buf_8;
+HAS-NBR-1(buf_7) = true;
+NBR-0(buf_9) = buf_10;
+HAS-NBR-0(buf_9) = true;
+NBR-1(buf_9) = buf_11;
+HAS-NBR-1(buf_9) = true;
+NBR-2(buf_9) = buf_8;
+HAS-NBR-2(buf_9) = true;
+NBR-0(buf_11) = buf_9;
+HAS-NBR-0(buf_11) = true;
+NBR-1(buf_11) = buf_12;
+HAS-NBR-1(buf_11) = true;
+NBR-0(buf_13) = buf_12;
+HAS-NBR-0(buf_13) = true;
+NBR-0(kit_1) = kit_2;
+HAS-NBR-0(kit_1) = true;
+NBR-0(kit_2) = kit_1;
+HAS-NBR-0(kit_2) = true;
+NBR-1(kit_2) = kit_3;
+HAS-NBR-1(kit_2) = true;
+NBR-0(kit_3) = kit_2;
+HAS-NBR-0(kit_3) = true;
+NBR-1(kit_3) = kit_4;
+HAS-NBR-1(kit_3) = true;
+NBR-0(kit_4) = kit_3;
+HAS-NBR-0(kit_4) = true;
+NBR-0(scn_1) = scn_2;
+HAS-NBR-0(scn_1) = true;
+NBR-0(scn_2) = scn_4;
+HAS-NBR-0(scn_2) = true;
+NBR-1(scn_2) = scn_3;
+HAS-NBR-1(scn_2) = true;
+NBR-2(scn_2) = scn_1;
+HAS-NBR-2(scn_2) = true;
+NBR-0(scn_3) = scn_2;
+HAS-NBR-0(scn_3) = true;
+NBR-0(scn_4) = scn_2;
+HAS-NBR-0(scn_4) = true;
+NBR-0(srp_1) = srp_2;
+HAS-NBR-0(srp_1) = true;
+NBR-0(srp_2) = srp_1;
+HAS-NBR-0(srp_2) = true;
+NBR-0(sro_1) = sro_2;
+HAS-NBR-0(sro_1) = true;
+NBR-0(sro_2) = sro_1;
+HAS-NBR-0(sro_2) = true;
+NBR-0(srn_1) = srn_2;
+HAS-NBR-0(srn_1) = true;
+NBR-0(srn_2) = srn_1;
+HAS-NBR-0(srn_2) = true;
+NBR-0(srm_1) = srm_2;
+HAS-NBR-0(srm_1) = true;
+NBR-0(srm_2) = srm_1;
+HAS-NBR-0(srm_2) = true;
+
+ 	};
+ }
+instance mv_tr_v1_inst1 {
+	domain = mv_tr_v1;
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state {
+		pLoc(p1) = el_3;
+		pLoc(p2) = el_3;
+		vcounter_unsaved_critical(r102_1) = 1;
+vcounter_unsaved_critical(srg) = 1;
+vcounter_unsaved_critical(llc_30) = 1;
+vcounter_unsaved_critical(r107_1) = 1;
+vcounter_unsaved_critical(srt) = 1;
+vcounter_unsaved_regular(tkt_5) = 1;
+vcounter_unsaved_regular(kco_1) = 2;
+vcounter_unsaved_regular(scn_1) = 1;
+vcounter_unsaved_regular(r103_2) = 1;
+vcounter_unsaved_regular(r101_1) = 2;
+vcounter_unsaved_regular(llcn) = 1;
+vcounter_unsaved_regular(llc_3) = 1;
+vcounter_unsaved_regular(r104_2) = 1;
+vcounter_unsaved_regular(llc_1) = 1;
+vcounter_unsaved_regular(llc_2) = 1;
+vcounter_unsaved_regular(srv) = 1;
+vcounter_unsaved_regular(r105_1) = 1;
+vcounter_unsaved_regular(llc_14) = 3;
+vcounter_unsaved_regular(llc_23) = 1;
+vcounter_unsaved_regular(llc_24) = 1;
+vcounter_unsaved_regular(crc) = 1;
+vcounter_unsaved_regular(llc_31) = 1;
+vcounter_unsaved_regular(scw) = 1;
+vcounter_unsaved_regular(srf) = 1;
+vcounter_unsaved_regular(srr) = 2;
+vcounter_unsaved_regular(sce) = 1;
+vcounter_unsaved_regular(r108_1) = 1;
+vcounter_unsaved_regular(src) = 2;
+vcounter_unsaved_regular(jc_1) = 1;
+vcounter_unsaved_regular(ds_1) = 3;
+vcounter_unsaved_regular(el_1) = 1;
+vcounter_unsaved_regular(br_3) = 1;
+vcounter_unsaved_regular(mb_2) = 1;
+vcounter_unsaved_regular(wb_4) = 1;
+vcounter_unsaved_regular(cce) = 1;
+vcounter_unsaved_regular(r109_1) = 1;
+vcounter_unsaved_regular(srd) = 1;
+vcounter_unsaved_regular(sra) = 2;
+vcounter_unsaved_regular(o100_2) = 1;
+vcounter_unsaved_regular(mce) = 2;
+
+	};
+	max-nondef-actions = 3;
+	horizon = 2;
+	discount = 1.0;
+} 
