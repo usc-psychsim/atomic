@@ -64,6 +64,7 @@ def extract_map(orig_map):
             portal_index = portal_node_names.index(i['id'])
             portal_room_edges.extend(its.product([portal_index], room_indices))
             room_portal_edges.extend(its.product(room_indices, [portal_index]))
+            room_edges.extend(list(its.permutations(room_indices, 2)))
             del room_indices
             del portal_index
             
