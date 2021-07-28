@@ -52,7 +52,6 @@ class MsgQCreator(GameLogParser):
         groupedMsgs = []
         while nextMsg < len(self.playerToMsgs[player]):
             msg = self.playerToMsgs[player][nextMsg]
-            nextMsg = nextMsg + 1
             
             if ':' not in msg['mission_timer']:
                 continue
@@ -62,11 +61,18 @@ class MsgQCreator(GameLogParser):
             if np.any([not n.strip().isdigit() for n in nums]):
                 continue
             
+            ## Extract time
             ts = [int(n) for n in nums]
             timeInSec = MISSION_DURATION - (ts[0] * 60) - ts[1]
+            
+            ## If message is later than our cutoff time, break
             if timeInSec > maxTime:
                 break
+            
+            ## If message is earlier than our cutoff time, include it and increment index
             groupedMsgs.append(nextMsg)
+            nextMsg = nextMsg + 1
+            
             
         self.nextMsgIdx[player] = nextMsg
         return groupedMsgs
