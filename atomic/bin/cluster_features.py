@@ -203,6 +203,24 @@ def _filter_files(files: List[str]) -> List[str]:
     return sorted(filtered)
 
 
+def _get_derived_features(msg_qs: MsgQCreator) -> List[Feature]:
+    # processes room names
+    all_loc_name = list(msg_qs.jsonParser.rooms.keys())
+    main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
+    main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
+    hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
+    room_names = main_names.difference(hallways)
+
+    # adds feature counters
+    derived_features = []
+    for args in COUNT_ACTIONS_ARGS:
+        derived_features.append(CountAction(*args))
+    derived_features.append(CountEnterExit(room_names))
+    derived_features.append(CountTriageInHallways(hallways))
+    # derived_features.append(CountVisitsPerRole(room_names))
+    derived_features.append(CountRoleChanges())
+    return derived_features
+
 def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
     try:
         # check file in cache, load and skip if exits
@@ -212,22 +230,7 @@ def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
             return df.iloc[0].to_dict()
 
         msg_qs = MsgQCreator(log_file, logger=logging)
-
-        # processes room names
-        all_loc_name = list(msg_qs.jsonParser.rooms.keys())
-        main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
-        main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
-        hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
-        room_names = main_names.difference(hallways)
-
-        # adds feature counters
-        derived_features = []
-        for args in COUNT_ACTIONS_ARGS:
-            derived_features.append(CountAction(*args))
-        derived_features.append(CountEnterExit(room_names))
-        derived_features.append(CountTriageInHallways(hallways))
-        # derived_features.append(CountVisitsPerRole(room_names))
-        derived_features.append(CountRoleChanges())
+        derived_features = _get_derived_features(msg_qs)
 
         # process messages
         msg_qs.startProcessing(derived_features, msg_types=None)  # use all msg types available
