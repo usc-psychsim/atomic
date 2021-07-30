@@ -1,3 +1,5 @@
+import copy
+import csv
 import itertools
 import logging
 import os.path
@@ -5,9 +7,13 @@ import sys
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.inference import make_observer, set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
+from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit, Feature, \
+    CountVisitsPerRole
 from atomic.scenarios.single_player import make_single_player_world
+from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 from rddl2psychsim.conversion.converter import Converter
 
 COND_MAP_TAG = 'CondWin'
@@ -39,17 +45,40 @@ class Replayer(object):
     Base class for replaying log files
     :ivar files: List of names of the log files to process
     :type files: List(str)
+    :ivar rddl_file: Name of file containing the RDDL specification of the domain
+    :type rddl_file: str
+    :ivar action_file: Name of CSV file containing the mapping between JSON messages and PsychSim actions
+    :type action_file: str
     """
     OBSERVER = 'ATOMIC'
 
+    COUNT_ACTIONS_ARGS = [
+        ('Event:dialogue_event', {}),
+        ('Event:VictimPickedUp', {}),
+        ('Event:VictimPlaced', {}),
+        ('Event:ToolUsed', {}),
+        ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
+        ('Event:RoleSelected', {})
+    ]
+
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True,
-                 processor=None, rddl_file=None, logger=logging):
+                 processor=None, rddl_file=None, action_file=None, feature_output=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
         self.create_observer = create_observer
         self.processor = processor
-        self.rddl_file = rddl_file
         self.logger = logger
+        self.rddl_file = rddl_file
+        self.action_file = action_file
+        if self.action_file:
+            Msg2ActionEntry.read_psysim_msg_conversion(self.action_file)
+            self.msg_types = Msg2ActionEntry.get_msg_types()
+        else:
+            self.msg_types = None
+        self.rddl_converter = None
+        self.derived_features = []
+        self.feature_output = feature_output
+        self.feature_data = []
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
         self.world = None
@@ -133,6 +162,7 @@ class Replayer(object):
                     logger.error('Unable to extract actions/events')
                     logger.error(traceback.format_exc())
                     continue
+                self.derived_features = _get_derived_features(self.parser)
             else:
                 raise ValueError('Unable to parse log file: {}, unknown extension.'.format(fname))
 
@@ -157,24 +187,39 @@ class Replayer(object):
                 last = num_steps + 1
             self.replay(last, logger)
             self.post_replay()
-            logger.error('Success!')
-            self.world_map.clear()
+            if self.world_map: self.world_map.clear()
+        if self.feature_output:
+            with open(self.feature_output, 'w') as csvfile:
+                cumulative_fields = [set(row.keys()) for row in self.feature_data]
+                fields = ['File'] + sorted(set.union(*cumulative_fields)-{'File'})
+                writer = csv.DictWriter(csvfile, fields, extrasaction='ignore')
+                writer.writeheader()
+                for row in self.feature_data:
+                    writer.writerow(row)
 
     def pre_replay(self, logger=logging):
         # Create PsychSim model
         logger.info('Creating world')
+
         try:
-            self.parser.startProcessing([], None)
+            self.parser.startProcessing(self.derived_features, self.msg_types)
         except:
             logger.error('Unable to start parser')
             logger.error(traceback.format_exc())
             return False
+
+        # processes data to extract features depending on type of count
+        features = {'File': os.path.splitext(os.path.basename(self.file_name))[0]}
+        for feature in self.derived_features:
+            features.update(_get_feature_values(feature))
+        self.feature_data.append(features)
+
         try:
             if self.rddl_file:
                 # Team mission
-                conv = Converter()
-                conv.convert_file(self.rddl_file)
-                self.world = conv.world
+                self.rddl_converter = Converter()
+                self.rddl_converter.convert_file(self.rddl_file)
+                self.world = self.rddl_converter.world
                 self.observer = make_observer(self.world, self.parser.players) if self.create_observer else None
             else:
                 # Solo mission
@@ -191,10 +236,10 @@ class Replayer(object):
         features = None
         self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
                            for value in itertools.product(*self.models.values()) if len(value) > 0]
-        for index, model in enumerate(self.model_list):
-            if 'name' not in model and self.triage_agent is not None:
-                model['name'] = '{}_{}'.format(self.triage_agent.name,
-                                               '_'.join([model[dimension] for dimension in self.models]))
+        for player in self.parser.players:
+            for index, model in enumerate(self.model_list):
+                model = copy.deepcopy(model)
+                model['name'] = '{}_{}'.format(player, '_'.join([model[dimension] for dimension in self.models]))
                 for dimension in self.models:
                     model[dimension] = self.models[dimension][model[dimension]]
                     if dimension == 'reward':
@@ -202,23 +247,59 @@ class Replayer(object):
                             if features is None:
                                 import atomic.model_learning.linear.rewards as rewards
                                 features = rewards.create_reward_vector(
-                                    self.triage_agent, self.world_map.all_locations,
-                                    self.world_map.moveActions[self.triage_agent.name])
+                                    self.world.agents[player], self.world_map.all_locations,
+                                    self.world_map.moveActions[player])
                             model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
-        if len(self.model_list) > 0:
-            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
+#        if len(self.model_list) > 0:
+#            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
         #        self.parser.victimsObj = self.victims
         return True
 
     def replay(self, duration, logger):
-        try:
-            self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
-        except:
-            logger.error(traceback.format_exc())
-            logger.error('Unable to complete re-simulation')
+        if isinstance(self.parser, MsgQCreator):
+            num = len(self.parser.actions)
+            for i, msgs in enumerate(self.parser.actions):
+                logger.info(f'Message {i} out of {num}')
+                debug = {ag_name: {} for ag_name in self.rddl_converter.actions}
+                
+                actions = {}
+                any_none = False
+                for player_name, msg in msgs.items():
+                    action_name = Msg2ActionEntry.get_action(msg)
+                    if action_name not in self.rddl_converter.actions[player_name]:
+                        any_none = True
+                        logger.warning(f'Msg {msg} has no associated action ({action_name} missing from {", ".join(sorted(self.rddl_converter.actions[player_name]))})')
+                    else:
+                        logger.info(f'Msg {msg} becomes {action_name}')
+                        action = self.rddl_converter.actions[player_name][action_name]
+                        actions[player_name] = action
+                
+                if any_none:
+                    continue
+                self.pre_step()
+                try:
+                    self.world.step(actions, debug=debug)
+                except:
+                    logger.error(traceback.format_exc())
+                    logger.error('Unable to complete step')
+
+                self.post_step(debug)
+#                self.rddl_converter.verify_constraints()
+        else:
+            try:
+                self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to complete re-simulation')
 
     def post_replay(self):
         pass
+
+    def pre_step(self):
+        pass
+
+    def post_step(self, debug):
+        print(debug)
 
     def read_filename(self, fname):
         raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
