@@ -155,7 +155,14 @@ class Analyzer(Replayer):
         self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
+        self.decisions = {}
 
+    def pre_step(self):
+        self.decisions = {name: self.world.agents[name].decide() for name in self.parser.agentToPlayer}
+
+    def post_step(self, actions, debug):
+        pass
+        
     def post_replay(self):
         for data_type, data in {'models': self.processor.model_data, 'conditions': self.processor.condition_data,
             'predictions': self.processor.prediction_data}.items():
