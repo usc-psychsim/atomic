@@ -7,7 +7,7 @@ Created on Sat May 15 17:27:09 2021
 """
 
 import pickle
-
+import pandas as pd
 from atomic.parsing.map_parser import read_semantic_map
 from atomic.definitions import GOLD_STR, GREEN_STR
 
@@ -29,7 +29,7 @@ def generate_rddl_map_portals(neighbors):
         for i, nbr in enumerate(nbrs):
             nbr_str += f'NBR-{i}({room}) = {nbr};\n'
             nbr_str += f'HAS-NBR-{i}({room}) = true;\n'
-    loc_str = ','.join(rooms)
+    loc_str = ','.join(neighbors.keys())
     return loc_str, nbr_str
 
 
@@ -41,7 +41,7 @@ def generate_rddl_victims(victim_pickle, rooms):
     crit_dict = {}
 
     for vic in vList:
-        rm = vic['room_name']
+        rm = vic['room_name'].split('_')[0]
         if rm == '' or rm not in rooms:
             continue
         if vic['block_type'] == 'critical':
@@ -59,6 +59,21 @@ def generate_rddl_victims(victim_pickle, rooms):
     for rm, ctr in reg_dict.items():
         vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (rm, ctr)
     return vic_str
+
+
+def generate_rddl_move_actions(neighbors):
+    max_nbr = max([len(nbrs) for nbrs in neighbors.values()])
+    nbr_consts = '\n\t'.join(f'NBR-{i}(loc) : {{ non-fluent, loc, default = null }};' for i in range(max_nbr)) + '\n\t'
+    nbr_consts += '\n\t'.join(f'HAS-NBR-{i}(loc) : {{ non-fluent, bool, default = false }};' for i in range(max_nbr))
+    move_vars = '\n\t'.join(f'move-{i}(agent) : {{ action-fluent, bool, default = false}};' for i in range(max_nbr))
+
+    move_dyn = '\n\t'.join(f'if ( move-{i}(?p) ) then\n\t\tNBR-{i}(pLoc(?p))\nelse ' for i in range(max_nbr))
+    move_dyn += '\n\tpLoc(?p);'
+
+    move_pre_cond = '\n\t'.join(f'forall_{{?p: agent}} [ move-{i}(?p) => HAS-NBR-{i}(pLoc(?p)) ];'
+                                for i in range(max_nbr))
+
+    return nbr_consts, move_vars, move_dyn, move_pre_cond
 
 
 def make_rddl_inst(rooms, edges,
@@ -86,30 +101,42 @@ def make_rddl_inst(rooms, edges,
 def make_rddl_inst_fol(rooms, edges,
                        victim_pickle='../data/rddl_psim/victims.pickle',
                        rddl_template='../data/rddl_psim/sar_mv_tr_template.rddl',
-                       rddl_out='../data/rddl_psim/sar_mv_tr_inst1.rddl'):
+                       rddl_out='../data/rddl_psim/sar_mv_tr_inst1.rddl',
+                       map_out='../maps/Saturn/room_neighbors.csv'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
     neighbors = {}
     for r1, r2 in edges:
+        r1 = r1.split('_')[0]
+        r2 = r2.split('_')[0]
         if r1 == r2:
             continue
         if r1 not in neighbors:
             neighbors[r1] = set()
         if r2 not in neighbors:
             neighbors[r2] = set()
-        if len(neighbors[r1]) < MAX_NBRS:
-            neighbors[r1].add(r2)
-        if len(neighbors[r2]) < MAX_NBRS:
-            neighbors[r2].add(r1)
+        neighbors[r1].add(r2)
+        neighbors[r2].add(r1)
+        # if len(neighbors[r1]) < MAX_NBRS:
+        #     neighbors[r1].add(r2)
+        # if len(neighbors[r2]) < MAX_NBRS:
+        #     neighbors[r2].add(r1)
+    max_nbr = max([len(nbrs) for nbrs in neighbors.values()])
+    df = pd.DataFrame.from_dict(neighbors, orient='index', columns=[f'NBR{i}' for i in range(max_nbr)])
+    df.index.name = 'ROOM'
+    df.to_csv(map_out)
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
-    vic_str = generate_rddl_victims(victim_pickle, rooms)
+    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()))
+    nbr_consts, move_vars, move_dyn, move_pre_cond = generate_rddl_move_actions(neighbors)
 
     rddl_temp_file = open(rddl_template, "r")
 
     rddl_str = rddl_temp_file.read()
-    rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str)
+    rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
+        replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
+        replace('MOVE_PRE_COND', move_pre_cond)
 
     rddl_inst_file = open(rddl_out, "w")
     rddl_inst_file.write(rddl_str)
@@ -121,8 +148,9 @@ def make_rddl_inst_fol(rooms, edges,
 if __name__ == '__main__':
     MAX_NBRS = 4  # TODO just for testing, this block will be removed once we have the new portals representation
 
-    rooms, edges = read_semantic_map('atomic/maps/Saturn/Saturn_1.4_3D_sm_v1.0.json')
+    rooms, edges = read_semantic_map('atomic/maps/Saturn/Saturn_1.5_3D_sm_v1.0.json')
     make_rddl_inst_fol(rooms, edges,
                        'atomic/data/rddl_psim/victims.pickle',
                        'atomic/data/rddl_psim/role_fol_template.rddl',
-                       'atomic/data/rddl_psim/role_big_fol.rddl')
+                       'atomic/data/rddl_psim/role_big_fol.rddl',
+                       'atomic/maps/Saturn/rddl_room_neighbors.csv')
