@@ -221,6 +221,15 @@ class Replayer(object):
                 self.rddl_converter.convert_file(self.rddl_file)
                 self.world = self.rddl_converter.world
                 self.observer = make_observer(self.world, self.parser.players) if self.create_observer else None
+                players = set(self.parser.agentToPlayer.keys())
+                zero_models = {name: self.world.agents[name].zero_level() for name in players}
+                for name in players:
+                    agent = self.world.agents[name]
+                    agent.setAttribute('selection', 'distribution', zero_models[name])
+                    for other_name in players-{name}:
+                        other_agent = self.world.agents[other_name]
+                        self.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
+                    agent.set_observations()
             else:
                 # Solo mission
                 self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
@@ -283,7 +292,7 @@ class Replayer(object):
                     logger.error(traceback.format_exc())
                     logger.error('Unable to complete step')
 
-                self.post_step(debug)
+                self.post_step(actions, debug)
 #                self.rddl_converter.verify_constraints()
         else:
             try:
