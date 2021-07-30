@@ -15,14 +15,22 @@ domain mv_tr_v1 {
 	pvariables {
 
 	    // neighbors (constants)
-		NBR-0(loc)      : { non-fluent, loc, default = null };
-		NBR-1(loc)      : { non-fluent, loc, default = null };
-		NBR-2(loc)      : { non-fluent, loc, default = null };
-		NBR-3(loc)      : { non-fluent, loc, default = null };
-		HAS-NBR-0(loc)  : { non-fluent, bool, default = false };
-		HAS-NBR-1(loc)  : { non-fluent, bool, default = false };
-		HAS-NBR-2(loc)  : { non-fluent, bool, default = false };
-		HAS-NBR-3(loc)  : { non-fluent, bool, default = false };
+//	    NBR-0(loc)      : { non-fluent, loc, default = null };
+//		NBR-1(loc)      : { non-fluent, loc, default = null };
+//		NBR-2(loc)      : { non-fluent, loc, default = null };
+//		NBR-3(loc)      : { non-fluent, loc, default = null };
+//		HAS-NBR-0(loc)  : { non-fluent, bool, default = false };
+//		HAS-NBR-1(loc)  : { non-fluent, bool, default = false };
+//		HAS-NBR-2(loc)  : { non-fluent, bool, default = false };
+//		HAS-NBR-3(loc)  : { non-fluent, bool, default = false };
+	    NBR_CONSTS_STR
+
+		// move actions
+//		move-0(agent) : { action-fluent, bool, default = false};
+//		move-1(agent) : { action-fluent, bool, default = false};
+//		move-2(agent) : { action-fluent, bool, default = false};
+//		move-3(agent) : { action-fluent, bool, default = false};
+		MOVE_VARS_STR
 
         // agent state
 	    pLoc(agent)         : { state-fluent, loc, default = null };
@@ -36,13 +44,7 @@ domain mv_tr_v1 {
 		vcounter_saved_regular(loc)     : {state-fluent, int, default=0};
 		vcounter_unsaved_regular(loc)   : {state-fluent, int, default=0};
 
-        // move actions
-		move-0(agent) : { action-fluent, bool, default = false};
-		move-1(agent) : { action-fluent, bool, default = false};
-		move-2(agent) : { action-fluent, bool, default = false};
-		move-3(agent) : { action-fluent, bool, default = false};
-
-		// victim-related actions
+        // victim-related actions
 		triage_critical(agent)  : { action-fluent, bool, default = false };
 		triage_regular(agent)   : { action-fluent, bool, default = false };
 		pickup_critical(agent)  : { action-fluent, bool, default = false };
@@ -56,16 +58,17 @@ domain mv_tr_v1 {
 	cpfs {
 
 	    pLoc'(?p) =
-	        if ( move-0(?p) ) then
-	            NBR-0(pLoc(?p))
-	        else if ( move-1(?p) ) then
-	            NBR-1(pLoc(?p))
-	        else if ( move-2(?p) ) then
-	            NBR-2(pLoc(?p))
-	        else if ( move-3(?p) ) then
-	            NBR-3(pLoc(?p))
-	        else
-	            pLoc(?p);
+//	        if ( move-0(?p) ) then
+//	            NBR-0(pLoc(?p))
+//	        else if ( move-1(?p) ) then
+//	            NBR-1(pLoc(?p))
+//	        else if ( move-2(?p) ) then
+//	            NBR-2(pLoc(?p))
+//	        else if ( move-3(?p) ) then
+//	            NBR-3(pLoc(?p))
+//	        else
+//	            pLoc(?p);
+	        MOVE_DYN_STR
 
 		pRole'(?p) =
 			if (becomeRole(?p, @Search_Specialist)) then
@@ -133,10 +136,11 @@ domain mv_tr_v1 {
 	action-preconditions {
 
 	    // to move through a portal, current loc has to have neighbor through that portal
-	    forall_{?p: agent} [ move-0(?p) => HAS-NBR-0(pLoc(?p)) ];
-	    forall_{?p: agent} [ move-1(?p) => HAS-NBR-1(pLoc(?p)) ];
-	    forall_{?p: agent} [ move-2(?p) => HAS-NBR-2(pLoc(?p)) ];
-	    forall_{?p: agent} [ move-3(?p) => HAS-NBR-3(pLoc(?p)) ];
+//	    forall_{?p: agent} [ move-0(?p) => HAS-NBR-0(pLoc(?p)) ];
+//	    forall_{?p: agent} [ move-1(?p) => HAS-NBR-1(pLoc(?p)) ];
+//	    forall_{?p: agent} [ move-2(?p) => HAS-NBR-2(pLoc(?p)) ];
+//	    forall_{?p: agent} [ move-3(?p) => HAS-NBR-3(pLoc(?p)) ];
+	    MOVE_PRE_COND
 
 	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
 	    forall_{?p : agent} [
@@ -163,8 +167,8 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1;
  	non-fluents = mv_tr_v1_inst1;
 	init-state {
-		pLoc(p1) = el_3;
-		pLoc(p2) = el_3;
+		pLoc(p1) = el; //el_3;
+		pLoc(p2) = el; //el_3;
 		VICSTR
 	};
 	max-nondef-actions = 3;
