@@ -45,7 +45,7 @@ def accumulate_files(files, ext='.metadata'):
     for files in trials.values():
         files.sort(key=lambda fname: filename_to_condition(fname)['Vers'])
         if len(files) > 1:
-            logging.warning(f'Ignoring versions {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])}'\
+            logging.warning(f'Ignoring versions {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])} '\
                 f'in favor of version {filename_to_condition(files[-1])["Vers"]}')
     result = [files[-1] for files in trials.values()]
     return result
@@ -191,7 +191,8 @@ class Replayer(object):
             assert self.condition_fields is not None, 'Never extracted condition fields from filename'
             with open(self.feature_output, 'w') as csvfile:
                 cumulative_fields = [set(row.keys()) for row in self.feature_data]
-                fields = ['File'] + self.condition_fields + sorted(set.union(*cumulative_fields)-{'File'})
+                fields = self.condition_fields + sorted(set.union(*cumulative_fields)-{'File'})
+                fields.append('File')
                 writer = csv.DictWriter(csvfile, fields, extrasaction='ignore')
                 writer.writeheader()
                 for row in self.feature_data:
@@ -228,6 +229,8 @@ class Replayer(object):
                 zero_models = {name: self.world.agents[name].zero_level() for name in players}
                 for name in players:
                     agent = self.world.agents[name]
+                    agent.create_belief_state()
+                    agent.create_belief_state(model=zero_models[name])
                     agent.setAttribute('selection', 'distribution', zero_models[name])
                     for other_name in players-{name}:
                         other_agent = self.world.agents[other_name]
@@ -271,7 +274,6 @@ class Replayer(object):
                 self.world.step(actions, debug=debug)
 
                 self.post_step(actions, debug)
-#                self.rddl_converter.verify_constraints()
         else:
             self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
 
@@ -287,6 +289,13 @@ class Replayer(object):
     def read_filename(self, fname):
         raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
 
+    def parameterized_replay(self, args):
+        if args['profile']:
+            return cProfile.run('self.process_files(args["number"])', sort=1)
+        elif args['1']:
+            return self.process_files(args['number'], replayer.files[0])
+        else:
+            return self.process_files(args['number'])
 
 def filename_to_condition(fname):
     """
@@ -319,7 +328,7 @@ def find_trial(trial, log_dir):
 def replay_parser():
     parser = ArgumentParser()
     parser.add_argument('fname', nargs='+',
-                        help='Log file(s) (or directory of CSV files) to process')
+                        help='Log file(s) (or directory of log files) to process')
     parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
     parser.add_argument('-n', '--number', type=int, default=0,
                         help='Number of steps to replay (default is 0, meaning all)')
@@ -328,7 +337,6 @@ def replay_parser():
     parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
     parser.add_argument('--actions', help='Name of CSV file containing JSON to PsychSim action mapping')
     parser.add_argument('--feature_file', help='Destination of feature count output')
-    parser.add_argument('--metadata', help='Name of JSON file containing raw game log for this trial')
     return parser
 
 def parse_replay_args(parser):
@@ -340,17 +348,8 @@ def parse_replay_args(parser):
     logging.basicConfig(level=level)
     return args
 
-def replay_files(replayer, args):
-    if args['profile']:
-        return cProfile.run('replayer.process_files(args["number"])', sort=1)
-    elif args['1']:
-        return replayer.process_files(args['number'], replayer.files[0])
-    else:
-        return replayer.process_files(args['number'])
-
 if __name__ == '__main__':
     # Process command-line arguments
-    parser = replay_parser()
-    args = parse_replay_args(parser)
+    args = parse_replay_args(replay_parser())
     replayer = Replayer(args['fname'], get_default_maps(logging), None, args['rddl'], args['actions'], args['feature_file'], logging)
-    replay_files(replayer, args)
+    replayer.parameterized_replay(args)

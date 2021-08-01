@@ -16,8 +16,8 @@ from psychsim.pwl import WORLD, modelKey, stateKey
 
 from atomic.parsing import ParsingProcessor
 from atomic.definitions.map_utils import get_default_maps
-from atomic.parsing.replayer import Replayer, filename_to_condition
-from atomic.inference import DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
+from atomic.inference import make_observer, set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 
 
 def plot_data(data, color_field, title):
@@ -90,6 +90,44 @@ class AnalysisParseProcessor(ParsingProcessor):
                     for color, prob in prediction.items()})
         return prediction
  
+    def pre_replay(self, logger=logging):
+        result = super.pre_replay(logger)
+        if result is not True:
+            # Failed
+            return result
+        try:
+            if self.rddl_file:
+                # Team mission
+                self.observer = make_observer(self.world, self.parser.players)
+            else:
+                self.observer = None
+        except:
+            logger.error('Unable to create ATOMIC agent')
+            logger.error(traceback.format_exc())
+            return False
+        # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
+        features = None
+        self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
+                           for value in itertools.product(*self.models.values()) if len(value) > 0]
+        for player in self.parser.players:
+            for index, model in enumerate(self.model_list):
+                model = copy.deepcopy(model)
+                model['name'] = '{}_{}'.format(player, '_'.join([model[dimension] for dimension in self.models]))
+                for dimension in self.models:
+                    model[dimension] = self.models[dimension][model[dimension]]
+                    if dimension == 'reward':
+                        if not isinstance(model[dimension], dict):
+                            if features is None:
+                                import atomic.model_learning.linear.rewards as rewards
+                                features = rewards.create_reward_vector(
+                                    self.world.agents[player], self.world_map.all_locations,
+                                    self.world_map.moveActions[player])
+                            model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
+#        if len(self.model_list) > 0:
+#            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
+        #        self.parser.victimsObj = self.victims
+        return True
+
     def pre_step(self, world, log_entry=None):
         if log_entry is None:
             t = world.getState(WORLD, 'seconds', unique=True)
@@ -135,10 +173,11 @@ class Analyzer(Replayer):
 
     def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, 
             rddl_file=None, action_file=None, feature_output=None, logger=logging):
-        super().__init__(files, maps, models, ignore_models, True, AnalysisParseProcessor(), 
+        super().__init__(files, maps, AnalysisParseProcessor(), 
             rddl_file, action_file, feature_output, logger)
 
         self.mission_times = mission_times
+
         # Set player models for observer agent
         if models is None:
             models = DEFAULT_MODELS
@@ -238,29 +277,14 @@ def model_to_cluster(model):
 
 if __name__ == '__main__':
     # Process command-line arguments
-    parser = ArgumentParser()
-    parser.add_argument('fname', nargs='+',
-                        help='Log file(s) (or directory of CSV files) to process')
-    parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
-    parser.add_argument('-n', '--number', type=int, default=0,
-                        help='Number of steps to replay (default is 0, meaning all)')
-    parser.add_argument('-d', '--debug', default='WARNING', help='Level of logging detail')
-    parser.add_argument('--profile', action='store_true', help='Run profiler')
+    parser = replay_parser()
     parser.add_argument('--ignore_reward', action='store_true', help='Do not consider alternate reward functions')
     parser.add_argument('--ignore_rationality', action='store_true', help='Do not consider alternate skill levels')
     parser.add_argument('--ignore_horizon', action='store_true', help='Do not consider alternate horizons')
-    parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
-    parser.add_argument('--actions', help='Name of CSV file containing JSON to PsychSim action mapping')
-    parser.add_argument('--feature_file', help='Destination of feature count output')
     parser.add_argument('--reward_file', help='Name of CSV file containing alternate reward functions')
-    parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
     parser.add_argument('--metadata', help='Name of JSON file containing raw game log for this trial')
-    args = vars(parser.parse_args())
-    # Extract logging level from command-line argument
-    level = getattr(logging, args['debug'].upper(), None)
-    if not isinstance(level, int):
-        raise ValueError('Invalid debug level: {}'.format(args['debug']))
-    logging.basicConfig(level=level)
+    parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
+    args = parse_replay_args(parser)
     # Look for reward file
     ignore = [dimension for dimension in DEFAULT_MODELS if args['ignore_{}'.format(dimension)]]
     mission_times = {}
@@ -284,9 +308,4 @@ if __name__ == '__main__':
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
     replayer = Analyzer(args['fname'], get_default_maps(logging), DEFAULT_MODELS, ignore, mission_times, 
         args['rddl'], args['actions'], args['feature_file'], logging)
-    if args['profile']:
-        cProfile.run('replayer.process_files(args["number"])', sort=1)
-    elif args['1']:
-        replayer.process_files(args['number'], replayer.files[0])
-    else:
-        replayer.process_files(args['number'])
+    replayer.parameterized_replay(args)
