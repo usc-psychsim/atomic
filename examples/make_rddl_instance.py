@@ -24,7 +24,7 @@ def generate_rddl_map(rooms, edges):
 
 
 def generate_rddl_map_portals(neighbors):
-    nbr_str = ''
+    nbr_str = ''    
     for room, nbrs in neighbors.items():
         for i, nbr in enumerate(nbrs):
             nbr_str += f'NBR-{i}({room}) = {nbr};\n'
@@ -99,10 +99,10 @@ def make_rddl_inst(rooms, edges,
 
 
 def make_rddl_inst_fol(rooms, edges,
-                       victim_pickle='../data/rddl_psim/victims.pickle',
-                       rddl_template='../data/rddl_psim/sar_mv_tr_template.rddl',
-                       rddl_out='../data/rddl_psim/sar_mv_tr_inst1.rddl',
-                       map_out='../maps/Saturn/room_neighbors.csv'):
+                       rddl_template,
+                       rddl_out,
+                       map_out_csv,
+                       victim_pickle='../data/rddl_psim/victims.pickle'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
@@ -116,16 +116,20 @@ def make_rddl_inst_fol(rooms, edges,
             neighbors[r1] = set()
         if r2 not in neighbors:
             neighbors[r2] = set()
-        neighbors[r1].add(r2)
-        neighbors[r2].add(r1)
-        # if len(neighbors[r1]) < MAX_NBRS:
-        #     neighbors[r1].add(r2)
-        # if len(neighbors[r2]) < MAX_NBRS:
-        #     neighbors[r2].add(r1)
+
+#        neighbors[r1].add(r2)
+#        neighbors[r2].add(r1)
+        
+        if len(neighbors[r1]) < MAX_NBRS:
+            neighbors[r1].add(r2)
+        if len(neighbors[r2]) < MAX_NBRS:
+             neighbors[r2].add(r1)
+
     max_nbr = max([len(nbrs) for nbrs in neighbors.values()])
     df = pd.DataFrame.from_dict(neighbors, orient='index', columns=[f'NBR{i}' for i in range(max_nbr)])
     df.index.name = 'ROOM'
-    df.to_csv(map_out)
+    df.fillna("",inplace=True)    
+    df.to_csv(map_out_csv)
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
     vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()))
@@ -148,9 +152,8 @@ def make_rddl_inst_fol(rooms, edges,
 if __name__ == '__main__':
     MAX_NBRS = 4  # TODO just for testing, this block will be removed once we have the new portals representation
 
-    rooms, edges = read_semantic_map('atomic/maps/Saturn/Saturn_1.5_3D_sm_v1.0.json')
+    rooms, edges = read_semantic_map('../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json')
     make_rddl_inst_fol(rooms, edges,
-                       'atomic/data/rddl_psim/victims.pickle',
-                       'atomic/data/rddl_psim/role_fol_template.rddl',
-                       'atomic/data/rddl_psim/role_big_fol.rddl',
-                       'atomic/maps/Saturn/rddl_room_neighbors.csv')
+                       '../data/rddl_psim/role_fol_template.rddl',
+                       '../data/rddl_psim/role_big_fol.rddl',
+                       '../maps/Saturn/rddl_room_neighbors.csv')
