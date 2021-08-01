@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import copy
 import csv
 import itertools
@@ -6,7 +7,6 @@ import os.path
 import sys
 import traceback
 from atomic.definitions.map_utils import get_default_maps
-from atomic.inference import make_observer, set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
@@ -37,6 +37,17 @@ def accumulate_files(files, ext='.metadata'):
         elif fname not in result:
             # We have a lonely single log file (that is not already in the list)
             result.append(fname)
+    # Look for alternate versions of the same trial and use only the most recent
+    trials = {}
+    for fname in result:
+        trial = fname[:fname.find('Vers')]
+        trials[trial] = trials.get(trial, []) + [fname]
+    for files in trials.values():
+        files.sort(key=lambda fname: filename_to_condition(fname)['Vers'])
+        if len(files) > 1:
+            logging.warning(f'Ignoring versions {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])}'\
+                f'in favor of version {filename_to_condition(files[-1])["Vers"]}')
+    result = [files[-1] for files in trials.values()]
     return result
 
 
@@ -61,11 +72,9 @@ class Replayer(object):
         ('Event:RoleSelected', {})
     ]
 
-    def __init__(self, files=[], maps=None, models=None, ignore_models=None, create_observer=True,
-                 processor=None, rddl_file=None, action_file=None, feature_output=None, logger=logging):
+    def __init__(self, files=[], maps=None, processor=None, rddl_file=None, action_file=None, feature_output=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
-        self.create_observer = create_observer
         self.processor = processor
         self.logger = logger
         self.rddl_file = rddl_file
@@ -76,9 +85,12 @@ class Replayer(object):
         else:
             self.msg_types = None
         self.rddl_converter = None
+
+        # Feature count bookkeeping
         self.derived_features = []
         self.feature_output = feature_output
         self.feature_data = []
+        self.condition_fields = None
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
         self.world = None
@@ -93,23 +105,6 @@ class Replayer(object):
 
         # Extract maps
         self.maps = get_default_maps(logger) if maps is None else maps
-
-        # Set player models for observer agent
-        if models is None:
-            models = DEFAULT_MODELS
-        if ignore_models is None:
-            ignore_models = DEFAULT_IGNORE
-        for dimension, entries in models.items():
-            if dimension in ignore_models:
-                first = True
-                for key in list(entries.keys()):
-                    if first:
-                        first = False
-                    else:
-                        del entries[key]
-        self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
-                           for value in itertools.product(*models.values()) if len(value) > 0]
-        self.models = models
 
     def get_map(self, logger=logging):
         # try to get map name directly from conditions dictionary
@@ -185,16 +180,22 @@ class Replayer(object):
                 last = len(self.parser.actions)
             else:
                 last = num_steps + 1
-            self.replay(last, logger)
+            try:
+                self.replay(last, logger)
+            except:
+                logger.error(traceback.format_exc())
+                logger.error('Unable to complete re-simulation')
             self.post_replay()
             if self.world_map: self.world_map.clear()
         if self.feature_output:
+            assert self.condition_fields is not None, 'Never extracted condition fields from filename'
             with open(self.feature_output, 'w') as csvfile:
                 cumulative_fields = [set(row.keys()) for row in self.feature_data]
-                fields = ['File'] + sorted(set.union(*cumulative_fields)-{'File'})
+                fields = ['File'] + self.condition_fields + sorted(set.union(*cumulative_fields)-{'File'})
                 writer = csv.DictWriter(csvfile, fields, extrasaction='ignore')
                 writer.writeheader()
                 for row in self.feature_data:
+                    row.update(filename_to_condition(row['File']))
                     writer.writerow(row)
 
     def pre_replay(self, logger=logging):
@@ -208,11 +209,14 @@ class Replayer(object):
             logger.error(traceback.format_exc())
             return False
 
-        # processes data to extract features depending on type of count
-        features = {'File': os.path.splitext(os.path.basename(self.file_name))[0]}
-        for feature in self.derived_features:
-            features.update(_get_feature_values(feature))
-        self.feature_data.append(features)
+        if self.feature_output:
+            # processes data to extract features depending on type of count
+            features = {'File': os.path.splitext(os.path.basename(self.file_name))[0]}
+            if self.condition_fields is None:
+                self.condition_fields = list(filename_to_condition(features['File']).keys())
+            for feature in self.derived_features:
+                features.update(_get_feature_values(feature))
+            self.feature_data.append(features)
 
         try:
             if self.rddl_file:
@@ -220,7 +224,6 @@ class Replayer(object):
                 self.rddl_converter = Converter()
                 self.rddl_converter.convert_file(self.rddl_file)
                 self.world = self.rddl_converter.world
-                self.observer = make_observer(self.world, self.parser.players) if self.create_observer else None
                 players = set(self.parser.agentToPlayer.keys())
                 zero_models = {name: self.world.agents[name].zero_level() for name in players}
                 for name in players:
@@ -232,36 +235,15 @@ class Replayer(object):
                     agent.set_observations()
             else:
                 # Solo mission
-                self.world, self.triage_agent, self.observer, self.victims, self.world_map = \
+                self.world, self.triage_agent, _, self.victims, self.world_map = \
                     make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
                                              self.map_table.adjacency, self.map_table.victims, False, True,
-                                             self.create_observer, logger.getChild('make_single_player_world'))
+                                             False, logger.getChild('make_single_player_world'))
         except:
             logger.error('Unable to create world')
             exc_type, exc_value, exc_traceback = sys.exc_info()
             logger.error(traceback.format_exc())
             return False
-        # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
-        features = None
-        self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
-                           for value in itertools.product(*self.models.values()) if len(value) > 0]
-        for player in self.parser.players:
-            for index, model in enumerate(self.model_list):
-                model = copy.deepcopy(model)
-                model['name'] = '{}_{}'.format(player, '_'.join([model[dimension] for dimension in self.models]))
-                for dimension in self.models:
-                    model[dimension] = self.models[dimension][model[dimension]]
-                    if dimension == 'reward':
-                        if not isinstance(model[dimension], dict):
-                            if features is None:
-                                import atomic.model_learning.linear.rewards as rewards
-                                features = rewards.create_reward_vector(
-                                    self.world.agents[player], self.world_map.all_locations,
-                                    self.world_map.moveActions[player])
-                            model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
-#        if len(self.model_list) > 0:
-#            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
-        #        self.parser.victimsObj = self.victims
         return True
 
     def replay(self, duration, logger):
@@ -286,20 +268,12 @@ class Replayer(object):
                 if any_none:
                     continue
                 self.pre_step()
-                try:
-                    self.world.step(actions, debug=debug)
-                except:
-                    logger.error(traceback.format_exc())
-                    logger.error('Unable to complete step')
+                self.world.step(actions, debug=debug)
 
                 self.post_step(actions, debug)
 #                self.rddl_converter.verify_constraints()
         else:
-            try:
-                self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
-            except:
-                logger.error(traceback.format_exc())
-                logger.error('Unable to complete re-simulation')
+            self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
 
     def post_replay(self):
         pass
@@ -308,7 +282,7 @@ class Replayer(object):
         pass
 
     def post_step(self, debug):
-        print(debug)
+        pass
 
     def read_filename(self, fname):
         raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
@@ -341,3 +315,42 @@ def find_trial(trial, log_dir):
             return fname
     else:
         raise ValueError('Unable to find a file for log {} in {}'.format(trial, log_dir))
+
+def replay_parser():
+    parser = ArgumentParser()
+    parser.add_argument('fname', nargs='+',
+                        help='Log file(s) (or directory of CSV files) to process')
+    parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
+    parser.add_argument('-n', '--number', type=int, default=0,
+                        help='Number of steps to replay (default is 0, meaning all)')
+    parser.add_argument('-d', '--debug', default='WARNING', help='Level of logging detail')
+    parser.add_argument('--profile', action='store_true', help='Run profiler')
+    parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
+    parser.add_argument('--actions', help='Name of CSV file containing JSON to PsychSim action mapping')
+    parser.add_argument('--feature_file', help='Destination of feature count output')
+    parser.add_argument('--metadata', help='Name of JSON file containing raw game log for this trial')
+    return parser
+
+def parse_replay_args(parser):
+    args = vars(parser.parse_args())
+    # Extract logging level from command-line argument
+    level = getattr(logging, args['debug'].upper(), None)
+    if not isinstance(level, int):
+        raise ValueError('Invalid debug level: {}'.format(args['debug']))
+    logging.basicConfig(level=level)
+    return args
+
+def replay_files(replayer, args):
+    if args['profile']:
+        return cProfile.run('replayer.process_files(args["number"])', sort=1)
+    elif args['1']:
+        return replayer.process_files(args['number'], replayer.files[0])
+    else:
+        return replayer.process_files(args['number'])
+
+if __name__ == '__main__':
+    # Process command-line arguments
+    parser = replay_parser()
+    args = parse_replay_args(parser)
+    replayer = Replayer(args['fname'], get_default_maps(logging), None, args['rddl'], args['actions'], args['feature_file'], logging)
+    replay_files(replayer, args)
