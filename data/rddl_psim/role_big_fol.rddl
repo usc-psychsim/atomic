@@ -155,7 +155,7 @@ else
 non-fluents mv_tr_v1_inst1{
 	domain = mv_tr_v1;
 	objects {
-		agent : {p1, p2};
+		agent : {p1, p2, p3};
 		loc : {srt,sce,sru,srv,scc,srq,srr,srs,srm,srn,sro,srp,scw,sri,srj,srk,srl,sra,src,sre,srg,srb,srd,srf,srh,el,sdc,br,ca,o101,o100,ds,buf,kit,llc,r103,llcn,cce,r109,r108,r107,r106,r105,r104,cf,ccw,r102,ccn,r101,crc,mkcr,acr,jc,so,mcw,oba,lib,kco,tkt,ew,rrc,wb,mb,hcr,mce,r110,scn,sga};
 	};
 	non-fluents {
@@ -418,6 +418,7 @@ instance mv_tr_v1_inst1 {
 	init-state {
 		pLoc(p1) = el; //el_3;
 		pLoc(p2) = el; //el_3;
+		pLoc(p3) = el; //el_3;
 		vcounter_unsaved_critical(r102) = 1;
 vcounter_unsaved_critical(srg) = 1;
 vcounter_unsaved_critical(llc) = 1;

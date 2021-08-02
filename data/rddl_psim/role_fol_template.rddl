@@ -130,7 +130,7 @@ domain mv_tr_v1 {
 non-fluents mv_tr_v1_inst1{
 	domain = mv_tr_v1;
 	objects {
-		agent : {p1, p2};
+		agent : {p1, p2, p3};
 		loc : {LOCSTR};
 	};
 	non-fluents {
@@ -143,6 +143,7 @@ instance mv_tr_v1_inst1 {
 	init-state {
 		pLoc(p1) = el; //el_3;
 		pLoc(p2) = el; //el_3;
+		pLoc(p3) = el; //el_3;
 		VICSTR
 	};
 	max-nondef-actions = 3;
