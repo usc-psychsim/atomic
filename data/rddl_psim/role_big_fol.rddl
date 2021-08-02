@@ -148,6 +148,15 @@ else
 	    forall_{?p : agent} [
 	        triage_regular(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
         ];
+	    forall_{?p : agent} [
+	        pickup_regular(?p) => pRole(?p) == @Search_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_critical(?p) => pRole(?p) == @Search_Specialist ^ vcounter_unsaved_critical( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        dropVictim(?p) => pRole(?p) == @Search_Specialist ^ (has_regular(?p) | has_critical(?p))
+        ];
     };
 }
 
