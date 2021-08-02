@@ -4,13 +4,13 @@ Created on Wed Jul 28 15:33:41 2021
 
 @author: E10849042
 
-Function to read a map_file (dictionary) and returns a dictionary corresponding to 
-remapped locations after grouping child_locations under a parent room according to
+Function to read a map_file (dictionary) and returns remapped locations after 
+grouping child_locations under a parent room according to
 a specified maximum connectivity limit.
 
 Usage: 
 
-  new_map, original_map = transformed_connections(map_file)
+  lookup_names, new_map, original_map = transformed_connections(map_file)
   
 ** Original map is an optional output - to check the connectivity in the input map file.   
 ** Required arguments: 
@@ -130,19 +130,14 @@ def transformed_connections(input_map):
       else : 
         new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]))
         count = 0
-        
-  return new_dict, original_dict
-
-
-      
-    
-    
-      
-      
-      
-
-
-
-
-
-      
+  
+  # Lookup dictionary for transformation of location names
+  name_transformations = {}
+  name_transformations["old_locations"] = original_dict['original_locations']
+  name_transformations["new_locations"] = []
+  for k in range(len(original_dict["original_locations"])):
+      for j in range(len(new_dict["grouped_original_locations"])):
+        if original_dict['original_locations'][k] in new_dict['grouped_original_locations'][j]:
+          name_transformations["new_locations"].append(new_dict['new_connection_names'][j])
+  
+  return name_transformations, new_dict, original_dict
