@@ -46,6 +46,7 @@ def transformed_connections(input_map):
       return string_in[0:string_in.index('_')]
     else:
       return string_in
+  
   # Creating the original Dictionary of connections
   original_dict = {}
   original_dict["original_locations"] = []
@@ -132,12 +133,10 @@ def transformed_connections(input_map):
         count = 0
   
   # Lookup dictionary for transformation of location names
-  name_transformations = {}
-  name_transformations["old_locations"] = original_dict['original_locations']
-  name_transformations["new_locations"] = []
-  for k in range(len(original_dict["original_locations"])):
+  name_transformations = {}  
+  for orig in original_dict["original_locations"]:
       for j in range(len(new_dict["grouped_original_locations"])):
-        if original_dict['original_locations'][k] in new_dict['grouped_original_locations'][j]:
-          name_transformations["new_locations"].append(new_dict['new_connection_names'][j])
+        if orig in new_dict['grouped_original_locations'][j]:
+          name_transformations[orig] = new_dict['new_connection_names'][j]
   
-  return name_transformations, new_dict, original_dict
+  return name_transformations, new_dict
