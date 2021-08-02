@@ -75,7 +75,7 @@ def transformed_connections(input_map):
           
   new_dict = {}  
   original_dict["indices_connected"] = [] 
-  new_dict["new_connections"] = []
+  new_dict["grouped_original_locations"] = []
   new_dict["connected_locations"] = []  
        
   sum_connection = 0
@@ -88,7 +88,7 @@ def transformed_connections(input_map):
       sum_connection += original_dict["original_connections"][k]
   
       if k > 0 and get_parent_room(original_dict["original_locations"][k]) !=  get_parent_room(original_dict["original_locations"][k-1]):
-          new_dict["new_connections"].append(list(original_dict["original_locations"][max(0, k - count) : k]))
+          new_dict["grouped_original_locations"].append(list(original_dict["original_locations"][max(0, k - count) : k]))
           
           lst = list(range(max(0, k - count), k))
           original_dict["indices_connected"].append(lst)
@@ -99,36 +99,36 @@ def transformed_connections(input_map):
         if (original_dict["original_locations"][k][0:original_dict["original_locations"][k].index('_')] 
         in original_dict["original_locations"][k-1]) :
         
-          new_dict["new_connections"].append(list(original_dict["original_locations"][max(0, k - count) : k]))
+          new_dict["grouped_original_locations"].append(list(original_dict["original_locations"][max(0, k - count) : k]))
           lst = list(range(max(0, k - count), k))
           original_dict["indices_connected"].append(lst)
           new_dict["connected_locations"].append(sorted_list(list(set().union(*original_dict["original_connection_names"][lst[0]:lst[-1] + 1]))))
           sum_connection = original_dict["original_connections"][k]
           count = 0
-  new_dict["new_connections"].append(list(original_dict["original_locations"][original_dict["indices_connected"][-1][-1] + 1::]))  
+  new_dict["grouped_original_locations"].append(list(original_dict["original_locations"][original_dict["indices_connected"][-1][-1] + 1::]))  
   new_dict["connected_locations"].append(sorted_list(list(set().union(*original_dict["original_connection_names"][original_dict["indices_connected"][-1][-1] + 1:]))))
   original_dict["indices_connected"].append(list(range(original_dict["indices_connected"][-1][-1] + 1,len(original_dict["original_locations"]))))
   
   # renaming new connections
   new_dict["new_connection_names"] = [] 
   count = 0
-  for k in range(len(new_dict["new_connections"])):
-      if k == 0 and '_' in new_dict["new_connections"][k][0]:
-        new_dict["new_connection_names"].append (get_parent_room(new_dict["new_connections"][k][0]) + '_'+chr(65 + count))
+  for k in range(len(new_dict["grouped_original_locations"])):
+      if k == 0 and '_' in new_dict["grouped_original_locations"][k][0]:
+        new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]) + '_'+chr(65 + count))
         count += 1
-      elif k ==0 and '_' not in new_dict["new_connections"][k][0]:
-        new_dict["new_connection_names"].append (get_parent_room(new_dict["new_connections"][k][0]))
-      elif k > 0 and '_' in new_dict["new_connections"][k][0] and \
-      get_parent_room(new_dict["new_connections"][k][0]) == get_parent_room(new_dict["new_connections"][k - 1][0]):
-        new_dict["new_connection_names"].append (get_parent_room(new_dict["new_connections"][k][0]) + '_'+chr(65 + count))
+      elif k ==0 and '_' not in new_dict["grouped_original_locations"][k][0]:
+        new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]))
+      elif k > 0 and '_' in new_dict["grouped_original_locations"][k][0] and \
+      get_parent_room(new_dict["grouped_original_locations"][k][0]) == get_parent_room(new_dict["grouped_original_locations"][k - 1][0]):
+        new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]) + '_'+chr(65 + count))
         count += 1
-      elif k > 0 and '_' in new_dict["new_connections"][k][0] and \
-      get_parent_room(new_dict["new_connections"][k][0]) != get_parent_room(new_dict["new_connections"][k - 1][0]):
+      elif k > 0 and '_' in new_dict["grouped_original_locations"][k][0] and \
+      get_parent_room(new_dict["grouped_original_locations"][k][0]) != get_parent_room(new_dict["grouped_original_locations"][k - 1][0]):
         count = 0
-        new_dict["new_connection_names"].append (get_parent_room(new_dict["new_connections"][k][0]) + '_'+chr(65 + count))
+        new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]) + '_'+chr(65 + count))
         count += 1
       else : 
-        new_dict["new_connection_names"].append (get_parent_room(new_dict["new_connections"][k][0]))
+        new_dict["new_connection_names"].append (get_parent_room(new_dict["grouped_original_locations"][k][0]))
         count = 0
         
   return new_dict, original_dict
