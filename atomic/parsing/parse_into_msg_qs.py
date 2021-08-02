@@ -54,11 +54,13 @@ class MsgQCreator(GameLogParser):
             msg = self.playerToMsgs[player][nextMsg]
             
             if ':' not in msg['mission_timer']:
+                nextMsg = nextMsg + 1
                 continue
             
             ## If malformed time, skip
             nums = msg['mission_timer'].split(':')
             if np.any([not n.strip().isdigit() for n in nums]):
+                nextMsg = nextMsg + 1
                 continue
             
             ## Extract time
