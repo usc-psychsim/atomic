@@ -31,7 +31,7 @@ class MsgQCreator(GameLogParser):
         self.jsonParser.process_json_file(self.jsonFile)
         self.allPlayersMs = [m for m in self.jsonParser.messages if msg_types is None or m['sub_type'] in msg_types]
         
-        self.players = set([m['playername'] for m in self.allPlayersMs])
+        self.players = set([m['playername'] for m in self.allPlayersMs if m['playername'] is not None])
         print("all players", self.players)
                
         triagePlayers = set([m['playername'] for m in self.allPlayersMs if m['sub_type'] == 'Event:Triage'])
