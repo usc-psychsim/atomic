@@ -68,25 +68,26 @@ class CountVisitsPerRole(Feature):
     def processMsg(self, msg):
         super().processMsg(msg)
         
-        if self.msg_type == 'Event:Location':
+        if self.msg_type == 'Event:location':
             room = msg['room_name']
             if room not in self.roomToRoleToCount.keys():
                 self.roomToRoleToCount[room] = dict()
-            role = self.playerToRole[self.msg_player]            
-            if role not in self.roomToRoleToCount[room].keys():
-                self.roomToRoleToCount[room][role] = 0
-            self.roomToRoleToCount[room][role] = self.roomToRoleToCount[room][role] + 1
-            self.history.append()
+            if self.msg_player in self.playerToRole:
+                role = self.playerToRole[self.msg_player]
+                if role not in self.roomToRoleToCount[room].keys():
+                    self.roomToRoleToCount[room][role] = 0
+                self.roomToRoleToCount[room][role] = self.roomToRoleToCount[room][role] + 1
+                self.history.append(msg)
             
         if self.msg_type == 'Event:RoleSelected':
             role = msg['new_role']
-            oldRole = msg['old_role']
+            oldRole = msg['prev_role']
             if self.msg_player not in self.playerToRole.keys():
                 self.playerToRole[self.msg_player] = oldRole
             if self.playerToRole[self.msg_player] != oldRole:
                 super().warn('Previous role does not match ' + self.msg_player + ' actually ' + self.playerToRole[self.msg_player] + ' from msg ' + oldRole)                
             self.playerToRole[self.msg_player] = role
-            self.history.append()
+            self.history.append(msg)
             
     def printValue(self):
         print(self.name, self.roomToRoleToCount)
