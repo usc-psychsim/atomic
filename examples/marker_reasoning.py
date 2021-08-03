@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os.path
 import sys
 
 from rddl2psychsim.conversion.converter import Converter
@@ -9,7 +10,7 @@ from psychsim.pwl import stateKey
 from psychsim.probability import Distribution 
 
 THRESHOLD = 0
-RDDL_FILE = '../data/rddl_psim/mark_v1_template.rddl'
+RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'mark_v1_template.rddl')
 
 
 #################  R D D L  2  P S Y C H S I M    W O R L D
@@ -47,30 +48,33 @@ conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
 p1 = conv.world.agents['p1']
-p2 = conv.world.agents['p2']
-p1.resetBelief(ignore={"p2's correct_sem"})
-p1.omega = [key for key in conv.world.state.keys() if key != "p2's correct_sem"]
+p1.create_belief_state()
+p1.set_observations(unobservable={stateKey('p2', 'correct_sem')})
 p1.setBelief(stateKey('p2', 'correct_sem'), Distribution({True: 0.5, False: 0.5}))
 
+p2 = conv.world.agents['p2']
+p2.create_belief_state()
+p2.set_fully_observable()
+
 p1_zero = p1.zero_level()
+p1.create_belief_state(model=p1_zero)
 p1.setAttribute('selection', 'distribution', p1_zero)
 p2_zero = p2.zero_level()
+p2.create_belief_state(model=p2_zero)
 p2.setAttribute('selection', 'distribution', p2_zero)
-conv.world.setModel(p2.name, p2_zero)
-conv.world.setModel(p1.name, p1_zero)
 
-p1.set_observations()
-p2.set_observations()
+conv.world.setModel(p2.name, p2_zero, p1.name, p1.get_true_model())
+conv.world.setModel(p1.name, p1_zero, p2.name, p2.get_true_model())
 
-beliefs = p1.getBelief()
-belief = next(iter(beliefs.values()))
+beliefs = p1.getBelief(model=p1.get_true_model())
+#belief = next(iter(beliefs.values()))
 print('===p1 initial belief')
-conv.world.printState(belief)
+conv.world.printState(beliefs)
 
 #print(conv.world.get_current_models(cycle_check=True))
 ################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
 
-fname = '../data/rddl_psim/rddl2actions_small.csv'
+fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
 Msg2ActionEntry.read_psysim_msg_conversion(fname)
 
 #################  F A K E    M S G S
