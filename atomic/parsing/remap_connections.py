@@ -143,7 +143,8 @@ def transformed_connections(input_map):
   for k in range(len(new_dict["new_locations"])): 
     for j in range((len(new_dict["neighbors"][k]))):
       if new_dict["new_locations"][k] != name_transformations[new_dict["neighbors"][k][j]] and \
-      [new_dict["new_locations"][k],name_transformations[new_dict["neighbors"][k][j]]] not in new_connections:
+      [new_dict["new_locations"][k],name_transformations[new_dict["neighbors"][k][j]]] not in new_connections and \
+      [name_transformations[new_dict["neighbors"][k][j]],new_dict["new_locations"][k]] not in new_connections:
         new_connections.append([new_dict["new_locations"][k],name_transformations[new_dict["neighbors"][k][j]]])
   
 
