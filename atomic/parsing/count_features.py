@@ -115,7 +115,7 @@ class CountEnterExit(Feature):
     def __init__(self, roomsToTrack, logger=logging):
         super().__init__("enter-exit", logger)
         self.playerToCount = dict()
-        self.roomsToTrack = roomsToTrack
+        self.rooms_to_track = roomsToTrack
         self.playerToActed = dict()
         self.playerToPrevLoc = dict()
         
