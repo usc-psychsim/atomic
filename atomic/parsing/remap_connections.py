@@ -81,7 +81,7 @@ def transformed_connections(input_map):
        
   sum_connection = 0
   count = 0
-  conn_thresh = 4 # maximum number of connections to look for combining
+  conn_thresh = 14 # maximum number of connections to look for combining
   
   
   for k in range(len(original_dict["original_locations"])):

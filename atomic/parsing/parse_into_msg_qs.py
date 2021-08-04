@@ -14,7 +14,7 @@ import numpy as np
 
 class MsgQCreator(GameLogParser):
 
-    def __init__(self, filename, processor=None, logger=logging):
+    def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True):
         super().__init__(filename, processor, logger)
         self.playerToAgent = {}
         self.agentToPlayer = {}
@@ -23,7 +23,7 @@ class MsgQCreator(GameLogParser):
         self.grouping_res = 10
         if len(filename) > 0:
             print('Reading json with these input files', filename)
-            self.jsonParser = JSONReader(filename, True)
+            self.jsonParser = JSONReader(filename, verbose=True, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
             self.jsonParser.read_semantic_map()
             
     def startProcessing(self, featuresToExtract, msg_types): 
@@ -33,12 +33,10 @@ class MsgQCreator(GameLogParser):
         
         self.players = set([m['playername'] for m in self.allPlayersMs if m['playername'] is not None])
         print("all players", self.players)
-               
-        triagePlayers = set([m['playername'] for m in self.allPlayersMs if m['sub_type'] == 'Event:Triage'])
-        print("all players who triaged", triagePlayers )
         
         ## Initialize player-specific data structures
         self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}
+
         # Establish a player name to RDDL agent name mapping. Arbitrary.
         for i,p in enumerate(self.players):
             self.playerToAgent[p] = 'p' + str(i+1)

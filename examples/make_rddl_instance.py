@@ -8,8 +8,9 @@ Created on Sat May 15 17:27:09 2021
 
 import pickle
 import pandas as pd
+import json
 from atomic.parsing.map_parser import read_semantic_map
-from atomic.definitions import GOLD_STR, GREEN_STR
+from atomic.parsing.remap_connections import transformed_connections
 
 
 # with open('../data/rddl_psim/victims.pickle', 'wb') as f:
@@ -33,7 +34,8 @@ def generate_rddl_map_portals(neighbors):
     return loc_str, nbr_str
 
 
-def generate_rddl_victims(victim_pickle, rooms):
+def generate_rddl_victims(victim_pickle, rooms, room_name_lookup, 
+                       naive_collapse = False):
     with open(victim_pickle, 'rb') as f:
         vList = pickle.load(f)
 
@@ -41,8 +43,18 @@ def generate_rddl_victims(victim_pickle, rooms):
     crit_dict = {}
 
     for vic in vList:
-        rm = vic['room_name'].split('_')[0]
-        if rm == '' or rm not in rooms:
+        rm = vic['room_name']
+        if naive_collapse :
+            rm = rm.split('_')[0]
+        if rm == '':
+            print('WARNING: victim in empty room', vic)
+            continue
+        if rm not in room_name_lookup.keys():
+            print('WARNING: victim in room without a new name', vic)
+            continue
+        rm = room_name_lookup[rm]
+        if rm not in rooms:
+            print('WARNING: victim in unknown room', rm)
             continue
         if vic['block_type'] == 'critical':
             d = crit_dict
@@ -98,41 +110,41 @@ def make_rddl_inst(rooms, edges,
     rddl_inst_file.close()
 
 
-def make_rddl_inst_fol(rooms, edges,
+def make_rddl_inst_fol(edges, room_name_lookup, 
                        rddl_template,
                        rddl_out,
                        map_out_csv,
+                       naive_collapse = False,
                        victim_pickle='../data/rddl_psim/victims.pickle'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
     neighbors = {}
     for r1, r2 in edges:
-        r1 = r1.split('_')[0]
-        r2 = r2.split('_')[0]
-        if r1 == r2:
-            continue
+        if naive_collapse:
+            r1 = r1.split('_')[0]
+            r2 = r2.split('_')[0]
+            if r1 == r2:
+                continue
+            
         if r1 not in neighbors:
             neighbors[r1] = set()
         if r2 not in neighbors:
             neighbors[r2] = set()
-
-#        neighbors[r1].add(r2)
-#        neighbors[r2].add(r1)
-        
         if len(neighbors[r1]) < MAX_NBRS:
             neighbors[r1].add(r2)
         if len(neighbors[r2]) < MAX_NBRS:
              neighbors[r2].add(r1)
 
     max_nbr = max([len(nbrs) for nbrs in neighbors.values()])
+    print('Maximum number of neighbors', max_nbr)
     df = pd.DataFrame.from_dict(neighbors, orient='index', columns=[f'NBR{i}' for i in range(max_nbr)])
     df.index.name = 'ROOM'
     df.fillna("",inplace=True)    
     df.to_csv(map_out_csv)
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
-    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()))
+    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup)
     nbr_consts, move_vars, move_dyn, move_pre_cond = generate_rddl_move_actions(neighbors)
 
     rddl_temp_file = open(rddl_template, "r")
@@ -150,10 +162,22 @@ def make_rddl_inst_fol(rooms, edges,
 
 
 if __name__ == '__main__':
-    MAX_NBRS = 4  # TODO just for testing, this block will be removed once we have the new portals representation
-
-    rooms, edges = read_semantic_map('../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json')
-    make_rddl_inst_fol(rooms, edges,
+    naive_collapse = False
+    map_file = '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json'
+    MAX_NBRS = 14
+    edges = []
+    
+    if naive_collapse:
+        rooms, edges = read_semantic_map(map_file)
+        room_name_lookup = {rm:rm for rm in rooms.keys()}
+    else:
+        orig_map = json.load(open(map_file,'r'))
+        one_way_edges, room_name_lookup, new_map, orig_map = transformed_connections(orig_map)
+        for a,b in one_way_edges:
+            edges.append((a,b))
+            edges.append((b,a))
+            
+    make_rddl_inst_fol(edges, room_name_lookup, 
                        '../data/rddl_psim/role_fol_template.rddl',
-                       '../data/rddl_psim/role_big_fol.rddl',
-                       '../maps/Saturn/rddl_room_neighbors.csv')
+                       '../data/rddl_psim/role_clpsd_map.rddl',
+                       '../maps/Saturn/rddl_clpsd_neighbors.csv')

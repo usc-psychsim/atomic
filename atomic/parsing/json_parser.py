@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import functools
 import json
-import pprint
-import sys
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 from atomic.parsing.map_parser import extract_map
@@ -36,7 +33,11 @@ LOCATION_MONITOR = 0
 STATE_MSGS = 1
 
 class JSONReader(object):
-    def __init__(self, fname, verbose=False):
+    def __init__(self, fname, verbose=False, use_collapsed_map=True, use_ihmc_locations=True):
+        self.USE_COLLAPSED_MAP = use_collapsed_map
+        if self.USE_COLLAPSED_MAP and not use_ihmc_locations:
+            raise ValueError('Cannot use collapsed map without using IHMC locations')
+            
         self.victims = []
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
@@ -44,9 +45,8 @@ class JSONReader(object):
                           'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
                           'Event:RubbleDestroyed', 'Event:ItemEquipped']
-        if self.locations_from == LOCATION_MONITOR:
-            self.msg_types.append('Event:location')
-        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer']
+        
+        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name']
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
@@ -64,6 +64,11 @@ class JSONReader(object):
         self.verbose = verbose
         self.rooms = {}
         self.fname = fname
+        if use_ihmc_locations:
+            self.locations_from = LOCATION_MONITOR
+            self.msg_types.append('Event:location')
+        else:
+            self.locations_from = STATE_MSGS
             
     def registerFeatures(self, feats):
         for f in feats:
@@ -90,6 +95,7 @@ class JSONReader(object):
     def read_semantic_map(self):        
         jsonfile = open(self.fname, 'rt')
         
+        semantic_map = None
         for line in jsonfile.readlines():
             jmsg = json.loads(line)
             if 'semantic_map' in jmsg['data'].keys():
@@ -97,8 +103,24 @@ class JSONReader(object):
                 break
         else:
             raise ValueError('Unable to find semantic map')
+        jsonfile.close()
+        
+        # Sudeepta's map transformation code
+        room_dict, room_connections = extract_map(semantic_map)
+        
+        if self.USE_COLLAPSED_MAP:
+            ## Overwrite room_edges and store name lookup and new room names
+            from atomic.parsing.remap_connections import transformed_connections
+            self.room_edges = []
+            edges, self.room_name_lookup, new_map, orig_map = transformed_connections(semantic_map)
+            for a,b in edges:
+                self.room_edges.append((a,b))
+                self.room_edges.append((b,a))     
+            self.new_room_names = new_map['new_locations']
+        else:
+            self.room_edges = room_connections
 
-        room_dict, self.room_edges = extract_map(semantic_map)
+        ## Whether we're using the collapsed map or not, we keep track of the coordinates of the ORIGINAL rooms            
         for rid, coords in room_dict.items():
             x0 = coords[0]['x']
             z0 = coords[0]['z']
@@ -106,8 +128,6 @@ class JSONReader(object):
             z1 = coords[1]['z']
             rm = room(rid, [x0, z0, x1, z1])
             self.rooms[rid] = rm
-                    
-        jsonfile.close()       
         
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
@@ -137,8 +157,6 @@ class JSONReader(object):
 
         player = m.get('playername', m.get('participant_id', None))
         m['playername'] = player
-#        if player == None:
-#            print('hi')
         is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
@@ -162,42 +180,48 @@ class JSONReader(object):
             if player not in self.player_to_curr_room:
                 self.player_to_curr_room[player] = ''
             prev_rm = self.player_to_curr_room[player]
+            if self.USE_COLLAPSED_MAP:
+                room_name = self.room_name_lookup[room_name]
             if room_name == prev_rm:
                 return
             m['room_name'] = room_name 
+            m['old_room_name'] = prev_rm
             m['sub_type'] = 'Event:location'
             
             ## If new and old rooms not connected
             if (prev_rm != '') and (self.room_edges is not None) and ((prev_rm,room_name) not in self.room_edges):
                 if self.verbose: print('Error: %s and %s not connected' %(prev_rm, room_name))
-#                print('Error: %s and %s not connected' %(self.rooms[prev_rm], self.rooms[room_name]))
             
             self.player_to_curr_room[player] = room_name
             if self.verbose:
-                print('%s moved to %s' %(player, room_name))
-                
-#            if 'playername' not in 
-            
+                print('%s moved to %s' %(player, room_name))                          
         
         ## If this is a message type we append room name to
         if mtype in self.typeToLocationFields:
             fields = self.typeToLocationFields[mtype]
             x, z = m[fields[0]], m[fields[1]]
-            m['room_name'] = self.getRoom(x,z)
+            event_room = self.getRoom(x,z)
+            if self.USE_COLLAPSED_MAP:
+                event_room = self.room_name_lookup[event_room]
+            m['room_name'] = event_room
             
             ## If event room doesn't match player's last room
             if player not in self.player_to_curr_room:
                 self.player_to_curr_room[player] = ''
-            if m['room_name'] != self.player_to_curr_room[player]:
+            if event_room != self.player_to_curr_room[player]:
                 ## If connected, inject an Event:location message
-                conn = ((self.player_to_curr_room[player], m['room_name']) in self.room_edges)
+                conn = (self.player_to_curr_room[player], m['room_name']) in self.room_edges
                 if conn:
-                    injecteDd_msg = {'sub_type':'Event:location', 'playername':player, 
-                                     'room_name':m['room_name'], 'mission_timer':m['mission_timer']}
-                    self.messages.append(injecteDd_msg)
+                    injected_msg = {'sub_type':'Event:location', 'playername':player, 
+                                     'old_room_name': self.player_to_curr_room[player],
+                                     'room_name':event_room, 'mission_timer':m['mission_timer']}
+                    self.messages.append(injected_msg)
+                    ## When you inject this location change message, assume it will go through and update player's room
+                    self.player_to_curr_room[player] = event_room
+                    print('Injected', injected_msg)
                 else:
-                    if self.verbose: print('Error: Player %s last moved to %s but event msg is %s. 1-away %s' 
-                          %(player, self.player_to_curr_room[player], mtype, self.one_step_removed(self.player_to_curr_room[player], m['room_name'])))
+                    if self.verbose: print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
+                          %(player, self.player_to_curr_room[player], mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
 
         if m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
@@ -210,18 +234,26 @@ class JSONReader(object):
             derived.processMsg(smallMsg)
         
 
-    def make_victims_list(self,victim_list_dicts):        
-        for vv in victim_list_dicts:
+    def make_victims_list(self,victim_list_dicts_in):
+        victim_list_dicts_out = []
+        for vv_in in victim_list_dicts_in:
+            vv = dict(vv_in)
             blktype = vv['block_type']
             if blktype == 'block_victim_1':
                 vv.update({'block_type':GREEN_STR})
             else:
                 vv.update({'block_type':GOLD_STR})
             room_name = self.getRoom(vv['x'],vv['z'])
+            vv_in.update({'room_name':room_name})
+            
+            if self.USE_COLLAPSED_MAP:
+                room_name = self.room_name_lookup[room_name]
+            
             vv.update({'room_name':room_name})
             newvic = victim(room_name,vv['block_type'], vv['x'], vv['z'])
             self.victims.append(newvic)
-        return victim_list_dicts
+            victim_list_dicts_out.append(vv)
+        return victim_list_dicts_out
     
     def one_step_removed(self, rm1, rm2):
         if (rm1, rm2) in self.room_edges:
