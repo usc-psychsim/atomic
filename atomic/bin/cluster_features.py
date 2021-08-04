@@ -235,7 +235,7 @@ def _get_derived_features(msg_qs: MsgQCreator) -> List[Feature]:
     derived_features.append(CountEnterExit(room_names.copy()))
     derived_features.append(CountTriageInHallways(HALLWAYS))
     derived_features.append(CountVisitsPerRole(room_names))
-    derived_features.append(CountRoleChanges())
+    # derived_features.append(CountRoleChanges())
     return derived_features
 
 
