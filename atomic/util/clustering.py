@@ -2,8 +2,9 @@ import copy
 import logging
 import queue
 import numpy as np
+import itertools as it
 from collections import OrderedDict
-from typing import List, Dict
+from typing import Dict
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.neighbors import NearestNeighbors
 
@@ -107,15 +108,20 @@ def get_sorted_indexes(clustering: AgglomerativeClustering) -> np.ndarray:
     """
     q = queue.Queue()
     q.put(len(clustering.children_) - 1)  # work backwards from last node/cluster
-    idxs = []
+    clusters_idxs = []
     while not q.empty():
         cur_node = q.get()
         for child in clustering.children_[cur_node]:
             if child < clustering.n_leaves_:
-                idxs.append(child)  # child is leaf, add to list
+                cluster = clustering.labels_[child]
+                clusters_idxs.append((cluster, child))  # child is leaf, add to list
             else:
                 q.put(child - clustering.n_leaves_)  # child is parent, put in queue
-    idxs.reverse()  # closest first
+
+    # groups by cluster, then use clustering order with each cluster
+    idxs = []
+    for cluster, group in it.groupby(sorted(clusters_idxs), lambda x: x[0]):
+        idxs.extend(reversed([idx for cluster, idx in group]))  # closest first
     return np.array(idxs)
 
 
