@@ -6,22 +6,27 @@ import re
 import itertools as it
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+from collections import OrderedDict
 from typing import Dict, List
+from sklearn import metrics
 from sklearn import preprocessing
 from sklearn.cluster import AgglomerativeClustering
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit, Feature, \
     CountVisitsPerRole
 from atomic.util.io import str2bool, create_clear_dir, save_args, change_log_handler, get_files_with_extension, \
-    get_file_name_without_extension
+    get_file_name_without_extension, get_file_changed_extension
 from atomic.util.mp import get_pool_and_map
-from atomic.util.clustering import hopkins_statistic
-from atomic.util.plot import plot_clustering_distances, plot_clustering_dendrogram
+from atomic.util.clustering import hopkins_statistic, get_n_clusters
+from atomic.util.plot import plot_clustering_distances, plot_clustering_dendrogram, format_and_save_plot
 
 __author__ = 'Pedro Sequeira'
 __email__ = 'pedrodbs@gmail.com'
-__desc__ = 'Loads a series of game logs (metadata files), performs feature counting, and then clusters files based on' \
-           'feature count distance.'
+__desc__ = 'Loads a series of game logs (metadata files), performs feature counting, gets set of derived features ' \
+           '(stats over the original features) and then clusters files based on this feature embedding distance.'
+
+HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
 
 LOG_FILE_EXTENSION = 'metadata'
 
@@ -38,6 +43,10 @@ COUNT_ACTIONS_ARGS = [
     ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
     ('Event:RoleSelected', {})
 ]
+
+SILHOUETTE_COEFFICIENT = 'Silhouette Coefficient'
+CALINSKI_HARABASZ_INDEX = 'Calinski-Harabasz Index'
+DAVIES_BOULDIN_INDEX = 'Davies-Bouldin Index'
 
 
 def main():
@@ -147,12 +156,14 @@ def main():
     logging.info(f'Found {clustering.n_clusters_} clusters at max. distance: {clustering.distance_threshold}')
 
     # saves clustering results
+    clustering_dir = os.path.join(args.output, 'clustering')
+    os.makedirs(clustering_dir, exist_ok=True)
     logging.info('========================================')
     logging.info('Saving clustering results...')
-    plot_clustering_distances(clustering, os.path.join(args.output, f'clustering-distances.{args.format}'))
-    plot_clustering_dendrogram(clustering, os.path.join(args.output, f'clustering-dendrogram.{args.format}'))
+    plot_clustering_distances(clustering, os.path.join(clustering_dir, f'clustering-distances.{args.format}'))
+    plot_clustering_dendrogram(clustering, os.path.join(clustering_dir, f'clustering-dendrogram.{args.format}'))
 
-    # gets traces idxs in each cluster
+    # gets lof files idxs for each cluster
     clusters = {}
     for idx, cluster in enumerate(clustering.labels_):
         if cluster not in clusters:
@@ -165,10 +176,13 @@ def main():
                        for cluster, idxs in clusters.items()])
     df.set_index([CLUSTER_ID_COL], inplace=True)
     df.sort_index(inplace=True)
-    file_path = os.path.join(args.output, 'cluster-ids.csv')
+    file_path = os.path.join(clustering_dir, 'cluster-ids.csv')
     df.to_csv(file_path)
 
-    # TODO evaluate (at least internally), pick best cluster #?
+    logging.info('========================================')
+    logging.info('Clusters\' distribution:')
+    for cluster, idxs in clusters.items():
+        logging.info(f'Cluster {cluster}: {len(idxs)}')
 
     # saves mean feature vectors
     logging.info('========================================')
@@ -177,8 +191,12 @@ def main():
     df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features.tolist())
     df.set_index([CLUSTER_ID_COL], inplace=True)
     df.sort_index(inplace=True)
-    file_path = os.path.join(args.output, 'cluster-mean-feats.csv')
+    file_path = os.path.join(clustering_dir, 'cluster-mean-feats.csv')
     df.to_csv(file_path)
+
+    # performs internal evaluation
+    _internal_evaluation(data, clustering, clustering_dir, args)
+
     logging.info('Done!')
 
 
@@ -208,18 +226,18 @@ def _get_derived_features(msg_qs: MsgQCreator) -> List[Feature]:
     all_loc_name = list(msg_qs.jsonParser.rooms.keys())
     main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
     main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
-    hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
-    room_names = main_names.difference(hallways)
+    room_names = main_names.difference(HALLWAYS)
 
     # adds feature counters
     derived_features = []
     for args in COUNT_ACTIONS_ARGS:
         derived_features.append(CountAction(*args))
-    derived_features.append(CountEnterExit(room_names))
-    derived_features.append(CountTriageInHallways(hallways))
-    # derived_features.append(CountVisitsPerRole(room_names))
+    derived_features.append(CountEnterExit(room_names.copy()))
+    derived_features.append(CountTriageInHallways(HALLWAYS))
+    derived_features.append(CountVisitsPerRole(room_names))
     derived_features.append(CountRoleChanges())
     return derived_features
+
 
 def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
     try:
@@ -256,8 +274,8 @@ def _get_feature_values(derived_feature: Feature) -> Dict[str, float]:
             isinstance(derived_feature, CountRoleChanges):
         # get feature name
         feature_name = derived_feature.type_to_count if isinstance(derived_feature, CountAction) \
-            else f'Enter_Exit_{derived_feature.msg_type}' if isinstance(derived_feature, CountEnterExit) \
-            else f'Role_Changes_{derived_feature.msg_type}' if isinstance(derived_feature, CountRoleChanges) \
+            else f'Enter_Exit' if isinstance(derived_feature, CountEnterExit) \
+            else f'Role_Changes' if isinstance(derived_feature, CountRoleChanges) \
             else ''
         feature_name = _change_feature_name(feature_name)
 
@@ -273,11 +291,21 @@ def _get_feature_values(derived_feature: Feature) -> Dict[str, float]:
                 'Triages_Rooms': derived_feature.triagesInRooms}
 
     if isinstance(derived_feature, CountVisitsPerRole):
-        # gets counts for role counts per rooms
-        features = {}
+        # gets mean counts for visits (time really) per role across rooms
+        counts_per_role = {}
         for room in derived_feature.roomToRoleToCount.keys():
             for role, count in derived_feature.roomToRoleToCount[room].items():
-                features[_change_feature_name(f'Count_{room}_{role}')] = count
+                if role not in counts_per_role:
+                    counts_per_role[role] = []
+                counts_per_role[role].append(count)
+        features = {}
+        for role, counts in counts_per_role.items():
+            feature_name = _change_feature_name(f'Visits_Room_{role}')
+            data = pd.DataFrame(counts)
+            if len(data) == 0:
+                continue
+            data = data[0].describe().fillna(0)
+            features.update({f'{feature_name}_{k.title()}': v for k, v in data.to_dict().items()})
         return features
 
     logging.warning(f'Could not process feature of type: {type(derived_feature)}!')
@@ -288,6 +316,51 @@ def _change_feature_name(feature_name: str) -> str:
     feature_name = re.sub('_*([A-Z][a-z]+)', r' \1', feature_name).strip()
     feature_name = re.sub(' ', '_', feature_name)
     return feature_name.title()
+
+
+def _plot_evaluation(metric: str, scores: Dict[int, Dict[int, float]], output_img: str, save_csv: bool = True):
+    """
+    Saves a line plot with the scores for different number of clusters for some evaluation metric.
+    :param str metric: the name of the evaluation metric.
+    :param Dict[int, Dict[int, float]] scores: the metric scores for each number of clusters.
+    :param str output_img: the path to the image on which to save the plot. None results in no image being saved.
+    :param bool save_csv: whether to save a CSV file with the results.
+    :return:
+    """
+    # saves csv with metric scores
+    if save_csv and output_img is not None:
+        df = pd.DataFrame({'Num. clusters': scores.keys(), metric: scores.values()})
+        df.to_csv(get_file_changed_extension(output_img, 'csv'), index=False)
+
+    # plots distances
+    plt.figure()
+    plt.plot(scores.keys(), scores.values())
+    format_and_save_plot(plt.gca(), metric, output_img, x_label='Num. Clusters', show_legend=False)
+
+
+def _internal_evaluation(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str, args):
+    sub_dir = os.path.join(clustering_dir, 'internal eval')
+    os.makedirs(sub_dir, exist_ok=True)
+
+    # performs internal evaluation using different metrics and num. clusters
+    logging.info('========================================')
+    max_clusters = max(clustering.n_clusters_, args.eval_clusters)
+    logging.info(f'Performing internal evaluation for up to {max_clusters} clusters, saving results in "{sub_dir}"...')
+    n_clusters = get_n_clusters(clustering, 2, max_clusters)
+    evals = {
+        SILHOUETTE_COEFFICIENT: OrderedDict(),
+        CALINSKI_HARABASZ_INDEX: OrderedDict(),
+        DAVIES_BOULDIN_INDEX: OrderedDict()
+    }
+    for n, labels in tqdm.tqdm(n_clusters.items()):
+        evals[SILHOUETTE_COEFFICIENT][n] = metrics.silhouette_score(data, labels, metric='cosine')
+        evals[CALINSKI_HARABASZ_INDEX][n] = metrics.calinski_harabasz_score(data, labels)
+        evals[DAVIES_BOULDIN_INDEX][n] = metrics.davies_bouldin_score(data, labels)
+
+    # saves plots for each metric with scores for diff. num clusters
+    for metric, scores in evals.items():
+        file_path = os.path.join(sub_dir, f'{metric.lower().replace(" ", "-")}.{args.format}')
+        _plot_evaluation(metric, scores, file_path, True)
 
 
 if __name__ == '__main__':
