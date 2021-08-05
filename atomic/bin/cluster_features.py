@@ -26,6 +26,8 @@ __email__ = 'pedrodbs@gmail.com'
 __desc__ = 'Loads a series of game logs (metadata files), performs feature counting, gets set of derived features ' \
            '(stats over the original features) and then clusters files based on this feature embedding distance.'
 
+MAX_VERS = 20  # maximum metadata file version to search for
+
 HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
 
 LOG_FILE_EXTENSION = 'metadata'
@@ -121,19 +123,21 @@ def main():
     # normalize data
     logging.info('========================================')
     logging.info('Normalizing data...')
-    df.iloc[:, 1:] = preprocessing.MinMaxScaler().fit_transform(df.iloc[:, 1:].values)  # ignore ID column
+    df_norm = df.copy()
+    df_norm.iloc[:, 1:] = preprocessing.MinMaxScaler().fit_transform(df.iloc[:, 1:].values)  # ignore ID column
     file_path = os.path.join(args.output, 'features-norm.csv')
     logging.info(f'Saving CSV file with all normalized features to {file_path}...')
-    df.to_csv(file_path, index=False)
+    df_norm.to_csv(file_path, index=False)
 
     # split
     features = df.columns[1:]
     file_names = df[FILE_NAME_COL].values
     data = df.iloc[:, 1:].values
+    norm_data = df_norm.iloc[:, 1:].values
 
     logging.info('========================================')
     logging.info('Computing Hopkins statistic for the data...')
-    h = hopkins_statistic(data)
+    h = hopkins_statistic(norm_data)
     logging.info(f'\tH={h:.2f}')
     if h < 0:
         logging.info('\tInsufficient data to compute Hopkins statistic')
@@ -146,13 +150,13 @@ def main():
 
     # cluster data
     logging.info('========================================')
-    logging.info(f'Clustering {data.shape[0]} datapoints...')
+    logging.info(f'Clustering {norm_data.shape[0]} datapoints...')
     clustering = AgglomerativeClustering(n_clusters=None if args.n_clusters == -1 else args.n_clusters,
                                          affinity=args.affinity if args.linkage != 'ward' else 'euclidean',
                                          linkage=args.linkage,
                                          compute_distances=True,
                                          distance_threshold=args.distance_threshold if args.n_clusters == -1 else None)
-    clustering.fit(data)
+    clustering.fit(norm_data)
     logging.info(f'Found {clustering.n_clusters_} clusters at max. distance: {clustering.distance_threshold}')
 
     # saves clustering results
@@ -195,7 +199,7 @@ def main():
     df.to_csv(file_path)
 
     # performs internal evaluation
-    _internal_evaluation(data, clustering, clustering_dir, args)
+    _internal_evaluation(norm_data, clustering, clustering_dir, args)
 
     logging.info('Done!')
 
@@ -211,12 +215,10 @@ def _filter_files(files: List[str]) -> List[str]:
             filtered.add(file)  # did not find version info
             continue
         i = int(i.group(1)) + 1  # search for higher version
-        while True:
+        for i in range(i, MAX_VERS + 1):
             file_ = re.sub(r'Vers-\d+', f'Vers-{i}', file)
-            if file_ not in files:
-                break
-            file = file_
-            i += 1  # continue searching
+            if file_ in files:
+                file = file_
         filtered.add(file)
     return sorted(filtered)
 
