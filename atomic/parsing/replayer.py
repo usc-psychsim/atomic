@@ -10,8 +10,6 @@ from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit, Feature, \
-    CountVisitsPerRole
 from atomic.scenarios.single_player import make_single_player_world
 from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 from rddl2psychsim.conversion.converter import Converter
@@ -62,15 +60,6 @@ class Replayer(object):
     :type action_file: str
     """
     OBSERVER = 'ATOMIC'
-
-    COUNT_ACTIONS_ARGS = [
-        ('Event:dialogue_event', {}),
-        ('Event:VictimPickedUp', {}),
-        ('Event:VictimPlaced', {}),
-        ('Event:ToolUsed', {}),
-        ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
-        ('Event:RoleSelected', {})
-    ]
 
     def __init__(self, files=[], maps=None, processor=None, rddl_file=None, action_file=None, feature_output=None, logger=logging):
         # Extract files to process
@@ -232,16 +221,21 @@ class Replayer(object):
                     agent.create_belief_state()
                     agent.create_belief_state(model=zero_models[name])
                     agent.setAttribute('selection', 'distribution', zero_models[name])
+                    agent.set_observations()
+                for name in players:
                     for other_name in players-{name}:
                         other_agent = self.world.agents[other_name]
                         self.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
-                    agent.set_observations()
-            else:
+
+            elif self.feature_output is None:
                 # Solo mission
                 self.world, self.triage_agent, _, self.victims, self.world_map = \
                     make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
                                              self.map_table.adjacency, self.map_table.victims, False, True,
                                              False, logger.getChild('make_single_player_world'))
+            else:
+                # Not creating PsychSim model
+                return False
         except:
             logger.error('Unable to create world')
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -262,7 +256,7 @@ class Replayer(object):
                     action_name = Msg2ActionEntry.get_action(msg)
                     if action_name not in self.rddl_converter.actions[player_name]:
                         any_none = True
-                        logger.warning(f'Msg {msg} has no associated action ({action_name} missing from {", ".join(sorted(self.rddl_converter.actions[player_name]))})')
+                        logger.warning(f'Msg {msg} has unknown action {action_name}')
                     else:
                         logger.info(f'Msg {msg} becomes {action_name}')
                         action = self.rddl_converter.actions[player_name][action_name]
