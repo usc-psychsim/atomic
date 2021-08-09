@@ -277,7 +277,7 @@ class Replayer(object):
     def pre_step(self):
         pass
 
-    def post_step(self, debug):
+    def post_step(self, actions, debug):
         pass
 
     def read_filename(self, fname):
