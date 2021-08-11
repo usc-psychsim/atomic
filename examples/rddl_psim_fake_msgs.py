@@ -6,12 +6,23 @@ from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 
 THRESHOLD = 0
-#RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
-#RDDL_FILE = '../data/rddl_psim/mv_tr_tool_template_small.rddl'
-RDDL_FILE = '../data/rddl_psim/mark_v1_template.rddl'
+USE_COLLAPSED = True
 
 
-#################  R D D L  2  P S Y C H S I M    W O R L D
+#################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
+if USE_COLLAPSED:
+    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_fol.csv'
+    lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
+    RDDL_FILE = '../data/rddl_psim/role_clpsd_map.rddl'
+else:
+    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_small.csv'
+    lookup_aux_data_fname = None
+    RDDL_FILE = '../data/rddl_psim/role_big.rddl'
+    
+Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
+usable_msg_types = Msg2ActionEntry.get_msg_types()
+
+##################  R D D L  2  P S Y C H S I M    W O R L D
 logging.root.setLevel(logging.INFO)
 
 logging.basicConfig(
@@ -45,39 +56,34 @@ args.log_rewards = True
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
-################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
-
-fname = '../data/rddl_psim/rddl2actions_small.csv'
-Msg2ActionEntry.read_psysim_msg_conversion(fname)
-
-#################  F A K E    M S G S
+##################  F A K E    M S G S
 all_msgs = []
-#all_msgs.append({'p1': {'type':'Marker Block 1', 'playername':'p1', 'sub_type':'Event:MarkerPlaced'}, 
-#                 'p2':{'room_name':'loc12', 'playername':'p2', 'sub_type':'Event:location'}})
-#all_msgs.append({'p1': {'room_name':'loc12', 'playername':'p1', 'sub_type':'Event:location'}, 
-#                 'p2':{'room_name':'loc11', 'playername':'p2', 'sub_type':'Event:location'}})
+if USE_COLLAPSED:    
+    ## correct message
+    all_msgs.append({'p1': {'room_name':'sga_A', 'playername':'p1', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
+                 'p3':{'room_name':'ew_A', 'playername':'p3', 'old_room_name':'sga_A', 'sub_type':'Event:location'}})
 
+    ## message with an impossible move
+    all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'ccn', 'playername':'p2', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
+                 'p3':{'room_name':'el_A', 'playername':'p3', 'old_room_name':'ew_A', 'sub_type':'Event:location'}})
 
-#all_msgs.append({'p1': {'room_name':'tkt_4', 'playername':'p1', 'sub_type':'Event:Location'}, 
-#                 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}, 
-#                 'p3':{'room_name':'tkt_5', 'playername':'p3', 'sub_type':'Event:Location'}})
-#all_msgs.append({'p1': {'room_name':'tkt_1', 'playername':'p1', 'sub_type':'Event:Location'}, 
-#                 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}, 
-#                 'p3':{'room_name':'tkt_4', 'playername':'p3', 'sub_type':'Event:Location'}})
-##all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
-#
-#
-##################  S T E P    T H R O U G H
-REPLAY = False
+else:
+    all_msgs.append({'p1': {'room_name':'sdc', 'playername':'p1', 'old_room_name':'el', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'ew', 'playername':'p2', 'old_room_name':'el', 'sub_type':'Event:location'}, 
+                 'p3':{'room_name':'ca', 'playername':'p3', 'old_room_name':'ds', 'sub_type':'Event:location'}})
+####################  S T E P    T H R O U G H
+REPLAY = True
     
 for msgs in all_msgs:
-    logging.info('\n__________________________________________________')
+    logging.info('\n__________________________________________________N E W    S T E P')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
     
-    ## Print legal actions
-#    print('legal actions')
-#    for player_name, msg in msgs.items():
-#        print(conv.world.agents[player_name].getLegalActions())
+    # Print legal actions
+    for player_name, msg in msgs.items():
+        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
+        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
     
     
     if REPLAY:
@@ -100,16 +106,25 @@ for msgs in all_msgs:
         conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
     else:
         conv.world.step(debug=debug, threshold=args.threshold, select=args.select)
+        
     conv.log_state(log_actions=args.log_actions)
-    print('rewards')
-    for player_name, msg in msgs.items():
-        print(conv.world.agents[player_name].reward())
+#    print('rewards')
+#    for player_name, msg in msgs.items():
+#        print(conv.world.agents[player_name].reward())
+#
+#
+#    if args.log_rewards:
+#        for ag_name in conv.actions.keys():
+#            _log_agent_reward(ag_name)
+#    conv.verify_constraints()
+#
+#
+#
 
-
-    if args.log_rewards:
-        for ag_name in conv.actions.keys():
-            _log_agent_reward(ag_name)
-    conv.verify_constraints()
-
+#import pickle
+#from atomic.parsing.remap_connections import transformed_connections
+#file = open("/home/mostafh/sem_map.pickle", 'rb')
+#map_file = pickle.load(file)
+#edge_list, lookup, new_map, orig_map = transformed_connections(map_file)
 
 
