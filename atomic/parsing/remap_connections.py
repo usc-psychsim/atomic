@@ -66,11 +66,13 @@ def transformed_connections(input_map):
   for k in range(len(input_map["connections"])):
       for j in range(len(input_map["connections"][k]["connected_locations"])):
           
-          original_dict["num_neighbors"][original_dict["original_locations"].index(input_map["connections"][k]["connected_locations"][j])] +=1 
           original_dict["original_neighbors"][original_dict["original_locations"].index(input_map["connections"][k]["connected_locations"][j])].append(input_map["connections"][k]["connected_locations"][:j]
-                                                                                                                                                   + input_map["connections"][k]["connected_locations"][j+1:]) 
+   
+                                                                                                                                                + input_map["connections"][k]["connected_locations"][j+1:]) 
+  # Modified to remove duplicates in original neighbors          
   for k in range(len(original_dict["original_neighbors"])):
-      original_dict["original_neighbors"][k] = sum(original_dict["original_neighbors"][k], [])
+      original_dict["original_neighbors"][k] = list(set(sum(original_dict["original_neighbors"][k], [])))
+      original_dict["num_neighbors"][k] = len(original_dict["original_neighbors"][k])
   
   # Creating the new Dictionary of connections
           
