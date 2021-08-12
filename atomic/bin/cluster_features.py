@@ -57,10 +57,11 @@ def main():
     parser.add_argument('--input', '-i', type=str, required=True,
                         help='The path to a directory containing the game logs (.metadata files) or a'
                              'comma-separated string with the paths to individual log files.')
-    parser.add_argument('--output', '-o', type=str, required=True, help='Directory in which to save results')
+    parser.add_argument('--output', '-o', type=str, required=True, help='Directory in which to save results.')
+    parser.add_argument('--filter', type=str, help='Regex expression to filter input files (using match).')
     parser.add_argument('--processes', '-p', type=int, default=1,
                         help='Number of processes for parallel processing. Value < 1 uses all available cpus.')
-    parser.add_argument('--format', '-f', type=str, default='png', help='Format of result images')
+    parser.add_argument('--format', '-f', type=str, default='png', help='Format of result images.')
 
     parser.add_argument('--affinity', '-a', type=str, default='euclidean',
                         help='Metric used to compute the linkage. Can be “euclidean”, “l1”, “l2”, '
@@ -75,7 +76,7 @@ def main():
     parser.add_argument('--distance_threshold', '-dt', type=float, default=0.025,
                         help='The linkage distance threshold above which, clusters will not be merged.')
     parser.add_argument('--eval_clusters', '-ec', type=int, default=7,
-                        help='Maximum number of clusters for which to perform evaluation')
+                        help='Maximum number of clusters for which to perform evaluation.')
 
     parser.add_argument('--clear', '-c', type=str2bool, default="False",
                         help='Clear output directories before generating results.')
@@ -97,9 +98,9 @@ def main():
         files = get_files_with_extension(args.input, LOG_FILE_EXTENSION)
 
     # checks files
-    files = _filter_files(files)
+    files = _filter_files(files, args.filter)
     if len(files) == 0:
-        raise ValueError(f'Could not find any {LOG_FILE_EXTENSION} files in provided argument: {args.input}!')
+        raise ValueError(f'Could not find any files to process in: {args.input}, matching {args.filter}!')
 
     # check cache dir
     cache_dir = os.path.join(args.output, 'data')
@@ -204,8 +205,11 @@ def main():
     logging.info('Done!')
 
 
-def _filter_files(files: List[str]) -> List[str]:
-    files = set(files)
+def _filter_files(files: List[str], filter_str: str) -> List[str]:
+    # first filter files using cmd line regex
+    files = set([file for file in files if filter_str is None or re.search(filter_str, file)])
+
+    # then filter only the highest versions of each file
     filtered = set()
     for file in files:
         if file in filtered or not file.endswith(LOG_FILE_EXTENSION) or not os.path.isfile(file):
