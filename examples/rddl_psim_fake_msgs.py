@@ -4,6 +4,7 @@ import sys
 
 from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
+from psychsim.pwl import stateKey
 
 THRESHOLD = 0
 USE_COLLAPSED = True
@@ -60,6 +61,11 @@ conv.convert_file(RDDL_FILE, verbose=True)
 all_msgs = []
 if USE_COLLAPSED:    
     ## correct message
+    all_msgs.append({'p1': {'room_name':'sga_B', 'playername':'p1', 'old_room_name':'', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'sga_B', 'playername':'p2', 'old_room_name':'', 'sub_type':'Event:location'}, 
+                 'p3':{'room_name':'sga_A', 'playername':'p3', 'old_room_name':'', 'sub_type':'Event:location'}})
+
+    ## correct message
     all_msgs.append({'p1': {'room_name':'sga_A', 'playername':'p1', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
                  'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
                  'p3':{'room_name':'ew_A', 'playername':'p3', 'old_room_name':'sga_A', 'sub_type':'Event:location'}})
@@ -76,32 +82,43 @@ else:
 ####################  S T E P    T H R O U G H
 REPLAY = True
     
-for msgs in all_msgs:
-    logging.info('\n__________________________________________________N E W    S T E P')
+for step, msgs in enumerate(all_msgs):
+    logging.info('\n__________________________________________________N E W    S T E P %d' %(step))
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
     
-    # Print legal actions
-    for player_name, msg in msgs.items():
-        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
-        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
+#    # Print legal actions
+#    for player_name, msg in msgs.items():
+#        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
+#        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
     
     
     if REPLAY:
         actions = {}
-        any_none = False
+        teleported = []
+
+        ## For any player with an Event:location msg with empty old room, teleport to new room
+        for player_name, msg in msgs.items():
+            if (msg['sub_type'] == 'Event:location') and (msg['old_room_name'] == ''):
+                room = msg['room_name']
+                logging.warning('Teleporting %s to %s' %(player_name, room))
+                teleported.append(player_name)
+                conv.world.setFeature(stateKey(player_name, 'pLoc'), room, recurse=True)
+        
+        ## For players that were teleported, replace their msgs with noop actions
+        for tele_player in teleported:
+            msgs[tele_player] = {'playername':tele_player, 'sub_type':'noop'}
+            
         for player_name, msg in msgs.items():
             action_name = Msg2ActionEntry.get_action(msg)
+            ## If no psychsim action, inject a noop
             if action_name not in conv.actions[player_name]:
-                any_none = True
+                action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
                 logging.warning(f'Msg {msg} has no associated action')
             else:
                 logging.info(f'Player {player_name} does {action_name}')
-                action = conv.actions[player_name][action_name]
-                actions[player_name] = action
-        
-        if any_none:
-            input('cont..')
-            continue
+                
+            action = conv.actions[player_name][action_name]
+            actions[player_name] = action        
         
         conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
     else:

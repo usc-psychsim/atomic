@@ -9,12 +9,21 @@ from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from atomic.parsing.count_features import CountAction, CountPlayerDialogueEvents, CountRoleChanges, CountTriageInHallways, CountEnterExit
 
 THRESHOLD = 0
-#RDDL_FILE = '../data/rddl_psim/sar_v3_inst1.rddl'
-#RDDL_FILE = '../data/rddl_psim/sar_mv_tr_big.rddl'
-#RDDL_FILE = '../data/rddl_psim/mv_tr_tool_template_small.rddl'
-#RDDL_FILE = '../data/rddl_psim/mv_tr_tool_big.rddl'
-#RDDL_FILE = '../data/rddl_psim/vic_move_big.rddl'
-RDDL_FILE = '../data/rddl_psim/role_clpsd_map.rddl'
+
+####################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
+USE_COLLAPSED = True
+if USE_COLLAPSED:
+    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_fol.csv'
+    lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
+    RDDL_FILE = '../data/rddl_psim/role_clpsd_map.rddl'
+else:
+    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_small.csv'
+    lookup_aux_data_fname = None
+    RDDL_FILE = '../data/rddl_psim/role_big.rddl'
+    
+Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
+usable_msg_types = Msg2ActionEntry.get_msg_types()
+#
 
 #################  R D D L  2  P S Y C H S I M    W O R L D
 logging.root.setLevel(logging.INFO)
@@ -53,13 +62,6 @@ args = parser.parse_args()
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
-####################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
-
-json_msg_action_lookup_fname = '../data/rddl_psim/rddl2actions_fol.csv'
-lookup_aux_data_fname = '../maps/Saturn/rddl_clpsd_neighbors.csv'
-Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
-usable_msg_types = Msg2ActionEntry.get_msg_types()
-#
 ##################  M S G S
 ddir = '../data/ASU_DATA/'
 fname = ddir + 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
@@ -83,27 +85,43 @@ num = len(msg_qs.actions)
 for i, msgs in enumerate(msg_qs.actions):
     logging.info(f'\n__________________________________________________{i} out of {num}')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
+ 
     
+
     actions = {}
+    teleported = []
+
+    ## For any player with an Event:location msg with empty old room, teleport to new room
+    for player_name, msg in msgs.items():
+        if (msg['sub_type'] == 'Event:location') and (msg['old_room_name'] == ''):
+            room = msg['room_name']
+            logging.warning('Teleporting %s to %s' %(player_name, room))
+            teleported.append(player_name)
+            conv.world.setState(player_name, 'pLoc', room, recurse=True)
+    
+    ## For players that were teleported, replace their msgs with noop actions
+    for tele_player in teleported:
+        msgs[tele_player] = {'playername':tele_player, 'sub_type':'noop'}
+        
     for player_name, msg in msgs.items():
         action_name = Msg2ActionEntry.get_action(msg)
+        ## If no psychsim action, inject a noop
         if action_name not in conv.actions[player_name]:
+            action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
             logging.warning(f'Msg {msg} has no associated action')
-            action_name = '(noop, ' + player_name + ')'
-            if msg['sub_type'] == 'Event:location' and msg['old_room_name'] == '':
-                conv.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
         else:
-            logging.info(f'Msg {msg} becomes {action_name}')
+            logging.info(f'Player {player_name} does {action_name}')
             
         action = conv.actions[player_name][action_name]
-        actions[player_name] = action
+        actions[player_name] = action        
     
     conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
+
     conv.log_state(log_actions=args.log_actions)
-    if args.log_rewards:
-        for ag_name in conv.actions.keys():
-            _log_agent_reward(ag_name)
-    conv.verify_constraints()
+#    if args.log_rewards:
+#        for ag_name in conv.actions.keys():
+#            _log_agent_reward(ag_name)
+#    conv.verify_constraints()
     if  (i%2) == 0:
         input('cont..')
 
