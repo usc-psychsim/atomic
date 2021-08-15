@@ -219,7 +219,6 @@ class Replayer(object):
                 for name in players:
                     agent = self.world.agents[name]
                     agent.create_belief_state()
-                    agent.create_belief_state(model=zero_models[name])
                     agent.setAttribute('selection', 'distribution', zero_models[name])
                     agent.set_observations()
                 for name in players:
@@ -246,7 +245,12 @@ class Replayer(object):
     def replay(self, duration, logger):
         if isinstance(self.parser, MsgQCreator):
             num = len(self.parser.actions)
+            old_rooms = {}
+            new_rooms = {}
             for i, msgs in enumerate(self.parser.actions):
+                assert len(self.world.state) == 1
+                old_rooms.clear()
+                new_rooms.clear()
                 logger.info(f'Message {i} out of {num}')
                 debug = {ag_name: {} for ag_name in self.rddl_converter.actions}
                 
@@ -254,20 +258,47 @@ class Replayer(object):
                 any_none = False
                 for player_name, msg in msgs.items():
                     action_name = Msg2ActionEntry.get_action(msg)
+                    if msg.get('old_room_name', None) == '':
+                        logger.warning(f'Empty room in message {i} for player {player_name}')
+                        self.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
+                        msg['sub_type'] = 'noop'
                     if action_name not in self.rddl_converter.actions[player_name]:
                         any_none = True
-                        logger.warning(f'Msg {msg} has unknown action {action_name}')
+                        logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
                     else:
                         logger.info(f'Msg {msg} becomes {action_name}')
                         action = self.rddl_converter.actions[player_name][action_name]
                         actions[player_name] = action
-                
+                        if action not in self.world.agents[player_name].getLegalActions():
+                            logger.error(f'Action {action} in msg {i} is currently illegal')
+                    if 'old_room_name' in msg:
+                        old_rooms[player_name] = msg['old_room_name']
+                    if 'room_name' in msg:
+                        new_rooms[player_name] = msg['room_name']
                 if any_none:
                     continue
                 self.pre_step()
+                for name, models in self.world.get_current_models().items():
+                    for model in models:
+                        if model[-4:] == 'zero':
+                            assert self.world.agents[name].models[model]['beliefs'] == True
+                        else:
+                            beliefs = self.world.agents[name].models[model]['beliefs']
+                            for player_name, room in old_rooms.items():
+                                if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
+                                    logger.warning(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 self.world.step(actions, debug=debug)
-
+                logger.info(f'Completed step for message {i}')
                 self.post_step(actions, debug)
+                for name, models in self.world.get_current_models().items():
+                    for model in models:
+                        if model[-4:] == 'zero':
+                            assert self.world.agents[name].models[model]['beliefs'] == True
+                        else:
+                            beliefs = self.world.agents[name].models[model]['beliefs']
+                            for player_name, room in new_rooms.items():
+                                if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
+                                    logger.warning(f'After message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
         else:
             self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
 
