@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+import configparser
 import copy
 import csv
 import itertools
@@ -61,7 +62,7 @@ class Replayer(object):
     """
     OBSERVER = 'ATOMIC'
 
-    def __init__(self, files=[], maps=None, processor=None, rddl_file=None, action_file=None, feature_output=None, logger=logging):
+    def __init__(self, files=[], maps=None, processor=None, rddl_file=None, action_file=None, feature_output=None, aux_file=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
         self.processor = processor
@@ -69,7 +70,7 @@ class Replayer(object):
         self.rddl_file = rddl_file
         self.action_file = action_file
         if self.action_file:
-            Msg2ActionEntry.read_psysim_msg_conversion(self.action_file)
+            Msg2ActionEntry.read_psysim_msg_conversion(self.action_file, aux_file)
             self.msg_types = Msg2ActionEntry.get_msg_types()
         else:
             self.msg_types = None
@@ -271,6 +272,9 @@ class Replayer(object):
                         actions[player_name] = action
                         if action not in self.world.agents[player_name].getLegalActions():
                             logger.error(f'Action {action} in msg {i} is currently illegal')
+                            tree = self.world.agents[player_name].legal[action]
+                            for var in sorted(tree.getKeysIn()):
+                                logger.error(f'{var} = {self.world.getFeature(var, unique=True)}')
                     if 'old_room_name' in msg:
                         old_rooms[player_name] = msg['old_room_name']
                     if 'room_name' in msg:
@@ -288,6 +292,9 @@ class Replayer(object):
                                 if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
                                     logger.warning(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 self.world.step(actions, debug=debug)
+                if len(actions) < len(self.world.agents):
+                    logger.error(f'Missing action in msg {i} for {sorted(self.world.agents.keys()-actions.keys())}')
+                    break
                 logger.info(f'Completed step for message {i}')
                 self.post_step(actions, debug)
                 for name, models in self.world.get_current_models().items():
@@ -352,6 +359,7 @@ def find_trial(trial, log_dir):
 
 def replay_parser():
     parser = ArgumentParser()
+    parser.add_argument('--config', help='Config file specifying execution parameters')
     parser.add_argument('fname', nargs='+',
                         help='Log file(s) (or directory of log files) to process')
     parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
@@ -361,11 +369,14 @@ def replay_parser():
     parser.add_argument('--profile', action='store_true', help='Run profiler')
     parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
     parser.add_argument('--actions', help='Name of CSV file containing JSON to PsychSim action mapping')
+    parser.add_argument('--aux', help='Name of auxiliary CSV file for collapsed map')
     parser.add_argument('--feature_file', help='Destination of feature count output')
     return parser
 
 def parse_replay_args(parser):
     args = vars(parser.parse_args())
+    if args['config']:
+        args.update(parse_replay_config(args['config'], parser))
     # Extract logging level from command-line argument
     level = getattr(logging, args['debug'].upper(), None)
     if not isinstance(level, int):
@@ -373,8 +384,30 @@ def parse_replay_args(parser):
     logging.basicConfig(level=level)
     return args
 
+def parse_replay_config(fname, parser):
+    """
+    Extracts command-line arguments from an INI file (first argument)
+    """
+    config = configparser.ConfigParser()
+    config.read(fname)
+    if config.get('domain', 'language', fallback='RDDL') != 'RDDL':
+        raise ValueError(f'Unknown domain language: {config.get("domain", "language", fallback="RDDL")}')
+    root = os.path.join(os.path.dirname(__file__), '..', '..')
+    mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
+        'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
+    args = {}
+    for flag, entry in mapping.items():
+        default = parser.get_default(flag)
+        if isinstance(default, bool):
+            args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
+        elif isinstance(default, int):
+            args[flag] = config.getint(entry[0], entry[1], fallback=default)
+        else:
+            args[flag] = config.get(entry[0], entry[1], fallback=None)
+    return args
+
 if __name__ == '__main__':
     # Process command-line arguments
     args = parse_replay_args(replay_parser())
-    replayer = Replayer(args['fname'], get_default_maps(logging), None, args['rddl'], args['actions'], args['feature_file'], logging)
+    replayer = Replayer(args['fname'], get_default_maps(logging), None, args['rddl'], args['actions'], args['feature_file'], args['aux'], logging)
     replayer.parameterized_replay(args)
