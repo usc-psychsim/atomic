@@ -93,7 +93,7 @@ def checkSRMap(SRMap, logger=logging):
                 logger.warning("%s has neighbor mismatch with %s" % (x, n))
 
     # return True if no errors
-    logger.info("Check complete")
+    logger.debug("Check complete")
     return True
 
 
