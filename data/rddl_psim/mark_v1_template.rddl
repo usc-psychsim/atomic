@@ -17,9 +17,27 @@ domain mv_tr_v1 {
 		room_marker(loc) : {state-fluent, marker_type, default=@unmarked};
 		place_marker(agent) : { state-fluent, marker_type, default = @unmarked};
 
-		pLoc(agent, loc) : { state-fluent, bool, default = false };
-		move(agent, loc): { action-fluent, bool, default = false};
-		nbr(loc, loc)  : { non-fluent, bool, default = false };
+	    // neighbors (constants)
+	    NBR-0(loc) : { non-fluent, loc, default = null };
+	NBR-1(loc) : { non-fluent, loc, default = null };
+	NBR-2(loc) : { non-fluent, loc, default = null };
+	NBR-3(loc) : { non-fluent, loc, default = null };
+	NBR-6(loc) : { non-fluent, loc, default = null };
+	HAS-NBR-0(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-1(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-2(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-3(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-6(loc) : { non-fluent, bool, default = false };
+
+		// move actions
+		move-0(agent) : { action-fluent, bool, default = false};
+	move-1(agent) : { action-fluent, bool, default = false};
+	move-2(agent) : { action-fluent, bool, default = false};
+	move-3(agent) : { action-fluent, bool, default = false};
+	move-6(agent) : { action-fluent, bool, default = false};
+
+        // agent state
+	    pLoc(agent)         : { state-fluent, loc, default = null };
 
 		vcounter_saved_regular(loc): {state-fluent, int, default=0};
 		vcounter_unsaved_regular(loc): {state-fluent, int, default=0};
@@ -30,45 +48,54 @@ domain mv_tr_v1 {
 	};
   
 	cpfs {		
-		pLoc'(?p, ?lc) = 
-			if (move(?p, ?lc))
-				then KronDelta(true)
-			else if (triage_regular(?p))
-			    	then pLoc(?p, ?lc)
-			else if (noop(?p))
-			    	then pLoc(?p, ?lc)
-			else  KronDelta(false);
+	    pLoc'(?p) =
+	        if ( move-0(?p) ) then
+		NBR-0(pLoc(?p))
+		else 
+			if ( move-1(?p) ) then
+				NBR-1(pLoc(?p))
+		else 
+			if ( move-2(?p) ) then
+				NBR-2(pLoc(?p))
+		else 
+			if ( move-3(?p) ) then
+				NBR-3(pLoc(?p))
+		else 
+			if ( move-6(?p) ) then
+				NBR-6(pLoc(?p))
+		else 
+			pLoc(?p);
 
 		correct_sem'(?p) = correct_sem(?p);
 
 		place_marker'(?p) = 
-			if (exists_{?lc : loc} [pLoc(?p, ?lc) ^  (vcounter_unsaved_regular(?lc) > 0) ^ correct_sem(?p) ] )
+			if (exists_{?lc : loc} [(pLoc(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) > 0) ^ correct_sem(?p) ] )
 				then @regular_mark
-			else if (exists_{?lc : loc} [pLoc(?p, ?lc) ^  (vcounter_unsaved_regular(?lc) == 0) ^ correct_sem(?p) ] )
+			else if (exists_{?lc : loc} [(pLoc(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) == 0) ^ correct_sem(?p) ] )
 				then @none_mark
-			else if (exists_{?lc : loc} [pLoc(?p, ?lc) ^  (vcounter_unsaved_regular(?lc) > 0) ^ ~correct_sem(?p) ] )
+			else if (exists_{?lc : loc} [(pLoc(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) > 0) ^ ~correct_sem(?p) ] )
 				then @none_mark
-			else if (exists_{?lc : loc} [pLoc(?p, ?lc) ^  (vcounter_unsaved_regular(?lc) == 0) ^ ~correct_sem(?p) ] )
+			else if (exists_{?lc : loc} [(pLoc(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) == 0) ^ ~correct_sem(?p) ] )
 				then @regular_mark
 			else @unmarked;
 				
 
 		vcounter_unsaved_regular'(?lc) =
-			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+			if (  exists_{?p : agent} [ (pLoc(?p) == ?lc)^ triage_regular(?p)  ] )
 				then vcounter_unsaved_regular(?lc) - 1
 			else 
 				vcounter_unsaved_regular(?lc);
 
 		vcounter_saved_regular'(?lc) = 
-			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ triage_regular(?p)  ] )
+			if (  exists_{?p : agent} [ (pLoc(?p) == ?lc)^ triage_regular(?p)  ] )
 				then vcounter_saved_regular(?lc) + 1
 			else 
 				vcounter_saved_regular(?lc);
 
 		room_marker'(?lc) = 
-			if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ (place_marker(?p) == @regular_mark)  ] )
+			if (  exists_{?p : agent} [ (pLoc(?p) == ?lc)^ (place_marker(?p) == @regular_mark)  ] )
 				then @regular_mark
-			else if (  exists_{?p : agent} [ pLoc(?p, ?lc) ^ (place_marker(?p) == @none_mark)  ] )
+			else if (  exists_{?p : agent} [ (pLoc(?p) == ?lc)^ (place_marker(?p) == @none_mark)  ] )
 				then @none_mark
 			else
 				room_marker(?lc);
@@ -81,11 +108,17 @@ domain mv_tr_v1 {
 		;
 
 	state-action-constraints {
-		forall_{?p : agent, ?lc : loc} move(?p, ?lc) =>  exists_{?lc2 : loc} [pLoc(?p, ?lc2) ^ nbr(?lc2, ?lc) ] ;
+	    // to move through a portal, current loc has to have neighbor through that portal
+	    forall_{?p: agent} [ move-0(?p) => HAS-NBR-0(pLoc(?p)) ];
+	forall_{?p: agent} [ move-1(?p) => HAS-NBR-1(pLoc(?p)) ];
+	forall_{?p: agent} [ move-2(?p) => HAS-NBR-2(pLoc(?p)) ];
+	forall_{?p: agent} [ move-3(?p) => HAS-NBR-3(pLoc(?p)) ];
+	forall_{?p: agent} [ move-6(?p) => HAS-NBR-6(pLoc(?p)) ];
+
 
 	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
 	    forall_{?p : agent}
-		[ triage_regular(?p) => exists_{?lc : loc} [pLoc(?p, ?lc) ^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;
+		[ triage_regular(?p) => exists_{?lc : loc} [(pLoc(?p) == ?lc)^ (vcounter_unsaved_regular(?lc) > 0) ] ]  ;
 	};
 
 }
@@ -95,25 +128,33 @@ non-fluents mv_tr_v1_inst1{
 	domain = mv_tr_v1; 
 	objects { 
 		agent : {p1, p2};
-		loc : {loc11, loc12, loc13, loc14};
+		loc : {sga_A, sga_B, ew_A, el_A};
 	}; 
 	non-fluents {
-		nbr(loc11, loc12) = true;
-		nbr(loc12, loc11) = true;
-		nbr(loc12, loc13) = true;
-		nbr(loc13, loc12) = true;
-		nbr(loc13, loc14) = true;
-		nbr(loc14, loc13) = true;
+NBR-0(sga_A) = sga_B;
+HAS-NBR-0(sga_A) = true;
+NBR-1(sga_A) = ew_A;
+HAS-NBR-1(sga_A) = true;
+NBR-0(ew_A) = sga_A;
+HAS-NBR-0(ew_A) = true;
+NBR-1(ew_A) = el_A;
+HAS-NBR-1(ew_A) = true;
+NBR-0(sga_B) = sga_A;
+HAS-NBR-0(sga_B) = true;
+NBR-6(el_A) = ew_A;
+HAS-NBR-6(el_A) = true;
+
+
  	}; 
  }
 instance mv_tr_v1_inst1 { 
 	domain = mv_tr_v1; 
  	non-fluents = mv_tr_v1_inst1;
 	init-state { 
-		pLoc(p1,loc13) = true;
-		pLoc(p2,loc11) = true;
+		pLoc(p1) = el_A;
+		pLoc(p2) = sga_A;
+		vcounter_unsaved_regular(sga_B) = 2;
 
-		vcounter_unsaved_regular(loc14) = 2;
 	};
 	max-nondef-actions = 2;
 	horizon = 2;
