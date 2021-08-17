@@ -57,21 +57,19 @@ p2.create_belief_state()
 p2.set_fully_observable()
 
 p1_zero = p1.zero_level()
-p1.create_belief_state(model=p1_zero)
 p1.setAttribute('selection', 'distribution', p1_zero)
 p2_zero = p2.zero_level()
-p2.create_belief_state(model=p2_zero)
 p2.setAttribute('selection', 'distribution', p2_zero)
 
 conv.world.setModel(p2.name, p2_zero, p1.name, p1.get_true_model())
 conv.world.setModel(p1.name, p1_zero, p2.name, p2.get_true_model())
 
 beliefs = p1.getBelief(model=p1.get_true_model())
-print('===p1 initial belief\n', beliefs)
-#conv.world.printState(beliefs)
+print('===p1 initial belief')
+conv.world.printState(beliefs, beliefs=False)
 
 json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
-lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
+lookup_aux_data_fname = os.path.join(os.path.dirname(__file__), '..', 'maps', 'Saturn', 'rddl_clpsd_neighbors.csv')
 Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
 usable_msg_types = Msg2ActionEntry.get_msg_types()
 #
@@ -114,7 +112,6 @@ for i, msgs in enumerate(all_msgs):
         if any_none:
             input('cont..')
             continue
-        
         conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
     else:
         conv.world.step(debug=debug, threshold=args.threshold, select=args.select)
@@ -122,7 +119,8 @@ for i, msgs in enumerate(all_msgs):
     conv.log_state(log_actions=args.log_actions)
     
     beliefs = p1.getBelief(model=p1.get_true_model())
-    print('===p1 belief\n', beliefs)
+    print('===p1 belief')
+    conv.world.printState(beliefs, beliefs=False)
     
 #    print('rewards')
 #    for player_name, msg in msgs.items():
