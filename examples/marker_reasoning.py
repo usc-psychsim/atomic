@@ -67,45 +67,36 @@ conv.world.setModel(p2.name, p2_zero, p1.name, p1.get_true_model())
 conv.world.setModel(p1.name, p1_zero, p2.name, p2.get_true_model())
 
 beliefs = p1.getBelief(model=p1.get_true_model())
-#belief = next(iter(beliefs.values()))
-print('===p1 initial belief')
-conv.world.printState(beliefs)
+print('===p1 initial belief\n', beliefs)
+#conv.world.printState(beliefs)
 
-#print(conv.world.get_current_models(cycle_check=True))
-################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
-
-fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
-Msg2ActionEntry.read_psysim_msg_conversion(fname)
-
-#################  F A K E    M S G S
+json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
+lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
+Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
+usable_msg_types = Msg2ActionEntry.get_msg_types()
+#
+##################  F A K E    M S G S
 all_msgs = []
-all_msgs.append({'p1': {'room_name':'loc14', 'playername':'p1', 'sub_type':'Event:location'}, # from loc 13
-                 'p2':{'room_name':'loc12', 'playername':'p2', 'sub_type':'Event:location'}}) # from loc 11
+all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'el_A', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'sga_B', 'playername':'p2', 'old_room_name':'sga_A', 'sub_type':'Event:location'}})
 
+all_msgs.append({'p1': {'room_name':'el_A', 'playername':'p1', 'old_room_name':'ew_A', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}})
+    
 #    all_msgs.append({'p1': {'type':'Marker Block 1', 'playername':'p1', 'sub_type':'Event:MarkerPlaced'}, 
 #                 'p2':{'room_name':'loc12', 'playername':'p2', 'sub_type':'Event:location'}})
 
-
-#all_msgs.append({'p1': {'room_name':'tkt_4', 'playername':'p1', 'sub_type':'Event:Location'}, 
-#                 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}, 
-#                 'p3':{'room_name':'tkt_5', 'playername':'p3', 'sub_type':'Event:Location'}})
-#all_msgs.append({'p1': {'room_name':'tkt_1', 'playername':'p1', 'sub_type':'Event:Location'}, 
-#                 'p2':{'room_name':'tkt_4', 'playername':'p2', 'sub_type':'Event:Location'}, 
-#                 'p3':{'room_name':'tkt_4', 'playername':'p3', 'sub_type':'Event:Location'}})
-##all_msgs.append({'p1': {'room_name':'tkt_5', 'playername':'p1', 'sub_type':'Event:Triage', 'type':'REGULAR', 'triage_state':'SUCCESSFUL'}, 'p2':{'room_name':'tkt_5', 'playername':'p2', 'sub_type':'Event:Location'}})
-#
-#
-##################  S T E P    T H R O U G H
+###################  S T E P    T H R O U G H
 REPLAY = True
     
-for msgs in all_msgs:
-    logging.info('\n__________________________________________________')
+for i, msgs in enumerate(all_msgs):
+    logging.info(f'\n__________________________________________________{i}')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
     
     ## Print legal actions
-#    print('legal actions')
-#    for player_name, msg in msgs.items():
-#        print(conv.world.agents[player_name].getLegalActions())    
+    for player_name, msg in msgs.items():
+        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
+        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
     
     if REPLAY:
         actions = {}
@@ -129,9 +120,13 @@ for msgs in all_msgs:
         conv.world.step(debug=debug, threshold=args.threshold, select=args.select)
         
     conv.log_state(log_actions=args.log_actions)
-    print('rewards')
-    for player_name, msg in msgs.items():
-        print(conv.world.agents[player_name].reward())
+    
+    beliefs = p1.getBelief(model=p1.get_true_model())
+    print('===p1 belief\n', beliefs)
+    
+#    print('rewards')
+#    for player_name, msg in msgs.items():
+#        print(conv.world.agents[player_name].reward())
 
     conv.verify_constraints()
 
