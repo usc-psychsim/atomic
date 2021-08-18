@@ -1,26 +1,28 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 28 15:33:41 2021
-
 @author: E10849042
-
 Function to read a map_file (dictionary) and returns remapped locations after 
 grouping child_locations under a parent room according to
 a specified maximum connectivity limit.
-
 Usage: 
-
-  lookup_names, new_map, original_map = transformed_connections(map_file)
+  new_neighbors, new_connections, name_transformations, new_dict, original_dict = transformed_connections(map_file)
   
-** Original map is an optional output - to check the connectivity in the input map file.   
 ** Required arguments: 
      map_file -- input map file dictionary
-
-
+     
+Outputs:
+  >> new_neighbors : List of new neighbors after map transformation
+  >> new_connections : List of mew connections after map transformation
+  >> name_transformations : Dictionary for looking up the name transformations from old to new locations
+  >> new_dict : Dictionary of new locations, and the grouping of the original locations to form the new locations
+  >> original_dict: Optional output - to check the connectivity in the input map file.  
+  
 """
 
 
 import re
+partition_hallways = 1 # Flag for partitioning hallways. Set 0 if hallways do not need to be partitioned.
 
 def transformed_connections(input_map):
   
@@ -83,7 +85,7 @@ def transformed_connections(input_map):
        
   sum_connection = 0
   count = 0
-  conn_thresh = 14 # maximum number of connections to look for combining
+  conn_thresh = 4 # maximum number of connections to look for combining
   
   
   for k in range(len(original_dict["original_locations"])):
@@ -149,5 +151,179 @@ def transformed_connections(input_map):
       [name_transformations[new_dict["neighbors"][k][j]],new_dict["new_locations"][k]] not in new_connections:
         new_connections.append([new_dict["new_locations"][k],name_transformations[new_dict["neighbors"][k][j]]])
   
+  new_neighbors = [[] for _ in range(len(new_dict["neighbors"]))]
+  for k in range(len(new_dict["neighbors"])):
+    for j in range(len(new_dict["neighbors"][k])):
+      if name_transformations[new_dict["neighbors"][k][j]] not in new_neighbors[k]:
+        new_neighbors[k].append(name_transformations[new_dict["neighbors"][k][j]])
+  
+  
+  ################ Breaking down hallways manually ######################
 
-  return  new_connections, name_transformations, new_dict, original_dict
+# ***NOTE: The following manual breaking down of hallways is based on the assumption that conn_thresh = 4
+# **** If a different threshold of maximum connectivity is chosen, the following will not work, and again a manual 
+# breaking down of the hallways may be required, depending on conn_thresh value
+
+#########################################################################
+  if conn_thresh == 4:
+    print ('Hallways partitioned along with grouping child locations')
+    #---------------------------------------------------------------#
+    # Breaking down 'Conference Corridor West <ccw>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("ccw")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("ccw")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("ccw")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("ccw")])
+    
+    new_dict["new_locations"].append('ccw_A')
+    new_dict["neighbors"].append(['mcw', 'oba_3', 'cf_2'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('ccw_B')
+    new_dict["neighbors"].append(['lib_3', 'rrc', 'jc_2', 'crc'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('ccw_C')
+    new_dict["neighbors"].append(['kco_12', 'ccn'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Conference Corridor East <cce>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("cce")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("cce")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("cce")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("cce")])
+    
+    
+    new_dict["new_locations"].append('cce_A')
+    new_dict["neighbors"].append(['mcw', 'r110_6', 'cf_8', 'r109_7'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('cce_B')
+    new_dict["neighbors"].append(['rrc', 'r108_6', 'r107_6'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('cce_C')
+    new_dict["neighbors"].append(['crc', 'r106_8', 'r105_7', 'r104_6'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('cce_D')
+    new_dict["neighbors"].append(['ccn', 'r103_5', 'r102_4'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Main Corridor West <mcw>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("mcw")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("mcw")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("mcw")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("mcw")])
+    
+    
+    new_dict["new_locations"].append('mcw_A')
+    new_dict["neighbors"].append(['so', 'ccw', 'cce', 'ca_7'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('mcw_B')
+    new_dict["neighbors"].append(['ca_5', 'el_3'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Main Corridor East <mce>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("mce")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("mce")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("mce")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("mce")])
+    
+    
+    new_dict["new_locations"].append('mce_A')
+    new_dict["neighbors"].append(['el_3', 'sdc_22', 'scw', 'scc'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('mce_B')
+    new_dict["neighbors"].append(['sce'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Storage Corridor West <scw>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("scw")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("scw")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("scw")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("scw")])
+    
+    new_dict["new_locations"].append('scw_A')
+    new_dict["neighbors"].append(['mce', 'sra', 'sri'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('scw_B')
+    new_dict["neighbors"].append(['src', 'srj','srk','sre'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('scw_C')
+    new_dict["neighbors"].append(['srg', 'srl', 'scn_2'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Storage Corridor Center <scc>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("scc")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("scc")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("scc")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("scc")])
+    
+    new_dict["new_locations"].append('scc_A')
+    new_dict["neighbors"].append(['mce', 'srm_2', 'srq', 'srn_2'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('scc_B')
+    new_dict["neighbors"].append(['srr', 'sro_2','srp_2','srs'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('scc_C')
+    new_dict["neighbors"].append(['scn_4'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    
+    #---------------------------------------------------------------#
+    # Breaking down 'Storage Corridor East <sce>'
+    #---------------------------------------------------------------#
+    del new_neighbors[new_dict["new_locations"].index("sce")]
+    del (new_dict["neighbors"][new_dict["new_locations"].index("sce")])
+    del (new_dict["grouped_original_locations"][new_dict["new_locations"].index("sce")])
+    del (new_dict["new_locations"][new_dict["new_locations"].index("sce")])
+    
+    new_dict["new_locations"].append('sce_A')
+    new_dict["neighbors"].append(['mce', 'srt', 'sru', 'srv'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+    new_dict["new_locations"].append('sce_B')
+    new_dict["neighbors"].append(['scn_1'])
+    new_neighbors.append([name_transformations[new_dict["neighbors"][-1][k]] for k in range(len(new_dict["neighbors"][-1]))])
+    
+
+
+    #---------------------------------------------------------------#
+    # Modifying the list of new connections
+    #---------------------------------------------------------------#
+    connections_to_remove = []
+    for k in range(len(new_connections)):
+      if any (name in new_connections[k] for name in ['ccw', 'cce', 'mcw', 'mce', 'scw', 'scc', 'sce']):
+        connections_to_remove.append(k)
+    
+    new_connections = [i for j, i in enumerate(new_connections) if j not in connections_to_remove]
+    
+    ind_start_hallway_partition = new_dict["new_locations"].index("ccw_A") # First hallway to be broken down is <ccw>
+    
+    for k in range(ind_start_hallway_partition, len(new_dict["new_locations"])): 
+      for j in range((len(new_neighbors[k]))):
+        if new_dict["new_locations"][k] != new_neighbors[k][j] and \
+        [new_dict["new_locations"][k],new_neighbors[k][j]] not in new_connections and \
+        [new_neighbors[k][j],new_dict["new_locations"][k]] not in new_connections:
+          new_connections.append([new_dict["new_locations"][k],new_neighbors[k][j]])
+  
+  return  new_neighbors, new_connections, name_transformations, new_dict, original_dict
