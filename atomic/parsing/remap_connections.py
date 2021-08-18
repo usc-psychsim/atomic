@@ -165,7 +165,7 @@ def transformed_connections(input_map):
 # breaking down of the hallways may be required, depending on conn_thresh value
 
 #########################################################################
-  if conn_thresh == 4:
+  if partition_hallways == 1 and conn_thresh == 4:
     print ('Hallways partitioned along with grouping child locations')
     #---------------------------------------------------------------#
     # Breaking down 'Conference Corridor West <ccw>'
