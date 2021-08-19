@@ -269,7 +269,7 @@ def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
         df.to_csv(file_path, index=False)
 
         return features
-    except (KeyError, AttributeError, ValueError, UnboundLocalError) as e:
+    except (KeyError, AttributeError, ValueError, UnboundLocalError, IndexError) as e:
         logging.info(f'Could not process log file {log_file}, {e}!')
         return None
 
