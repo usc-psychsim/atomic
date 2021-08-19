@@ -22,7 +22,7 @@ Outputs:
 
 
 import re
-partition_hallways = 1 # Flag for partitioning hallways. Set 0 if hallways do not need to be partitioned.
+partition_hallways = 0 # Flag for partitioning hallways. Set 0 if hallways do not need to be partitioned.
 
 def transformed_connections(input_map):
   
@@ -326,4 +326,4 @@ def transformed_connections(input_map):
         [new_neighbors[k][j],new_dict["new_locations"][k]] not in new_connections:
           new_connections.append([new_dict["new_locations"][k],new_neighbors[k][j]])
   
-  return  new_neighbors, new_connections, name_transformations, new_dict, original_dict
+  return  new_connections, name_transformations, new_dict, original_dict
