@@ -1,11 +1,14 @@
+import configparser
+import copy
 import cProfile
 import csv
 from datetime import datetime
 import itertools
 import json
-import os.path
 import logging
+import os.path
 import pytz
+import traceback
 from argparse import ArgumentParser
 
 import numpy as np
@@ -17,7 +20,7 @@ from psychsim.pwl import WORLD, modelKey, stateKey
 from atomic.parsing import ParsingProcessor
 from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
-from atomic.inference import make_observer, set_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.inference import make_observer, create_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
 
 
 def plot_data(data, color_field, title):
@@ -34,6 +37,111 @@ class AnalysisParseProcessor(ParsingProcessor):
         self.prediction_data = []
         self.models = set()
         self.expectation = None
+ 
+    def post_step(self, world, act):
+        t = world.getState(WORLD, 'seconds', unique=True)
+        if len(self.model_data) == 0 or self.model_data[-1]['Timestep'] != t:
+            # Haven't made some inference for this timestep (maybe wait until last one?)
+            player_name = self.parser.player_name()
+            player = world.agents[player_name]
+            agent = world.agents['ATOMIC']
+            # Store beliefs over player models
+            beliefs = agent.getBelief()
+            if len(beliefs) > 1:
+                raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
+            beliefs = next(iter(beliefs.values()))
+            player_model = world.getFeature(modelKey(player_name), beliefs)
+            for model in player_model.domain():
+                entry = {'Timestep': t, 'Belief': player_model[model]}
+                # Find root model (i.e., remove the auto-generated numbers from the name)
+                while player.models[player.models[model]['parent']]['parent'] is not None:
+                    model = player.models[model]['parent']
+                entry['Model'] = model[len(player_name) + 1:]
+                self.model_data.append(entry)
+            if self.condition_dist:
+                condition_dist = Distribution()
+                for model, model_prob in player_model.items():
+                    for condition, condition_prob in self.condition_dist[model_to_cluster(model)].items():
+                        condition_dist.addProb(condition, model_prob*condition_prob)
+                condition_dist.normalize()
+                for condition, condition_prob in condition_dist.items():
+                    self.condition_data.append({'Timestep': t, 'Belief': condition_prob, 'Condition': condition})
+
+
+class Analyzer(Replayer):
+
+    def __init__(self, files=[], maps=None, models=None, ignore_models=[], mission_times={}, 
+            rddl_file=None, action_file=None, feature_output=None, aux_file=None, logger=logging):
+        super().__init__(files, maps, None, rddl_file, action_file, feature_output, aux_file, logger)
+
+        self.models = None
+        self.model_list = []
+        self.player_models = None
+        self.observer = None
+        self.model_data = []
+        self.condition_data = []
+        self.prediction_data = []
+        self.mission_times = mission_times
+        self.decisions = {}
+        self.stats = {}
+        self.data = []
+        self.data_fields = None
+
+    def pre_replay(self, config=None, logger=logging):
+        result = super().pre_replay(logger)
+        if result is not True:
+            # Failed
+            return result
+        try:
+            if config: 
+                self.player_models = self.configure_models(config)
+                self.stats = {name: {} for name in self.player_models}
+        except:
+            logger.error('Unable to create player models')
+            logger.error(traceback.format_exc())
+            return False
+        return True
+
+    def pre_step(self):
+        super().pre_step()
+        self.previous = copy.deepcopy(self.world.state)
+#        for name, models in self.player_models.items():
+#            self.decisions[name] = {}
+#            for model in models:
+#                print(f'Predicting: {model['name']}')
+#                decision = self.world.agents[name].decide(model=model['name'])
+#                self.decisions[name][model['name']] = decision
+
+    def post_step(self, actions, debug):
+        super().post_step(actions, debug)
+        for name, models in self.player_models.items():
+            for model in models:
+                record = {'Player': name}
+                agent = self.world.agents[name]
+                record.update(agent.models[model['name']]['parameters'])
+                record['V'] = agent.value(agent.getBelief(self.previous, model['name']), actions[name], model['name'])['__EV__']
+                self.data.append(record)
+                if self.data_fields is None:
+                    self.data_fields = list(record.keys())
+
+    def post_replay(self):
+        super().post_replay()
+        with open(self.parser.filename.replace('.metadata','_models.tsv'), 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, self.data_fields, delimiter='\t')
+            writer.writeheader()
+            for entry in self.data:
+                writer.writerow(entry)
+#        self.draw_plot()
+
+    def configure_models(self, fname):
+        config = configparser.ConfigParser()
+        config.read(fname)
+        models = {key: json.loads(values) for key, values in config.items('models')}
+
+        self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
+                           for value in itertools.product(*models.values()) if len(value) > 0]
+        self.models = models
+        return create_player_models(self.world, {player_name: self.model_list[:] for player_name in self.parser.agentToPlayer})
 
     def draw_plot(self):
         name = os.path.splitext(os.path.basename(self.parser.filename))[0]
@@ -89,147 +197,6 @@ class AnalysisParseProcessor(ParsingProcessor):
                 prediction = prediction.__class__({color: prob+next_seen[color]*player_model_prob
                     for color, prob in prediction.items()})
         return prediction
- 
-    def pre_replay(self, logger=logging):
-        result = super.pre_replay(logger)
-        if result is not True:
-            # Failed
-            return result
-        try:
-            if self.rddl_file:
-                # Team mission
-                self.observer = make_observer(self.world, self.parser.players)
-            else:
-                self.observer = None
-        except:
-            logger.error('Unable to create ATOMIC agent')
-            logger.error(traceback.format_exc())
-            return False
-        # Last-minute filling in of models. Would do it earlier if we extracted triage_agent's name
-        features = None
-        self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
-                           for value in itertools.product(*self.models.values()) if len(value) > 0]
-        for player in self.parser.players:
-            for index, model in enumerate(self.model_list):
-                model = copy.deepcopy(model)
-                model['name'] = '{}_{}'.format(player, '_'.join([model[dimension] for dimension in self.models]))
-                for dimension in self.models:
-                    model[dimension] = self.models[dimension][model[dimension]]
-                    if dimension == 'reward':
-                        if not isinstance(model[dimension], dict):
-                            if features is None:
-                                import atomic.model_learning.linear.rewards as rewards
-                                features = rewards.create_reward_vector(
-                                    self.world.agents[player], self.world_map.all_locations,
-                                    self.world_map.moveActions[player])
-                            model[dimension] = {feature: model[dimension][i] for i, feature in enumerate(features)}
-#        if len(self.model_list) > 0:
-#            set_player_models(self.world, self.observer.name, self.triage_agent.name, self.victims, self.model_list)
-        #        self.parser.victimsObj = self.victims
-        return True
-
-    def pre_step(self, world, log_entry=None):
-        if log_entry is None:
-            t = world.getState(WORLD, 'seconds', unique=True)
-        else:
-            t = log_entry[2]
-#        if len(self.prediction_data) == 0 or self.prediction_data[-1]['Timestep'] != t:
-#            # No prediction for this timestep yet
-#            for color, prob in self.next_victim(world).items():
-#                entry = {'Timestep': t, 'Belief': prob, 'Color': color}
-#                self.prediction_data.append(entry)
-
-    def post_step(self, world, act):
-        t = world.getState(WORLD, 'seconds', unique=True)
-        if len(self.model_data) == 0 or self.model_data[-1]['Timestep'] != t:
-            # Haven't made some inference for this timestep (maybe wait until last one?)
-            player_name = self.parser.player_name()
-            player = world.agents[player_name]
-            agent = world.agents['ATOMIC']
-            # Store beliefs over player models
-            beliefs = agent.getBelief()
-            if len(beliefs) > 1:
-                raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
-            beliefs = next(iter(beliefs.values()))
-            player_model = world.getFeature(modelKey(player_name), beliefs)
-            for model in player_model.domain():
-                entry = {'Timestep': t, 'Belief': player_model[model]}
-                # Find root model (i.e., remove the auto-generated numbers from the name)
-                while player.models[player.models[model]['parent']]['parent'] is not None:
-                    model = player.models[model]['parent']
-                entry['Model'] = model[len(player_name) + 1:]
-                self.model_data.append(entry)
-            if self.condition_dist:
-                condition_dist = Distribution()
-                for model, model_prob in player_model.items():
-                    for condition, condition_prob in self.condition_dist[model_to_cluster(model)].items():
-                        condition_dist.addProb(condition, model_prob*condition_prob)
-                condition_dist.normalize()
-                for condition, condition_prob in condition_dist.items():
-                    self.condition_data.append({'Timestep': t, 'Belief': condition_prob, 'Condition': condition})
-
-
-class Analyzer(Replayer):
-
-    def __init__(self, files=[], maps=None, models=None, ignore_models=None, mission_times={}, 
-            rddl_file=None, action_file=None, feature_output=None, logger=logging):
-        super().__init__(files, maps, AnalysisParseProcessor(), 
-            rddl_file, action_file, feature_output, logger)
-
-        self.mission_times = mission_times
-
-        # Set player models for observer agent
-        if models is None:
-            models = DEFAULT_MODELS
-        if ignore_models is None:
-            ignore_models = DEFAULT_IGNORE
-        for dimension, entries in models.items():
-            if dimension in ignore_models:
-                first = True
-                for key in list(entries.keys()):
-                    if first:
-                        first = False
-                    else:
-                        del entries[key]
-        self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
-                           for value in itertools.product(*models.values()) if len(value) > 0]
-        self.models = models
-        self.decisions = {}
-
-    def pre_step(self):
-        pass
-#        self.decisions = {name: self.world.agents[name].decide() for name in self.parser.agentToPlayer}
-
-    def post_step(self, actions, debug):
-        pass
-
-    def post_replay(self):
-        for data_type, data in {'models': self.processor.model_data, 'conditions': self.processor.condition_data,
-            'predictions': self.processor.prediction_data}.items():
-            for entry in data:
-                now = entry['Timestep'].to_pydatetime()
-                epsilon = 1
-                while epsilon > 0:
-                    for t in self.mission_times:
-                        if abs(now - t).total_seconds() < epsilon:
-                            break
-                    else:
-                        # Didn't find a mathing time, so let's be more forgiving
-                        epsilon += 1
-                        continue
-                    epsilon = 0
-                minutes, seconds = self.mission_times[t]
-                assert minutes < 10
-                if data is self.processor.prediction_data and minutes < 5:
-                    entry['Belief'] = 1 if entry['Color'] == 'Green' else 0
-                entry['Timestep'] = (9-minutes)*60 + (60-seconds)
-            if data:
-                with open(self.parser.filename.replace('.csv','_Analysis-{}.tsv'.format(data_type)), 'w') as csvfile:
-                    writer = csv.DictWriter(csvfile, data[0].keys(), delimiter='\t')
-                    writer.writeheader()
-                    for entry in data:
-                        writer.writerow(entry)
-        self.processor.draw_plot()
 
 def load_clusters(fname):
     ignore = {'Cluster', 'Player name', 'Filename'}
@@ -278,24 +245,9 @@ def model_to_cluster(model):
 if __name__ == '__main__':
     # Process command-line arguments
     parser = replay_parser()
-    parser.add_argument('--ignore_reward', action='store_true', help='Do not consider alternate reward functions')
-    parser.add_argument('--ignore_rationality', action='store_true', help='Do not consider alternate skill levels')
-    parser.add_argument('--ignore_horizon', action='store_true', help='Do not consider alternate horizons')
     parser.add_argument('--reward_file', help='Name of CSV file containing alternate reward functions')
-    parser.add_argument('--metadata', help='Name of JSON file containing raw game log for this trial')
     parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
     args = parse_replay_args(parser)
-    # Look for reward file
-    ignore = [dimension for dimension in DEFAULT_MODELS if args['ignore_{}'.format(dimension)]]
-    mission_times = {}
-    if args['metadata']:
-        with open(args['metadata'], 'r') as log_file:
-            for line in log_file:
-                entry = json.loads(line)
-                if 'mission_timer' in entry['data'] and entry['data']['mission_timer'] != 'Mission Timer not initialized.':
-                    minutes, seconds = [int(value) for value in entry['data']['mission_timer'].split(':')]
-                    timestamp = pytz.utc.localize(datetime.fromisoformat(entry['@timestamp'][:-1]))
-                    mission_times[timestamp] = (minutes, seconds)
     if args['clusters']:
         import atomic.model_learning.linear.post_process.clustering as clustering
 
@@ -306,6 +258,5 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], get_default_maps(logging), DEFAULT_MODELS, ignore, mission_times, 
-        args['rddl'], args['actions'], args['feature_file'], logging)
+    replayer = Analyzer(args['fname'], rddl_file=args['rddl'], action_file=args['actions'], feature_output=args['feature_file'], aux_file=args['aux'], logger=logging)
     replayer.parameterized_replay(args)
