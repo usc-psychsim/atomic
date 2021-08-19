@@ -112,7 +112,7 @@ class Replayer(object):
         logger.error('Unable to find matching map')
         return None, None
 
-    def process_files(self, num_steps=0, fname=None):
+    def process_files(self, num_steps=0, config=None, fname=None):
         """
         :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
         :type num_steps: int
@@ -155,7 +155,7 @@ class Replayer(object):
             if self.processor is not None:
                 self.processor.parser = self.parser
 
-            if not self.pre_replay(logger=logger.getChild('pre_replay')):
+            if not self.pre_replay(config, logger=logger.getChild('pre_replay')):
                 # Failure in creating world
                 continue
 
@@ -174,7 +174,7 @@ class Replayer(object):
                 self.replay(last, logger)
             except:
                 logger.error(traceback.format_exc())
-                logger.error('Unable to complete re-simulation')
+                logger.error(f'Re-simulation exited on message {self.t}')
             self.post_replay()
             if self.world_map: self.world_map.clear()
         if self.feature_output:
@@ -189,7 +189,7 @@ class Replayer(object):
                     row.update(filename_to_condition(row['File']))
                     writer.writerow(row)
 
-    def pre_replay(self, logger=logging):
+    def pre_replay(self, config=None, logger=logging):
         # Create PsychSim model
         logger.info('Creating world')
 
@@ -219,13 +219,14 @@ class Replayer(object):
                 zero_models = {name: self.world.agents[name].zero_level() for name in players}
                 for name in players:
                     agent = self.world.agents[name]
-                    agent.create_belief_state()
+                    agent.setAttribute('static', True, agent.get_true_model())
+#                    agent.create_belief_state()
                     agent.setAttribute('selection', 'distribution', zero_models[name])
-                    agent.set_observations()
-                for name in players:
-                    for other_name in players-{name}:
-                        other_agent = self.world.agents[other_name]
-                        self.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
+#                    agent.set_observations()
+#                for name in players:
+#                    for other_name in players-{name}:
+#                        other_agent = self.world.agents[other_name]
+#                        self.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
 
             elif self.feature_output is None:
                 # Solo mission
@@ -249,11 +250,14 @@ class Replayer(object):
             old_rooms = {}
             new_rooms = {}
             for i, msgs in enumerate(self.parser.actions):
+                self.t = i
+                if i > duration:
+                    break
                 assert len(self.world.state) == 1
                 old_rooms.clear()
                 new_rooms.clear()
                 logger.info(f'Message {i} out of {num}')
-                debug = {ag_name: {} for ag_name in self.rddl_converter.actions}
+                debug = {ag_name: {'preserve_states': True} for ag_name in self.rddl_converter.actions}
                 
                 actions = {}
                 any_none = False
@@ -263,6 +267,11 @@ class Replayer(object):
                         logger.warning(f'Empty room in message {i} for player {player_name}')
                         self.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
                         msg['sub_type'] = 'noop'
+                        for name, models in self.world.get_current_models().items():
+                            for model in models:
+                                beliefs = self.world.agents[name].getAttribute('beliefs', model)
+                                if beliefs is not True:
+                                    assert self.world.getState(player_name, 'pLoc', beliefs, True) == msg['room_name']
                     if action_name not in self.rddl_converter.actions[player_name]:
                         any_none = True
                         logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
@@ -279,33 +288,29 @@ class Replayer(object):
                         old_rooms[player_name] = msg['old_room_name']
                     if 'room_name' in msg:
                         new_rooms[player_name] = msg['room_name']
+                for name, models in self.world.get_current_models().items():
+                    for model in models:
+                        beliefs = self.world.agents[name].getAttribute('beliefs', model)
+                        if beliefs is not True:
+                            for player_name, room in old_rooms.items():
+                                if room and self.world.getState(player_name, 'pLoc', beliefs, True) != room:
+                                    raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 if any_none:
                     continue
                 self.pre_step()
-                for name, models in self.world.get_current_models().items():
-                    for model in models:
-                        if model[-4:] == 'zero':
-                            assert self.world.agents[name].models[model]['beliefs'] == True
-                        else:
-                            beliefs = self.world.agents[name].models[model]['beliefs']
-                            for player_name, room in old_rooms.items():
-                                if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
-                                    logger.warning(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 self.world.step(actions, debug=debug)
-                if len(actions) < len(self.world.agents):
-                    logger.error(f'Missing action in msg {i} for {sorted(self.world.agents.keys()-actions.keys())}')
+                if len(actions) < len(self.parser.agentToPlayer):
+                    logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
                     break
                 logger.info(f'Completed step for message {i}')
                 self.post_step(actions, debug)
                 for name, models in self.world.get_current_models().items():
                     for model in models:
-                        if model[-4:] == 'zero':
-                            assert self.world.agents[name].models[model]['beliefs'] == True
-                        else:
-                            beliefs = self.world.agents[name].models[model]['beliefs']
+                        beliefs = self.world.agents[name].getAttribute('beliefs', model)
+                        if beliefs is not True:
                             for player_name, room in new_rooms.items():
                                 if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
-                                    logger.warning(f'After message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
+                                        raise ValueError(f'After message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
         else:
             self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
 
@@ -325,9 +330,9 @@ class Replayer(object):
         if args['profile']:
             return cProfile.run('self.process_files(args["number"])', sort=1)
         elif args['1']:
-            return self.process_files(args['number'], replayer.files[0])
+            return self.process_files(args['number'], args['config'], replayer.files[0])
         else:
-            return self.process_files(args['number'])
+            return self.process_files(args['number'], args['config'])
 
 def filename_to_condition(fname):
     """
