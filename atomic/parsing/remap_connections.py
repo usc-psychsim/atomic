@@ -12,7 +12,6 @@ Usage:
      map_file -- input map file dictionary
      
 Outputs:
-  >> new_neighbors : List of new neighbors after map transformation
   >> new_connections : List of mew connections after map transformation
   >> name_transformations : Dictionary for looking up the name transformations from old to new locations
   >> new_dict : Dictionary of new locations, and the grouping of the original locations to form the new locations
@@ -85,7 +84,7 @@ def transformed_connections(input_map):
        
   sum_connection = 0
   count = 0
-  conn_thresh = 4 # maximum number of connections to look for combining
+  conn_thresh = 14 # maximum number of connections to look for combining
   
   
   for k in range(len(original_dict["original_locations"])):
