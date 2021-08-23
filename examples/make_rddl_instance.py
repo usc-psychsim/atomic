@@ -13,8 +13,6 @@ from atomic.parsing.map_parser import read_semantic_map
 from atomic.parsing.remap_connections import transformed_connections
 
 
-# with open('../data/rddl_psim/victims.pickle', 'wb') as f:
-#    pickle.dump(msg_qs.jsonParser.vList, f)
 
 def generate_rddl_map(rooms, edges):
     nbr_str = ''
@@ -179,5 +177,5 @@ if __name__ == '__main__':
             
     make_rddl_inst_fol(edges, room_name_lookup, 
                        '../data/rddl_psim/role_fol_template.rddl',
-                       '../data/rddl_psim/role_clpsd_map.rddl',
+                       '../data/rddl_psim/role_clpsd_map_v2.rddl',
                        '../maps/Saturn/rddl_clpsd_neighbors.csv')
