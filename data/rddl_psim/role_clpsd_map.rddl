@@ -677,9 +677,9 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1;
  	non-fluents = mv_tr_v1_inst1;
 	init-state {
-		pLoc(p1) = el; //el_3;
-		pLoc(p2) = el; //el_3;
-		pLoc(p3) = el; //el_3;
+		pLoc(p1) = tkt_A; 
+		pLoc(p2) = tkt_A; 
+		pLoc(p3) = tkt_A; 
 		vcounter_unsaved_critical(r103_A) = 1;
 vcounter_unsaved_critical(srp_A) = 1;
 vcounter_unsaved_critical(sdc_A) = 1;

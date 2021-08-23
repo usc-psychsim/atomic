@@ -152,6 +152,7 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
     df.to_csv(map_out_csv)
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
+    init_loc = list(neighbors.keys())[0]
     vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
     nbr_consts, move_vars, move_dyn, move_pre_cond = generate_rddl_move_actions(neighbors)
 
@@ -160,7 +161,7 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
     rddl_str = rddl_temp_file.read()
     rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
         replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
-        replace('MOVE_PRE_COND', move_pre_cond)
+        replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
 
     rddl_inst_file = open(rddl_out, "w")
     rddl_inst_file.write(rddl_str)
