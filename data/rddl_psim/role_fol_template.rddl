@@ -150,9 +150,9 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1;
  	non-fluents = mv_tr_v1_inst1;
 	init-state {
-		pLoc(p1) = el; //el_3;
-		pLoc(p2) = el; //el_3;
-		pLoc(p3) = el; //el_3;
+		pLoc(p1) = LOC0; 
+		pLoc(p2) = LOC0; 
+		pLoc(p3) = LOC0; 
 		VICSTR
 	};
 	max-nondef-actions = 3;

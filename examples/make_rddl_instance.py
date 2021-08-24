@@ -12,9 +12,9 @@ import json
 from atomic.parsing.map_parser import read_semantic_map
 from atomic.parsing.remap_connections import transformed_connections
 
-
-# with open('../data/rddl_psim/victims.pickle', 'wb') as f:
-#    pickle.dump(msg_qs.jsonParser.vList, f)
+SIMPLE_COLLAPSE = 0
+MAX_NBR_COLLAPSE = 1
+NO_COLLAPSE = 2
 
 def generate_rddl_map(rooms, edges):
     nbr_str = ''
@@ -34,8 +34,7 @@ def generate_rddl_map_portals(neighbors):
     return loc_str, nbr_str
 
 
-def generate_rddl_victims(victim_pickle, rooms, room_name_lookup, 
-                       naive_collapse = False):
+def generate_rddl_victims(victim_pickle, rooms, room_name_lookup, collapse_method):
     with open(victim_pickle, 'rb') as f:
         vList = pickle.load(f)
 
@@ -44,19 +43,25 @@ def generate_rddl_victims(victim_pickle, rooms, room_name_lookup,
 
     for vic in vList:
         rm = vic['room_name']
-        if naive_collapse :
+        if collapse_method == SIMPLE_COLLAPSE:
             rm = rm.split('_')[0]
+            
         if rm == '':
             print('WARNING: victim in empty room', vic)
             continue
-        if rm not in room_name_lookup.keys():
-            print('WARNING: victim in room without a new name', vic)
-            continue
-        rm = room_name_lookup[rm]
+        
+        if collapse_method == SIMPLE_COLLAPSE:
+            if rm not in room_name_lookup.keys():
+                print('WARNING: victim in room without a new name', vic)
+                continue
+            rm = room_name_lookup[rm]
+            
         if rm not in rooms:
             print('WARNING: victim in unknown room', rm)
             continue
+        
         if vic['block_type'] == 'critical':
+            print(vic)
             d = crit_dict
         else:
             d = reg_dict
@@ -110,18 +115,17 @@ def make_rddl_inst(rooms, edges,
     rddl_inst_file.close()
 
 
-def make_rddl_inst_fol(edges, room_name_lookup, 
+def make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
                        rddl_template,
                        rddl_out,
                        map_out_csv,
-                       naive_collapse = False,
                        victim_pickle='../data/rddl_psim/victims.pickle'):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
     neighbors = {}
     for r1, r2 in edges:
-        if naive_collapse:
+        if collapse_method == SIMPLE_COLLAPSE:
             r1 = r1.split('_')[0]
             r2 = r2.split('_')[0]
             if r1 == r2:
@@ -133,8 +137,12 @@ def make_rddl_inst_fol(edges, room_name_lookup,
             neighbors[r2] = set()
         if len(neighbors[r1]) < MAX_NBRS:
             neighbors[r1].add(r2)
+        else:
+            print('WARNING: throwing away edge from', r1, 'to', r2)
         if len(neighbors[r2]) < MAX_NBRS:
              neighbors[r2].add(r1)
+        else:
+            print('WARNING: throwing away edge from', r2, 'to', r1)
 
     max_nbr = max([len(nbrs) for nbrs in neighbors.values()])
     print('Maximum number of neighbors', max_nbr)
@@ -144,7 +152,8 @@ def make_rddl_inst_fol(edges, room_name_lookup,
     df.to_csv(map_out_csv)
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
-    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup)
+    init_loc = list(neighbors.keys())[0]
+    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
     nbr_consts, move_vars, move_dyn, move_pre_cond = generate_rddl_move_actions(neighbors)
 
     rddl_temp_file = open(rddl_template, "r")
@@ -152,7 +161,7 @@ def make_rddl_inst_fol(edges, room_name_lookup,
     rddl_str = rddl_temp_file.read()
     rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
         replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
-        replace('MOVE_PRE_COND', move_pre_cond)
+        replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
 
     rddl_inst_file = open(rddl_out, "w")
     rddl_inst_file.write(rddl_str)
@@ -162,22 +171,26 @@ def make_rddl_inst_fol(edges, room_name_lookup,
 
 
 if __name__ == '__main__':
-    naive_collapse = False
+    collapse_method = MAX_NBR_COLLAPSE
     map_file = '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json'
     MAX_NBRS = 14
     edges = []
     
-    if naive_collapse:
+    if collapse_method == SIMPLE_COLLAPSE:
         rooms, edges = read_semantic_map(map_file)
         room_name_lookup = {rm:rm for rm in rooms.keys()}
-    else:
+    elif collapse_method == MAX_NBR_COLLAPSE:
         orig_map = json.load(open(map_file,'r'))
         one_way_edges, room_name_lookup, new_map, orig_map = transformed_connections(orig_map)
+        has_edge = set( [a for a,b in one_way_edges] + [b for a,b in one_way_edges] )
+        isolated_rooms = [rm for rm in room_name_lookup.values() if rm not in has_edge]
+        
+        
         for a,b in one_way_edges:
             edges.append((a,b))
             edges.append((b,a))
             
-    make_rddl_inst_fol(edges, room_name_lookup, 
+    make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
                        '../data/rddl_psim/role_fol_template.rddl',
                        '../data/rddl_psim/role_clpsd_map.rddl',
                        '../maps/Saturn/rddl_clpsd_neighbors.csv')

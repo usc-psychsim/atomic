@@ -128,6 +128,21 @@ class JSONReader(object):
             z1 = coords[1]['z']
             rm = room(rid, [x0, z0, x1, z1])
             self.rooms[rid] = rm
+            
+    def get_victims(self):
+        self.read_semantic_map()
+        
+        jsonfile = open(self.fname, 'rt')
+        jsonMsgs = [json.loads(line) for line in jsonfile.readlines()]
+        jsonfile.close()
+        
+        for jmsg in jsonMsgs:
+            mtype = jmsg['msg']['sub_type']
+            m = jmsg['data']
+            if mtype == 'Mission:VictimList':
+                return self.make_victims_list(m['mission_victim_list'])
+            
+        return None
         
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
