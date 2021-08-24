@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os.path
 import sys
 import numpy as np
 
@@ -13,13 +14,15 @@ THRESHOLD = 0
 ####################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
 USE_COLLAPSED = True
 if USE_COLLAPSED:
-    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_fol.csv'
-    lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
-    RDDL_FILE = '../data/rddl_psim/role_clpsd_map.rddl'
+    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
+    lookup_aux_data_fname = os.path.join(os.path.dirname(__file__), '..', 'maps', 'Saturn', 'rddl_clpsd_neighbors.csv')
+    RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map.rddl')
 else:
-    json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_small.csv'
+    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
     lookup_aux_data_fname = None
-    RDDL_FILE = '../data/rddl_psim/role_big.rddl'
+    RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_big.rddl')
+ddir = '../data/ASU_DATA/'
+fname = ddir + 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
     
 Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
 usable_msg_types = Msg2ActionEntry.get_msg_types()
@@ -48,6 +51,7 @@ def _log_agent_reward(ag_name):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', type=str, default=RDDL_FILE, help='RDDL file to be converted to PsychSim.')
+parser.add_argument('--data', type=str, default=fname, help='JSON file containing messages from game log.')
 parser.add_argument('--threshold', '-t', type=float, default=THRESHOLD,
                     help='Stochastic outcomes with a likelihood below this threshold are pruned.')
 parser.add_argument('--select', action='store_true',
@@ -63,10 +67,8 @@ conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=True)
 
 ##################  M S G S
-ddir = '../data/ASU_DATA/'
-fname = ddir + 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
 
-msg_qs = MsgQCreator(fname, logger=logging)
+msg_qs = MsgQCreator(args.data, logger=logging)
 derived_features = []
 #derived_features.append(CountAction('Event:dialogue_event', {}))
 #derived_features.append(CountAction('Event:VictimPickedUp', {}))
