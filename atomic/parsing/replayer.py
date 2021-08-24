@@ -15,6 +15,8 @@ from atomic.scenarios.single_player import make_single_player_world
 from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 from rddl2psychsim.conversion.converter import Converter
 
+from psychsim.pwl import *
+
 COND_MAP_TAG = 'CondWin'
 COND_TRAIN_TAG = 'CondBtwn'
 SUBJECT_ID_TAG = 'Member'
@@ -41,10 +43,10 @@ def accumulate_files(files, ext='.metadata'):
     for fname in result:
         trial = fname[:fname.find('Vers')]
         trials[trial] = trials.get(trial, []) + [fname]
-    for files in trials.values():
+    for trial, files in trials.items():
         files.sort(key=lambda fname: filename_to_condition(fname)['Vers'])
         if len(files) > 1:
-            logging.warning(f'Ignoring versions {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])} '\
+            logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])} '\
                 f'in favor of version {filename_to_condition(files[-1])["Vers"]}')
     result = [files[-1] for files in trials.values()]
     return result
@@ -68,9 +70,8 @@ class Replayer(object):
         self.processor = processor
         self.logger = logger
         self.rddl_file = rddl_file
-        self.action_file = action_file
-        if self.action_file:
-            Msg2ActionEntry.read_psysim_msg_conversion(self.action_file, aux_file)
+        if action_file:
+            Msg2ActionEntry.read_psysim_msg_conversion(action_file, aux_file)
             self.msg_types = Msg2ActionEntry.get_msg_types()
         else:
             self.msg_types = None
@@ -191,7 +192,7 @@ class Replayer(object):
 
     def pre_replay(self, config=None, logger=logging):
         # Create PsychSim model
-        logger.info('Creating world')
+        logger.debug('Creating world')
 
         try:
             self.parser.startProcessing(self.derived_features, self.msg_types)
@@ -215,11 +216,38 @@ class Replayer(object):
                 self.rddl_converter = Converter()
                 self.rddl_converter.convert_file(self.rddl_file)
                 self.world = self.rddl_converter.world
+
+                counts = {}
+                for victim in self.parser.jsonParser.victims:
+                    if victim.room not in counts:
+                        counts[victim.room] = {}
+                    counts[victim.room][victim.color] = counts[victim.room].get(victim.color, 0)+1
+                # Load in true victim counts
+                for var in sorted(self.world.variables):
+                    if var[:37] == '__WORLD__\'s (vcounter_unsaved_regular':
+                        room = var[39:-1]
+                        value = 'regular'
+                        if room not in counts:
+                            self.world.setFeature(var, 0)
+                        elif value not in counts[room]:
+                            self.world.setFeature(var, 0)
+                        else:
+                            self.world.setFeature(var, counts[room][value])
+                    elif var[:38] == '__WORLD__\'s (vcounter_unsaved_critical':
+                        room = var[40:-1]
+                        value = 'critical'
+                        if room not in counts:
+                            self.world.setFeature(var, 0)
+                        elif value not in counts[room]:
+                            self.world.setFeature(var, 0)
+                        else:
+                            self.world.setFeature(var, counts[room][value])
+
                 players = set(self.parser.agentToPlayer.keys())
                 zero_models = {name: self.world.agents[name].zero_level() for name in players}
                 for name in players:
                     agent = self.world.agents[name]
-                    agent.setAttribute('static', True, agent.get_true_model())
+#                    agent.setAttribute('static', True, agent.get_true_model())
 #                    agent.create_belief_state()
                     agent.setAttribute('selection', 'distribution', zero_models[name])
 #                    agent.set_observations()
@@ -262,49 +290,65 @@ class Replayer(object):
                 actions = {}
                 any_none = False
                 for player_name, msg in msgs.items():
-                    action_name = Msg2ActionEntry.get_action(msg)
-                    if msg.get('old_room_name', None) == '':
-                        logger.warning(f'Empty room in message {i} for player {player_name}')
+                    if msg['sub_type'] == 'Event:location' and msg['old_room_name'] == '':
+                        logger.warning(f'Empty room in message {i} {msg} for player {player_name}')
                         self.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
                         msg['sub_type'] = 'noop'
-                        for name, models in self.world.get_current_models().items():
-                            for model in models:
-                                beliefs = self.world.agents[name].getAttribute('beliefs', model)
-                                if beliefs is not True:
-                                    assert self.world.getState(player_name, 'pLoc', beliefs, True) == msg['room_name']
+                        action_name = Msg2ActionEntry.get_action(msg)
+                for player_name, msg in msgs.items():
+                    action_name = Msg2ActionEntry.get_action(msg)
                     if action_name not in self.rddl_converter.actions[player_name]:
-                        any_none = True
-                        logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
+                        if msg['sub_type'] == 'Event:Triage':
+                            if msg['triage_state'] != 'SUCCESSFUL':
+                                loc = self.world.getState(player_name, 'pLoc', unique=True)
+                                count = self.world.getState(WORLD, f'(vcounter_unsaved_{msg["type"].lower()}, {loc})', unique=True)
+                                logger.warning(f'Ignoring {msg["triage_state"].lower()} triage by {player_name} of {msg["type"].lower()} victim (out of {count} unsaved in {loc})')
+                            else:
+                                logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
+                        action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
                     else:
                         logger.info(f'Msg {msg} becomes {action_name}')
-                        action = self.rddl_converter.actions[player_name][action_name]
-                        actions[player_name] = action
-                        if action not in self.world.agents[player_name].getLegalActions():
-                            logger.error(f'Action {action} in msg {i} is currently illegal')
+                    action = self.rddl_converter.actions[player_name][action_name]
+                    actions[player_name] = action
+                    if action not in self.world.agents[player_name].getLegalActions():
+                        if action['verb'][:6] in {'pickup', 'triage'}:
+                            loc = self.world.getState(player_name, 'pLoc', unique=True)
+                            logger.error(f'{player_name}\'s pLoc = {loc}')
+                            logger.error(f'{player_name}\'s role = {self.world.getState(player_name, "pRole", unique=True)}')
+                            var = stateKey(WORLD, f'(vcounter_unsaved_{action["verb"][7:]}, {loc})')
+                            logger.error(f'{var} = {self.world.getFeature(var, unique=True)}')
+                        else:
                             tree = self.world.agents[player_name].legal[action]
                             for var in sorted(tree.getKeysIn()):
                                 logger.error(f'{var} = {self.world.getFeature(var, unique=True)}')
-                    if 'old_room_name' in msg:
+                        raise ValueError(f'Action {action} in msg {i} is currently illegal')
+                    if 'old_room_name' in msg and msg['old_room_name']:
                         old_rooms[player_name] = msg['old_room_name']
                     if 'room_name' in msg:
                         new_rooms[player_name] = msg['room_name']
                 for name, models in self.world.get_current_models().items():
+                    if name in old_rooms and old_rooms[name] != self.world.getState(name, 'pLoc', unique=True):
+                        raise ValueError(f'Before message {i}, {name} is in {self.world.getState(name, "pLoc", unique=True)}, not {old_rooms[name]}')
                     for model in models:
                         beliefs = self.world.agents[name].getAttribute('beliefs', model)
                         if beliefs is not True:
                             for player_name, room in old_rooms.items():
                                 if room and self.world.getState(player_name, 'pLoc', beliefs, True) != room:
                                     raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
-                if any_none:
-                    continue
                 self.pre_step()
                 self.world.step(actions, debug=debug)
                 if len(actions) < len(self.parser.agentToPlayer):
                     logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
                     break
-                logger.info(f'Completed step for message {i}')
+                logger.info(f'Saved(el_A)={self.world.getState(WORLD, "(vcounter_saved_regular, el_A)", unique=True)}')
+                player = self.world.agents['p3']
+                logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
                 self.post_step(actions, debug)
                 for name, models in self.world.get_current_models().items():
+                    if name in new_rooms and new_rooms[name] != self.world.getState(name, 'pLoc', unique=True):
+                        raise ValueError(f'After message {i}, {name} is in {self.world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}')
+                    else:
+                        logger.info(f'After message {i}, {name} is in correct location {self.world.getState(name, "pLoc", unique=True)}')
                     for model in models:
                         beliefs = self.world.agents[name].getAttribute('beliefs', model)
                         if beliefs is not True:
