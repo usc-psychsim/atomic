@@ -21,7 +21,7 @@ Outputs:
 
 
 import re
-partition_hallways = 0 # Flag for partitioning hallways. Set 0 if hallways do not need to be partitioned.
+partition_hallways = 1 # Flag for partitioning hallways. Set 0 if hallways do not need to be partitioned.
 
 def transformed_connections(input_map):
   
