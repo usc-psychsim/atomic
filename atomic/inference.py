@@ -3,8 +3,10 @@ An agent that observes people performing the Minecraft search & rescue task,
 makes inferences about their current mental state, and intervenes when
 to improve task performance
 """
+import copy
+
 from psychsim.probability import Distribution
-from psychsim.pwl import modelKey
+from psychsim.pwl import modelKey, rewardKey, isStateKey, state2agent, state2feature
 from psychsim.action import ActionSet
 
 # Possible player model parameterizations
@@ -52,17 +54,30 @@ def create_player_models(world, players):
                 param_names = sorted(param_dict.keys())
             param_str = '_'.join([f'{param}{param_dict[param]}' for param in param_names])
             model_name = f'{player_name}_{param_str}'
-            new_model = player.addModel(model_name, parent=true_model['name'] if param_dict.get('tom', 1) > 0 else zero_model, 
-                selection=param_dict.get('selection', 'distribution'), beliefs=True, static=True)
+            if param_dict.get('tom', 0) > 0:
+                new_model = player.addModel(model_name, parent=true_model['name'], selection=param_dict.get('selection', 'distribution'), beliefs=True, static=True)
+            elif param_dict.get('null_zero', 0) == 0:
+                new_model = player.addModel(model_name, parent=zero_model, selection=param_dict.get('selection', 'distribution'), beliefs=True, static=True)
+            else:
+                # Don't bother building other versions of the zero-level models for zero-level agents
+                continue 
             for key, value in param_dict.items():
                 if key == 'tom':
                     if value == 1:
-                        if param_dict.get('others', 1) == 0:
+                        if param_dict.get('others', 1) == 1:
                             new_model['models'] = {other_name: null_models[other_name] for other_name in players if other_name != player_name}
                         else:
                             new_model['models'] = {other_name: zero_models[other_name] for other_name in players if other_name != player_name}
                     elif value > 1:
                         raise ValueError(f'Have not implemented {value}-level ToM yet')
+                elif key == 'reward':
+                    if value == 1:
+                        R = copy.deepcopy(player.getReward()[true_model['name']])
+                        vector = R.getLeaf()[rewardKey(player_name, True)]
+                        for var in world.variables:
+                            if isStateKey(var) and state2agent(var) == player_name and state2feature(var)[:8] == '(visited':
+                                vector[var] = 1
+                        player.setAttribute('R', R, new_model['name'])
                 elif key != 'selection':
                     new_model[key] = value
             new_model['parameters'] = param_dict
