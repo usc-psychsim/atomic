@@ -111,8 +111,12 @@ class Analyzer(Replayer):
             self.decisions[name] = {}
             for model in models:
                 logger.debug(f'Generating decision for {name} under {model["name"]}')
-                decision = self.world.agents[name].decide(model=model['name'])
+                decision = self.world.agents[name].decide(model=model['name'], debug={'preserve_states': True})
                 self.decisions[name][model['name']] = decision
+                V = decision['V']
+                for action, entry in V.items():
+                    logger.info(f'{model["name"]}: V({action}) = {entry["__EV__"]}')
+                    logger.info(', '.join([str(self.world.agents[name].reward(s, model=model['name'])) for s in entry['__S__']]))
 
     def post_step(self, actions, debug, logger=logging):
         super().post_step(actions, debug, logger)
