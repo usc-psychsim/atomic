@@ -29,7 +29,7 @@ def make_observer(world, team, name='ATOMIC'):
     agent = world.addAgent(name, avoid_beliefs=False)
     return agent
 
-def create_player_models(world, players):
+def create_player_models(world, players, victims=None):
     models = {}
     param_names = None
     zero_models = {player_name: [model_name for model_name in world.agents[player_name].models if model_name[-4:] == 'zero'][0]
@@ -71,12 +71,15 @@ def create_player_models(world, players):
                     elif value > 1:
                         raise ValueError(f'Have not implemented {value}-level ToM yet')
                 elif key == 'reward':
-                    if value == 1:
+                    if value > 0:
                         R = copy.deepcopy(player.getReward()[true_model['name']])
                         vector = R.getLeaf()[rewardKey(player_name, True)]
                         for var in world.variables:
                             if isStateKey(var) and state2agent(var) == player_name and state2feature(var)[:8] == '(visited':
-                                vector[var] = 1
+                                if value == 1:
+                                    vector[var] = 1
+                                elif value == 2:
+                                    vector[var] = victims[state2feature(var)[10:-1]].get('regular', 0)+5*victims[state2feature(var)[10:-1]].get('critical', 0)
                         player.setAttribute('R', R, new_model['name'])
                 elif key != 'selection':
                     new_model[key] = value
