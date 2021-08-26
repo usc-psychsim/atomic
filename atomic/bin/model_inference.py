@@ -84,8 +84,9 @@ class Analyzer(Replayer):
         self.mission_times = mission_times
         self.decisions = {}
         self.stats = {}
+        self.beliefs = None
         self.data = []
-        self.data_fields = None
+        self.data_fields = []
 
     def pre_replay(self, config=None, logger=logging):
         result = super().pre_replay(logger)
@@ -96,52 +97,68 @@ class Analyzer(Replayer):
             if config: 
                 self.player_models = self.configure_models(config)
                 self.stats = {name: {} for name in self.player_models}
+                self.beliefs = {name: Distribution({model['name']: 1/len(models) for model in models}) for name, models in self.player_models.items()}
         except:
             logger.error('Unable to create player models')
             logger.error(traceback.format_exc())
             return False
         return True
 
-    def pre_step(self):
-        super().pre_step()
+    def pre_step(self, logger=logging):
+        super().pre_step(logger)
         self.previous = copy.deepcopy(self.world.state)
-#        for name, models in self.player_models.items():
-#            self.decisions[name] = {}
-#            for model in models:
-#                print(f'Predicting: {model['name']}')
-#                decision = self.world.agents[name].decide(model=model['name'])
-#                self.decisions[name][model['name']] = decision
-
-    def post_step(self, actions, debug):
-        super().post_step(actions, debug)
         for name, models in self.player_models.items():
+            self.decisions[name] = {}
             for model in models:
-                record = {'Player': name}
+                logger.debug(f'Generating decision for {name} under {model["name"]}')
+                decision = self.world.agents[name].decide(model=model['name'])
+                self.decisions[name][model['name']] = decision
+
+    def post_step(self, actions, debug, logger=logging):
+        super().post_step(actions, debug, logger)
+        for name, models in self.player_models.items():
+            prob = {}
+            for model in models:
+                record = {'Msg': self.t, 'Player': name}
                 agent = self.world.agents[name]
                 record.update(agent.models[model['name']]['parameters'])
-                record['V'] = agent.value(agent.getBelief(self.previous, model['name']), actions[name], model['name'])['__EV__']
+                prob[model['name']] = self.decisions[name][model['name']]['action'][actions[name]]
+                record['Prob'] = prob[model['name']]
+                self.beliefs[name][model['name']] *= prob[model['name']]
                 self.data.append(record)
-                if self.data_fields is None:
+                if len(self.data_fields) == 0:
                     self.data_fields = list(record.keys())
+            self.beliefs[name].normalize()
+            logger.info(self.beliefs[name])
 
-    def post_replay(self):
-        super().post_replay()
+    def post_replay(self, logger=logging):
+        super().post_replay(logger)
         with open(self.parser.filename.replace('.metadata','_models.tsv'), 'w') as csvfile:
             writer = csv.DictWriter(csvfile, self.data_fields, delimiter='\t')
             writer.writeheader()
-            for entry in self.data:
-                writer.writerow(entry)
+            for record in self.data:
+                writer.writerow(record)
+            for name, dist in self.beliefs.items():
+                for model, prob in dist.items():
+                    record = {'Msg': 'END', 'Player': name}
+                    record.update(self.world.agents[name].models[model]['parameters'])
+                    record['Prob'] = prob
+                    writer.writerow(record)
 #        self.draw_plot()
 
     def configure_models(self, fname):
         config = configparser.ConfigParser()
         config.read(fname)
         models = {key: json.loads(values) for key, values in config.items('models')}
-
+        if 2 in models.get('reward', []):
+            # Add visitation reward
+            victims = self.victim_counts
+        else:
+            victims = None
         self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
                            for value in itertools.product(*models.values()) if len(value) > 0]
         self.models = models
-        return create_player_models(self.world, {player_name: self.model_list[:] for player_name in self.parser.agentToPlayer})
+        return create_player_models(self.world, {player_name: self.model_list[:] for player_name in self.parser.agentToPlayer}, victims)
 
     def draw_plot(self):
         name = os.path.splitext(os.path.basename(self.parser.filename))[0]
