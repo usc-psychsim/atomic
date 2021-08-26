@@ -176,7 +176,7 @@ class Replayer(object):
             except:
                 logger.error(traceback.format_exc())
                 logger.error(f'Re-simulation exited on message {self.t}')
-            self.post_replay()
+            self.post_replay(logger)
             if self.world_map: self.world_map.clear()
         if self.feature_output:
             assert self.condition_fields is not None, 'Never extracted condition fields from filename'
@@ -217,31 +217,37 @@ class Replayer(object):
                 self.rddl_converter.convert_file(self.rddl_file)
                 self.world = self.rddl_converter.world
 
-                counts = {}
+                self.victim_counts = {}
                 for victim in self.parser.jsonParser.victims:
-                    if victim.room not in counts:
-                        counts[victim.room] = {}
-                    counts[victim.room][victim.color] = counts[victim.room].get(victim.color, 0)+1
+                    if victim.room not in self.victim_counts:
+                        for player_name in self.world.agents:
+                            var = self.world.defineState(player_name, f'(visited, {victim.room})', bool)
+                            self.world.setFeature(var, self.world.getState(player_name, 'pLoc', unique=True) == victim.room)
+                            tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), victim.room),
+                                True: setTrueMatrix(var), False: noChangeMatrix(var)})
+                            self.world.setDynamics(var, True, tree)
+                        self.victim_counts[victim.room] = {}
+                    self.victim_counts[victim.room][victim.color] = self.victim_counts[victim.room].get(victim.color, 0)+1
                 # Load in true victim counts
                 for var in sorted(self.world.variables):
                     if var[:37] == '__WORLD__\'s (vcounter_unsaved_regular':
                         room = var[39:-1]
                         value = 'regular'
-                        if room not in counts:
+                        if room not in self.victim_counts:
                             self.world.setFeature(var, 0)
-                        elif value not in counts[room]:
+                        elif value not in self.victim_counts[room]:
                             self.world.setFeature(var, 0)
                         else:
-                            self.world.setFeature(var, counts[room][value])
+                            self.world.setFeature(var, self.victim_counts[room][value])
                     elif var[:38] == '__WORLD__\'s (vcounter_unsaved_critical':
                         room = var[40:-1]
                         value = 'critical'
-                        if room not in counts:
+                        if room not in self.victim_counts:
                             self.world.setFeature(var, 0)
-                        elif value not in counts[room]:
+                        elif value not in self.victim_counts[room]:
                             self.world.setFeature(var, 0)
                         else:
-                            self.world.setFeature(var, counts[room][value])
+                            self.world.setFeature(var, self.victim_counts[room][value])
 
                 players = set(self.parser.agentToPlayer.keys())
                 zero_models = {name: self.world.agents[name].zero_level() for name in players}
@@ -340,31 +346,38 @@ class Replayer(object):
                 if len(actions) < len(self.parser.agentToPlayer):
                     logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
                     break
-                logger.info(f'Saved(el_A)={self.world.getState(WORLD, "(vcounter_saved_regular, el_A)", unique=True)}')
                 player = self.world.agents['p3']
                 logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
-                self.post_step(actions, debug)
+                self.post_step(actions, debug, logger)
                 for name, models in self.world.get_current_models().items():
                     if name in new_rooms and new_rooms[name] != self.world.getState(name, 'pLoc', unique=True):
                         raise ValueError(f'After message {i}, {name} is in {self.world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}')
                     else:
-                        logger.info(f'After message {i}, {name} is in correct location {self.world.getState(name, "pLoc", unique=True)}')
+                        logger.debug(f'After message {i}, {name} is in correct location {self.world.getState(name, "pLoc", unique=True)}')
+                    var = stateKey(name, f'(visited, {self.world.getState(name, "pLoc", unique=True)})')
+                    if var in self.world.variables:
+                        if not self.world.getFeature(var, unique=True):
+                            logger.warning(f'After message {i}, {name} has not recorded visitation of {self.world.getState(name, "pLoc", unique=True)}')
+                            raise RuntimeError
+                        else:
+                            logger.debug(f'After message {i}, {name} has correctly recorded visitation of {self.world.getState(name, "pLoc", unique=True)}')
                     for model in models:
                         beliefs = self.world.agents[name].getAttribute('beliefs', model)
                         if beliefs is not True:
                             for player_name, room in new_rooms.items():
                                 if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
                                         raise ValueError(f'After message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
+            logger.info('Successfuly processed all messages.')
         else:
             self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
 
-    def post_replay(self):
+    def post_replay(self, logger=logging):
         pass
 
-    def pre_step(self):
+    def pre_step(self, logger=logging):
         pass
 
-    def post_step(self, actions, debug):
+    def post_step(self, actions, debug, logger=logging):
         pass
 
     def read_filename(self, fname):
