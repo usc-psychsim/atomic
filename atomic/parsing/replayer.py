@@ -20,6 +20,7 @@ from psychsim.pwl import *
 COND_MAP_TAG = 'CondWin'
 COND_TRAIN_TAG = 'CondBtwn'
 SUBJECT_ID_TAG = 'Member'
+TEAM_ID_TAG = 'Team'
 TRIAL_TAG = 'Trial'
 
 
@@ -35,7 +36,7 @@ def accumulate_files(files, ext='.metadata'):
             # We have a directory full of log files to process
             result += [os.path.join(fname, name) for name in sorted(os.listdir(fname))
                        if os.path.splitext(name)[1] == ext and os.path.join(fname, name) not in result]
-        elif fname not in result:
+        elif os.path.isfile(fname) and fname not in result:
             # We have a lonely single log file (that is not already in the list)
             result.append(fname)
     # Look for alternate versions of the same trial and use only the most recent
