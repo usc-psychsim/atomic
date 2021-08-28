@@ -163,7 +163,7 @@ def _process_files():
     perc_parsed = ((lengths / np.array([replayer.total_lengths[filename] for filename in files])) * 100).astype(int)
     plot_bar(OrderedDict(zip(ids, times)), 'Processing Times', os.path.join(args['output'], 'process-times.pdf'))
     plot_bar(OrderedDict(zip(ids, lengths)), 'Parsed Lengths', os.path.join(args['output'], 'parse-lengths.pdf'))
-    plot_bar(OrderedDict(zip(ids, lengths)), 'Parsed Percentage', os.path.join(args['output'], 'parse-percent.pdf'))
+    plot_bar(OrderedDict(zip(ids, perc_parsed)), 'Parsed Percentage', os.path.join(args['output'], 'parse-percent.pdf'))
     overall_stats = {'Processing Times': (np.mean(times), np.std(times)),
                      'Parsed Lengths': (np.mean(lengths), np.std(lengths)),
                      'Parsed Percentage': (np.mean(perc_parsed), np.std(perc_parsed))}
