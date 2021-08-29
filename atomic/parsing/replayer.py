@@ -138,26 +138,25 @@ class Replayer(object):
                 logger.error(traceback.format_exc())
                 continue
 
-            if not self.pre_replay(config, logger=logger.getChild('pre_replay')):
-                # No PsychSim world created (this might be deliberate)
-                continue
+            replay = self.pre_replay(config, logger=logger.getChild('pre_replay'))
 
-            # Replay actions from log file
-            try:
-                self.parser.getActionsAndEvents(self.victims, self.world_map)
-            except:
-                logger.error(traceback.format_exc())
-                logger.error('Unable to extract actions/events')
-                continue
-            if num_steps == 0:
-                last = len(self.parser.actions)
-            else:
-                last = num_steps + 1
-            try:
-                self.replay(last, logger)
-            except:
-                logger.error(traceback.format_exc())
-                logger.error(f'Re-simulation exited on message {self.t}')
+            if replay:
+                # Replay actions from log file
+                try:
+                    self.parser.getActionsAndEvents(self.victims, self.world_map)
+                except:
+                    logger.error(traceback.format_exc())
+                    logger.error('Unable to extract actions/events')
+                    continue
+                if num_steps == 0:
+                    last = len(self.parser.actions)
+                else:
+                    last = num_steps + 1
+                try:
+                    self.replay(last, logger)
+                except:
+                    logger.error(traceback.format_exc())
+                    logger.error(f'Re-simulation exited on message {self.t}')
             self.post_replay(logger)
             if self.world_map: self.world_map.clear()
 
