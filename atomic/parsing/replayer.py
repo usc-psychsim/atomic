@@ -9,10 +9,7 @@ import sys
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
-from atomic.parsing.csv_parser import ProcessCSV
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from atomic.scenarios.single_player import make_single_player_world
-from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 from rddl2psychsim.conversion.converter import Converter
 
 from psychsim.pwl import *
@@ -64,24 +61,27 @@ class Replayer(object):
     """
     OBSERVER = 'ATOMIC'
 
-    def __init__(self, files=[], maps=None, processor=None, rddl_file=None, action_file=None, feature_output=None, aux_file=None, logger=logging):
+    def __init__(self, files=[], config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging):
         # Extract files to process
         self.files = accumulate_files(files)
-        self.processor = processor
+
+        # Extract maps
+        self.maps = get_default_maps(logger) if maps is None else maps
+
+        if isinstance(config, str):
+            self.config = configparser.ConfigParser()
+            self.config.read(config)
+        else:
+            self.config = config
         self.logger = logger
         self.rddl_file = rddl_file
         if action_file:
-            Msg2ActionEntry.read_psysim_msg_conversion(action_file, aux_file)
+            Msg2ActionEntry.read_psysim_msg_conversion(os.path.join(os.path.dirname(__file__), '..', '..', action_file), os.path.join(os.path.dirname(__file__), '..', '..', aux_file))
             self.msg_types = Msg2ActionEntry.get_msg_types()
         else:
             self.msg_types = None
         self.rddl_converter = None
-
-        # Feature count bookkeeping
         self.derived_features = []
-        self.feature_output = feature_output
-        self.feature_data = []
-        self.condition_fields = None
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
         self.world = None
@@ -93,9 +93,6 @@ class Replayer(object):
         self.parser = None
         self.conditions = None
         self.file_name = None
-
-        # Extract maps
-        self.maps = get_default_maps(logger) if maps is None else maps
 
     def get_map(self, logger=logging):
         # try to get map name directly from conditions dictionary
@@ -132,32 +129,16 @@ class Replayer(object):
             self.conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
 
             # Parse events from log file
-            logger_name = type(self.processor).__name__ if self.processor is not None else ''
-            _, ext = os.path.splitext(fname)
-            ext = ext.lower()
-            if ext == '.csv' or ext == '.xlsx':
-                map_name, self.map_table = self.get_map(logger)
-                if map_name is None or self.map_table is None:
-                    # could not determine map
-                    continue
-                self.parser = ProcessCSV(fname, self.processor, logger.getChild(logger_name))
-            elif ext == '.metadata':
-                try:
-                    self.parser = MsgQCreator(fname, self.processor, logger=logger.getChild(logger_name))
-                except:
-                    logger.error('Unable to extract actions/events')
-                    logger.error(traceback.format_exc())
-                    continue
-                self.derived_features = _get_derived_features(self.parser)
-            else:
-                raise ValueError('Unable to parse log file: {}, unknown extension.'.format(fname))
-
-            # set parser to processor
-            if self.processor is not None:
-                self.processor.parser = self.parser
+            logger_name = self.__class__.__name__
+            try:
+                self.parser = MsgQCreator(fname, logger=logger.getChild(logger_name))
+            except:
+                logger.error('Unable to parse gamelog messages')
+                logger.error(traceback.format_exc())
+                continue
 
             if not self.pre_replay(config, logger=logger.getChild('pre_replay')):
-                # Failure in creating world
+                # No PsychSim world created (this might be deliberate)
                 continue
 
             # Replay actions from log file
@@ -178,17 +159,6 @@ class Replayer(object):
                 logger.error(f'Re-simulation exited on message {self.t}')
             self.post_replay(logger)
             if self.world_map: self.world_map.clear()
-        if self.feature_output:
-            assert self.condition_fields is not None, 'Never extracted condition fields from filename'
-            with open(self.feature_output, 'w') as csvfile:
-                cumulative_fields = [set(row.keys()) for row in self.feature_data]
-                fields = self.condition_fields + sorted(set.union(*cumulative_fields)-{'File'})
-                fields.append('File')
-                writer = csv.DictWriter(csvfile, fields, extrasaction='ignore')
-                writer.writeheader()
-                for row in self.feature_data:
-                    row.update(filename_to_condition(row['File']))
-                    writer.writerow(row)
 
     def pre_replay(self, config=None, logger=logging):
         # Create PsychSim model
@@ -200,15 +170,6 @@ class Replayer(object):
             logger.error('Unable to start parser')
             logger.error(traceback.format_exc())
             return False
-
-        if self.feature_output:
-            # processes data to extract features depending on type of count
-            features = {'File': os.path.splitext(os.path.basename(self.file_name))[0]}
-            if self.condition_fields is None:
-                self.condition_fields = list(filename_to_condition(features['File']).keys())
-            for feature in self.derived_features:
-                features.update(_get_feature_values(feature))
-            self.feature_data.append(features)
 
         try:
             if self.rddl_file:
@@ -262,12 +223,6 @@ class Replayer(object):
 #                        other_agent = self.world.agents[other_name]
 #                        self.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
 
-            elif self.feature_output is None:
-                # Solo mission
-                self.world, self.triage_agent, _, self.victims, self.world_map = \
-                    make_single_player_world(self.parser.player_name(), self.map_table.init_loc,
-                                             self.map_table.adjacency, self.map_table.victims, False, True,
-                                             False, logger.getChild('make_single_player_world'))
             else:
                 # Not creating PsychSim model
                 return False
@@ -367,6 +322,11 @@ class Replayer(object):
                             for player_name, room in new_rooms.items():
                                 if self.world.getState(player_name, 'pLoc', beliefs, True) != room:
                                         raise ValueError(f'After message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
+                # Look for negative counts
+                for var in sorted(self.world.variables):
+                    if var[:30] == '__WORLD__\'s (vcounter_unsaved_':
+                        if self.world.getFeature(var, unique=True) < 0:
+                            raise ValueError(f'After message {i}, counter {var} has gone negative.')
             logger.info('Successfuly processed all messages.')
         else:
             self.parser.runTimeless(self.world, 0, duration, duration, permissive=True)
@@ -390,6 +350,28 @@ class Replayer(object):
             return self.process_files(args['number'], args['config'], replayer.files[0])
         else:
             return self.process_files(args['number'], args['config'])
+
+def parse_replay_config(fname, parser):
+    """
+    Extracts command-line arguments from an INI file (first argument)
+    """
+    config = configparser.ConfigParser()
+    config.read(fname)
+    if config.get('domain', 'language', fallback='RDDL') != 'RDDL':
+        raise ValueError(f'Unknown domain language: {config.get("domain", "language", fallback="RDDL")}')
+    root = os.path.join(os.path.dirname(__file__), '..', '..')
+    mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
+        'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
+    args = {}
+    for flag, entry in mapping.items():
+        default = parser.get_default(flag)
+        if isinstance(default, bool):
+            args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
+        elif isinstance(default, int):
+            args[flag] = config.getint(entry[0], entry[1], fallback=default)
+        else:
+            args[flag] = config.get(entry[0], entry[1], fallback=None)
+    return args
 
 def filename_to_condition(fname):
     """
@@ -432,7 +414,6 @@ def replay_parser():
     parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
     parser.add_argument('--actions', help='Name of CSV file containing JSON to PsychSim action mapping')
     parser.add_argument('--aux', help='Name of auxiliary CSV file for collapsed map')
-    parser.add_argument('--feature_file', help='Destination of feature count output')
     return parser
 
 def parse_replay_args(parser):
@@ -446,30 +427,8 @@ def parse_replay_args(parser):
     logging.basicConfig(level=level)
     return args
 
-def parse_replay_config(fname, parser):
-    """
-    Extracts command-line arguments from an INI file (first argument)
-    """
-    config = configparser.ConfigParser()
-    config.read(fname)
-    if config.get('domain', 'language', fallback='RDDL') != 'RDDL':
-        raise ValueError(f'Unknown domain language: {config.get("domain", "language", fallback="RDDL")}')
-    root = os.path.join(os.path.dirname(__file__), '..', '..')
-    mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
-        'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
-    args = {}
-    for flag, entry in mapping.items():
-        default = parser.get_default(flag)
-        if isinstance(default, bool):
-            args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
-        elif isinstance(default, int):
-            args[flag] = config.getint(entry[0], entry[1], fallback=default)
-        else:
-            args[flag] = config.get(entry[0], entry[1], fallback=None)
-    return args
-
 if __name__ == '__main__':
     # Process command-line arguments
     args = parse_replay_args(replay_parser())
-    replayer = Replayer(args['fname'], get_default_maps(logging), None, args['rddl'], args['actions'], args['feature_file'], args['aux'], logging)
+    replayer = Replayer(args['fname'], args['config'], None, args['rddl'], args['actions'], args['aux'], logging)
     replayer.parameterized_replay(args)
