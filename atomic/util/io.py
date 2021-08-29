@@ -103,7 +103,10 @@ def change_log_handler(log_file, verbosity=1, fmt='[%(asctime)s %(levelname)s] %
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
     log.addHandler(stream_handler)
-    log.level = logging.WARN if verbosity == 0 else logging.INFO if verbosity == 1 else logging.DEBUG
+    if isinstance(verbosity, int):
+        log.level = logging.WARN if verbosity == 0 else logging.INFO if verbosity == 1 else logging.DEBUG
+    elif isinstance(verbosity, str):
+        log.level = getattr(logging, verbosity.upper(), None)
 
 
 def save_args(args, file_path):
