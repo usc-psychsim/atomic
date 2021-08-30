@@ -27,52 +27,11 @@ def plot_data(data, color_field, title):
     return px.line(data, x='Timestep', y='Belief', color=color_field, range_y=[0, 1], title=title)
 
 
-class AnalysisParseProcessor(ParsingProcessor):
-    condition_dist = None
-
-    def __init__(self):
-        super().__init__()
-        self.model_data = []
-        self.condition_data = []
-        self.prediction_data = []
-        self.models = set()
-        self.expectation = None
- 
-    def post_step(self, world, act):
-        t = world.getState(WORLD, 'seconds', unique=True)
-        if len(self.model_data) == 0 or self.model_data[-1]['Timestep'] != t:
-            # Haven't made some inference for this timestep (maybe wait until last one?)
-            player_name = self.parser.player_name()
-            player = world.agents[player_name]
-            agent = world.agents['ATOMIC']
-            # Store beliefs over player models
-            beliefs = agent.getBelief()
-            if len(beliefs) > 1:
-                raise RuntimeError('Agent {} has {} possible models in true state'.format(agent.name, len(beliefs)))
-            beliefs = next(iter(beliefs.values()))
-            player_model = world.getFeature(modelKey(player_name), beliefs)
-            for model in player_model.domain():
-                entry = {'Timestep': t, 'Belief': player_model[model]}
-                # Find root model (i.e., remove the auto-generated numbers from the name)
-                while player.models[player.models[model]['parent']]['parent'] is not None:
-                    model = player.models[model]['parent']
-                entry['Model'] = model[len(player_name) + 1:]
-                self.model_data.append(entry)
-            if self.condition_dist:
-                condition_dist = Distribution()
-                for model, model_prob in player_model.items():
-                    for condition, condition_prob in self.condition_dist[model_to_cluster(model)].items():
-                        condition_dist.addProb(condition, model_prob*condition_prob)
-                condition_dist.normalize()
-                for condition, condition_prob in condition_dist.items():
-                    self.condition_data.append({'Timestep': t, 'Belief': condition_prob, 'Condition': condition})
-
-
 class Analyzer(Replayer):
 
-    def __init__(self, files=[], maps=None, models=None, ignore_models=[], mission_times={}, 
-            rddl_file=None, action_file=None, feature_output=None, aux_file=None, logger=logging):
-        super().__init__(files, maps, None, rddl_file, action_file, feature_output, aux_file, logger)
+    def __init__(self, files=[], config=None, maps=None, models=None, ignore_models=[], mission_times={}, 
+            rddl_file=None, action_file=None, aux_file=None, logger=logging):
+        super().__init__(files, config, maps, None, rddl_file, action_file, aux_file, logger)
 
         self.models = None
         self.model_list = []
@@ -89,7 +48,7 @@ class Analyzer(Replayer):
         self.data_fields = []
 
     def pre_replay(self, config=None, logger=logging):
-        result = super().pre_replay(logger)
+        result = super().pre_replay(config, logger)
         if result is not True:
             # Failed
             return result
@@ -279,5 +238,5 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], rddl_file=args['rddl'], action_file=args['actions'], feature_output=args['feature_file'], aux_file=args['aux'], logger=logging)
+    replayer = Analyzer(args['fname'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], feature_output=args['feature_file'], aux_file=args['aux'], logger=logging)
     replayer.parameterized_replay(args)
