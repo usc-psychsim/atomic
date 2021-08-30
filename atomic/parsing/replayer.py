@@ -357,20 +357,24 @@ def parse_replay_config(fname, parser):
     """
     config = configparser.ConfigParser()
     config.read(fname)
-    if config.get('domain', 'language', fallback='RDDL') != 'RDDL':
-        raise ValueError(f'Unknown domain language: {config.get("domain", "language", fallback="RDDL")}')
-    root = os.path.join(os.path.dirname(__file__), '..', '..')
-    mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
-        'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
     args = {}
-    for flag, entry in mapping.items():
-        default = parser.get_default(flag)
-        if isinstance(default, bool):
-            args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
-        elif isinstance(default, int):
-            args[flag] = config.getint(entry[0], entry[1], fallback=default)
-        else:
-            args[flag] = config.get(entry[0], entry[1], fallback=None)
+    language = config.get('domain', 'language', fallback='RDDL')
+    if language == 'RDDL':
+        root = os.path.join(os.path.dirname(__file__), '..', '..')
+        mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
+            'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
+        for flag, entry in mapping.items():
+            default = parser.get_default(flag)
+            if isinstance(default, bool):
+                args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
+            elif isinstance(default, int):
+                args[flag] = config.getint(entry[0], entry[1], fallback=default)
+            else:
+                args[flag] = config.get(entry[0], entry[1], fallback=None)
+    elif language == 'none':
+        pass
+    else:
+        raise ValueError(f'Unknown domain language: {language}')        
     return args
 
 def filename_to_condition(fname):
