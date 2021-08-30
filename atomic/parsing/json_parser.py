@@ -3,6 +3,10 @@
 import os
 import functools
 import json
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = None
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 from atomic.parsing.map_parser import extract_map
@@ -88,7 +92,11 @@ class JSONReader(object):
         jsonfile.close()        
         self.allMTypes = set()
         
-        for jmsg in jsonMsgs:
+        if tqdm and not self.verbose:
+            iterable = tqdm(jsonMsgs)
+        else:
+            iterable = jsonMsgs
+        for jmsg in iterable:
             self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
             
