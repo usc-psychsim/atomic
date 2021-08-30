@@ -124,13 +124,14 @@ class CountEnterExit(Feature):
     def processMsg(self, msg):
         super().processMsg(msg)
         
-        if self.msg_player not in self.playerToActed.keys():
-            self.playerToActed[self.msg_player] = False
-        if self.msg_player not in self.playerToCount.keys():
-            self.playerToCount[self.msg_player] = 0
-            self.addCol(self.msg_player+'_entry_exit')
-        if self.msg_player not in self.playerToPrevLoc.keys():
-            self.playerToPrevLoc[self.msg_player] = ''
+        if self.msg_player is not None:
+            if self.msg_player not in self.playerToActed.keys():
+                self.playerToActed[self.msg_player] = False
+            if self.msg_player not in self.playerToCount.keys():
+                self.playerToCount[self.msg_player] = 0
+                self.addCol(self.msg_player+'_entry_exit')
+            if self.msg_player not in self.playerToPrevLoc.keys():
+                self.playerToPrevLoc[self.msg_player] = ''
         
         if self.msg_type == 'Event:location':
             prevRoom = self.playerToPrevLoc[self.msg_player]
