@@ -241,7 +241,7 @@ class JSONReader(object):
                     self.messages.append(injected_msg)
                     ## When you inject this location change message, assume it will go through and update player's room
                     self.player_to_curr_room[player] = event_room
-                    print('Injected', injected_msg)
+                    if self.verbose: print('Injected', injected_msg)
                 else:
                     if self.verbose: print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
                           %(player, self.player_to_curr_room[player], mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
@@ -249,9 +249,9 @@ class JSONReader(object):
         if m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
         
-        smallMsg = {k:m[k] for k in m.keys() if k in self.generalFields + self.typeToFields[m['sub_type']]}
+        smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
         self.messages.append(smallMsg)
-        
+
         ## For every derived feature, ask it to process this message
         for derived in self.derivedFeatures:
             derived.processMsg(smallMsg)
