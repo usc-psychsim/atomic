@@ -88,14 +88,14 @@ class JSONReader(object):
         self.reset()
         
         jsonfile = open(fname, 'rt')
-        jsonMsgs = [json.loads(line) for line in jsonfile.readlines()]
+        self.jsonMsgs = [json.loads(line) for line in jsonfile.readlines()]
         jsonfile.close()        
         self.allMTypes = set()
         
         if tqdm and not self.verbose:
-            iterable = tqdm(jsonMsgs)
+            iterable = tqdm(self.jsonMsgs)
         else:
-            iterable = jsonMsgs
+            iterable = self.jsonMsgs
         for jmsg in iterable:
             self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
