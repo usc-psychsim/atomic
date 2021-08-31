@@ -157,7 +157,6 @@ class FeatureReplayer(Replayer):
             with open(fname, 'w') as prediction_file:
                 for t, table in messages.items():
                     for msg in table.values():
-                        print(msg)
                         print(json.dumps(msg), file=prediction_file)
 
     def make_prediction_header(self, msg_type, mission_time):
