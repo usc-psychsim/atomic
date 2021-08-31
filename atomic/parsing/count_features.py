@@ -88,6 +88,15 @@ class CountVisitsPerRole(Feature):
                 super().warn('Previous role does not match ' + self.msg_player + ' actually ' + self.playerToRole[self.msg_player] + ' from msg ' + oldRole)                
             self.playerToRole[self.msg_player] = role
             self.history.append(msg)
+
+        row_dict = {}
+        for room, role_counts in self.roomToRoleToCount.items():
+            for role, count in role_counts.items():
+                label = f'{role}_visits_{room}'
+                if label not in self.dataframe.columns:
+                    self.addCol(label)
+                row_dict[label] = count
+        self.addRow(row_dict)
             
     def printValue(self):
         print(self.name, self.roomToRoleToCount)
@@ -224,5 +233,7 @@ class CountPlayerDialogueEvents(Feature):
             self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
             self.history.append(msg)
             
+        self.addRow({f'{pl}_talks': count for pl, count in self.playerToCount.items()})
+
     def printValue(self):
         print(self.name, self.playerToCount)
