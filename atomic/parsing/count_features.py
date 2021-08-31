@@ -48,7 +48,7 @@ class Feature(ABC):
     
     def addRow(self, row_dict):
         ## Regardless of message type, add a row
-        row = {'time':self.msg_time}
+        row = {'time': tuple(map(int, self.msg_time.split(':')))}
         row.update(row_dict)
         self.dataframe = self.dataframe.append(row, ignore_index=True)
         
