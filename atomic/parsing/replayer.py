@@ -420,8 +420,8 @@ def replay_parser():
     parser.add_argument('--aux', help='Name of auxiliary CSV file for collapsed map')
     return parser
 
-def parse_replay_args(parser):
-    args = vars(parser.parse_args())
+def parse_replay_args(parser, arg_list=None):
+    args = vars(parser.parse_args(args=arg_list))
     if args['config']:
         args.update(parse_replay_config(args['config'], parser))
     # Extract logging level from command-line argument
