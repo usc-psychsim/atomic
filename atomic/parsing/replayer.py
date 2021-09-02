@@ -111,7 +111,7 @@ class Replayer(object):
         logger.error('Unable to find matching map')
         return None, None
 
-    def process_files(self, num_steps=0, config=None, fname=None):
+    def process_files(self, num_steps=0, config=None, fname=None, simulate=False):
         """
         :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
         :type num_steps: int
@@ -153,7 +153,7 @@ class Replayer(object):
                 else:
                     last = num_steps + 1
                 try:
-                    self.replay(last, logger)
+                    self.replay(last, logger, simulate)
                 except:
                     logger.error(traceback.format_exc())
                     logger.error(f'Re-simulation exited on message {self.t}')
@@ -233,7 +233,7 @@ class Replayer(object):
             return False
         return True
 
-    def replay(self, duration, logger):
+    def replay(self, duration, logger, simulate=False):
         if isinstance(self.parser, MsgQCreator):
             num = len(self.parser.actions)
             old_rooms = {}
@@ -247,6 +247,7 @@ class Replayer(object):
                 new_rooms.clear()
                 logger.info(f'Message {i} out of {num}')
                 debug = {ag_name: {'preserve_states': True} for ag_name in self.rddl_converter.actions}
+                debug_s = {ag_name: {'preserve_states': True} for ag_name in self.rddl_converter.actions}
                 
                 actions = {}
                 any_none = False
@@ -298,12 +299,17 @@ class Replayer(object):
                                     raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 self.pre_step()
                 self.world.step(actions, debug=debug)
+                if simulate:
+                    self.world.step(real=False, debug=debug_s)
                 if len(actions) < len(self.parser.agentToPlayer):
                     logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
                     break
                 player = self.world.agents['p3']
                 logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
-                self.post_step(actions, debug, logger)
+                if simulate:
+                    self.post_step(actions, debug_s, logger)
+                else:
+                    self.post_step(actions, debug, logger)
                 for name, models in self.world.get_current_models().items():
                     if name in new_rooms and new_rooms[name] != self.world.getState(name, 'pLoc', unique=True):
                         raise ValueError(f'After message {i}, {name} is in {self.world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}')
@@ -343,13 +349,13 @@ class Replayer(object):
     def read_filename(self, fname):
         raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
 
-    def parameterized_replay(self, args):
+    def parameterized_replay(self, args, simulate=False):
         if args['profile']:
             return cProfile.run('self.process_files(args["number"])', sort=1)
         elif args['1']:
-            return self.process_files(args['number'], args['config'], replayer.files[0])
+            return self.process_files(args['number'], args['config'], replayer.files[0], simulate=simulate)
         else:
-            return self.process_files(args['number'], args['config'])
+            return self.process_files(args['number'], args['config'], simulate=simulate)
 
 def parse_replay_config(fname, parser):
     """
