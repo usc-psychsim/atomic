@@ -46,6 +46,7 @@ class Analyzer(Replayer):
         self.beliefs = None
         self.data = []
         self.data_fields = []
+        self.debug_data = []
 
     def pre_replay(self, config=None, logger=logging):
         result = super().pre_replay(config, logger)
@@ -93,6 +94,10 @@ class Analyzer(Replayer):
                     self.data_fields = list(record.keys())
             self.beliefs[name].normalize()
             logger.info(self.beliefs[name])
+
+            self.debug_data.append({"WORLD": self.world,
+                                    "AGENT_DEBUG": debug})
+            pass
         
 
     def post_replay(self, logger=logging):
