@@ -31,7 +31,7 @@ class Analyzer(Replayer):
 
     def __init__(self, files=[], config=None, maps=None, models=None, ignore_models=[], mission_times={}, 
             rddl_file=None, action_file=None, aux_file=None, logger=logging):
-        super().__init__(files, config, maps, None, rddl_file, action_file, aux_file, logger)
+        super().__init__(files, config, maps, rddl_file, action_file, aux_file, logger)
 
         self.models = None
         self.model_list = []
@@ -93,6 +93,7 @@ class Analyzer(Replayer):
                     self.data_fields = list(record.keys())
             self.beliefs[name].normalize()
             logger.info(self.beliefs[name])
+        
 
     def post_replay(self, logger=logging):
         super().post_replay(logger)
@@ -238,5 +239,5 @@ if __name__ == '__main__':
         import atomic.model_learning.linear.post_process.clustering as clustering
 
         apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], feature_output=args['feature_file'], aux_file=args['aux'], logger=logging)
+    replayer = Analyzer(args['fname'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], aux_file=args['aux'], logger=logging)
     replayer.parameterized_replay(args)
