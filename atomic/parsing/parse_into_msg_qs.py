@@ -41,7 +41,7 @@ class MsgQCreator(GameLogParser):
         for i,p in enumerate(self.players):
             self.playerToAgent[p] = 'p' + str(i+1)
             self.agentToPlayer['p' + str(i+1)] = p      
-        
+        self.player_maps = {self.playerToAgent[p]: map_version for p, map_version in self.jsonParser.player_maps.items()}
         self.createActionQs()
         
 
