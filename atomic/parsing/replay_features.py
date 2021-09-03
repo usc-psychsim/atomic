@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression
 """
 Subclass for adding feature counts to replay
 """
-from atomic.parsing.count_features import Feature
+from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
 from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 
@@ -27,6 +27,35 @@ class RecordScore(Feature):
             
     def printValue(self):
         print(f'{self.name} {self.team_score}')
+
+class MarkerPlacement(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('count marker placement per player per room', logger)
+        self.marker_count = {}
+        self.marker_legend = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        if self.msg_type == 'Event:MarkerPlaced':
+            if self.msg_player not in self.marker_count:
+                self.marker_count[self.msg_player] = {}
+            if msg['marker_type'] not in self.marker_count[self.msg_player]:
+                self.marker_count[self.msg_player][msg['marker_type']] = {}
+            self.marker_count[self.msg_player][msg['marker_type']][msg['victim_type']] = self.marker_count[self.msg_player][msg['marker_type']].get(msg['victim_type'], 0) + 1
+            if 'marker_legend' in msg:
+                self.marker_legend[self.msg_player] = msg['marker_legend']
+        for player, markers in self.marker_count.items():
+            row = {'Player': player}
+            if player in self.marker_legend:
+                row[f'Marker Legend {self.marker_legend[player]}'] = 1
+            for marker, table in markers.items():
+                norm = sum(table.values())
+                row.update({f'{marker}_{victim}': count/norm for victim, count in table.items()})
+                row[marker] = norm
+            self.addRow(row)
+
+    def printValue(self):
+        print(f'{self.name} {self.marker_count}')
 
 class FeatureReplayer(Replayer):
     def __init__(self, files=[], config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
@@ -76,8 +105,10 @@ class FeatureReplayer(Replayer):
             for metric in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
 
     def pre_replay(self, config=None, logger=logging):
-        self.derived_features = [RecordScore()]
+        self.derived_features = [RecordScore(logger)]
         self.derived_features += _get_derived_features(self.parser)
+        self.derived_features.append(PlayerRoomPercentage(mission_length=15, logger=logger))
+        self.derived_features.append(MarkerPlacement(logger))
         result = super().pre_replay(config, logger)
         # processes data to extract features depending on type of count
         for feature in self.derived_features:
@@ -85,6 +116,7 @@ class FeatureReplayer(Replayer):
             df['seconds'] = df.apply(lambda row: row['time'][0]*60+row['time'][1], axis=1)
             for player, agent in self.parser.playerToAgent.items():
                 df = df.rename(columns={col: col.replace(player, agent) for col in df.columns})
+            feature.dataframe = df
         for metric, models in self.models.items():
             for t in models:
                 record = filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0]))
@@ -95,7 +127,18 @@ class FeatureReplayer(Replayer):
                     if metric == 'm1' and isinstance(feature, RecordScore):
                         # Use final score for M1
                         values = {'Team Score': feature.team_score}
-                    else:
+                    elif isinstance(feature, MarkerPlacement):
+                        if metric == 'm6':
+                            feature.msg_time = '15:0'
+                            for player in self.parser.players:
+                                feature.addRow({'Player': player, 'seconds': 15*60})
+                            feature.dataframe['Trial'] = record['Trial']
+                            models[t]['data'] = models[t]['data'].append(feature.dataframe, ignore_index=True)
+                            break
+                        else:
+                            # Ignore this feature for other metrics
+                            continue
+                    elif metric != 'm6':
                         frame = feature.dataframe
                         subset = frame[frame['time'] > (15-int(t), 0)]
                         row = subset[subset['seconds'] == subset['seconds'].min()]
@@ -108,7 +151,24 @@ class FeatureReplayer(Replayer):
                         self.feature_fields += sorted(values.keys())
                 if self.fields is None:
                     self.fields = self.condition_fields + ['time'] + self.feature_fields
-                models[t]['data'] = models[t]['data'].append(record, ignore_index=True)
+                if metric == 'm3':
+                    # Break data down by player
+                    models[t]['players'] = {}
+                    for player in self.parser.agentToPlayer:
+                        player_record = {field[len(player)+1:]: record.get(field, 0) 
+                            for field in self.feature_fields if player in field}
+                        if player in self.parser.player_maps:
+                            # Training trial
+                            player_record[self.parser.player_maps[player]] = 1
+                        else:
+                            # Testing trial
+                            player_record['Player'] = player
+                        player_record['Trial'] = record['Trial']
+                        player_record['time'] = record['time']
+                        player_record[record['CondWin']] = 1
+                        models[t]['data'] = models[t]['data'].append(player_record, ignore_index=True)
+                elif metric != 'm6':
+                    models[t]['data'] = models[t]['data'].append(record, ignore_index=True)
         if self.feature_output is not None:
             if os.path.splitext(self.feature_output)[1] == '.csv':
                 with open(self.feature_output, 'w' if len(self.completed) == 0 else 'a') as csvfile:
@@ -124,36 +184,73 @@ class FeatureReplayer(Replayer):
     def post_replay(self, logger=logging):
         super().post_replay(logger)
         trial = filename_to_condition(self.file_name)['Trial']
+        map_name = filename_to_condition(self.file_name)['CondWin']
         self.completed.append(trial)
-        if self.train and len(self.completed) == len(self.training_trials):
+        if trial in self.training_trials and len(self.completed) == len(self.training_trials):
             # We have finished processing the training trials
             for metric, models in self.models.items():
                 for t, table in models.items():
                     data = table['data'].fillna(0)
-                    y_field = self.config.get('evaluation', f'{metric}_y')
-                    X = data.filter(items=[field for field in self.feature_fields if field != y_field])
-                    y = data.filter(items=[y_field])
+                    if metric == 'm3':
+                        y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
+                        X_fields = [field for field in data.columns if field not in y_fields and field != 'time' and field not in self.condition_fields]
+                    elif metric == 'm6':
+                        y_fields = [field for field in data.columns if 'Legend' in field]
+                        X_fields = [field for field in data.columns if field not in y_fields and field not in {'time', 'seconds', 'Player'} and field not in self.condition_fields]
+                    else:
+                        y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
+                        X_fields = [field for field in self.feature_fields if field not in y_fields]
+                    X = data.filter(items=X_fields)
+                    y = data.filter(items=y_fields)
+                    table['X_fields'] = X_fields
                     table['regression'] = LinearRegression().fit(X, y)
-        elif self.test and len(self.completed) > len(self.training_trials):
+        elif trial in self.testing_trials:
             # We have finished processing the testing data
             fname = f'{self.config.get("evaluation", "prediction_prefix", fallback="")}Trial-{self.completed[-1]}_'+\
                 f'Vers-{self.config.get("evaluation", "version", fallback=1)}.metadata'
             messages = {}
             for metric, models in self.models.items():
-                for t, table in models.items():
-                    y_field = self.config.get('evaluation', f'{metric}_y')
-                    row = table['data'][table['data']['Trial'] == trial]
-                    X = row.filter(items=[field for field in self.feature_fields if field != y_field]).fillna(0)
-                    prediction = table['regression'].predict(X)[0][0]
-                    if metric == 'm1':
-                        prediction = int(round(prediction))
-                    msg_type = self.config.get('evaluation', f'{metric}_type', fallback='State')
+                for t, table in sorted(models.items()):
+                    # Set up eventual JSON message
                     if t not in messages:
                         messages[t] = {}
+                    msg_type = self.config.get('evaluation', f'{metric}_type', fallback='State')
+                    data = table['data'][table['data']['Trial'] == trial]
+                    if metric == 'm6':
+                        data = data[data['seconds'] >= (15-int(t))*60]
+                        data = data[data['seconds'] == data['seconds'].min()]
+                    data = data.fillna(0)
                     if msg_type not in messages[t]:
-                        messages[t][msg_type] = self.make_prediction_header(msg_type, row['time'])
+                        messages[t][msg_type] = self.make_prediction_header(msg_type, data['time'])
                     msg = messages[t][msg_type]
-                    self.add_prediction_message(msg, row, prediction, metric)
+                    # Generate input data
+                    if metric == 'm3':
+                        y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
+                    elif metric =='m6':
+                        y_fields = [field for field in data.columns if 'Legend' in field]                        
+                    else:
+                        y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
+                    X = data.filter(items=table['X_fields']).fillna(0)
+                    # Generate prediction
+                    prediction = table['regression'].predict(X)
+                    if metric == 'm1':
+                        predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'), 
+                            'value': int(round(prediction[0][0]))}]
+                    elif metric == 'm3' or metric == 'm6':
+                        players = list(data['Player'])
+                        predictions = []
+                        for idx, values in enumerate(prediction):
+                            if metric == 'm3':
+                                dist = {y_fields[i]: values[i] for i in range(len(y_fields)) if values[i] > 0 and y_fields[i][:7] == map_name}
+                            elif metric == 'm6':
+                                dist = {y_fields[i]: values[i] for i in range(len(y_fields)) if values[i] > 0}
+                            norm = sum(dist.values())
+                            for value, prob in dist.items():
+                                if metric == 'm6':
+                                    value = value[len('Marker Legend '):]
+                                predictions.append({'subject': self.parser.agentToPlayer[players[idx]] if metric == 'm3' else players[idx],
+                                    'value': value, 'probability': prob/norm})
+                    self.add_prediction_message(msg, data, predictions, metric)
             with open(fname, 'w') as prediction_file:
                 for t, table in messages.items():
                     for msg in table.values():
@@ -162,11 +259,10 @@ class FeatureReplayer(Replayer):
     def make_prediction_header(self, msg_type, mission_time):
         base_msg = self.parser.jsonParser.jsonMsgs[0]
         message = {'header': {
-                    'timestamp': datetime.datetime.now().isoformat(),
+                    'timestamp': f'{datetime.datetime.utcnow().isoformat()}Z',
                     'message_type': 'agent',
-                    'version': '0.1'
+                    'version': '0.2'
                     },
-                    'predictions': []
                 }
         message['msg'] = {
                         'trial_id': base_msg['msg']['trial_id'],
@@ -176,26 +272,35 @@ class FeatureReplayer(Replayer):
                         }
         message['data'] = {
             'created': message['header']['timestamp'],
+            'predictions': []
 
         }
         return message
 
-    def add_prediction_message(self, msg, row, value, metric):
+    def add_prediction_message(self, msg, row, predictions, metric):
         minutes, seconds = next(iter(row['time'].to_dict().values()))
         elapsed = (15-minutes)*60 - seconds
         elapsed *= 1000
-        subject_type = self.config.get('evaluation', f'{metric}_subject')
-        if subject_type == 'team':
-            subject = next(iter(row['Team'].to_dict().values()))
-        property = self.config.get('evaluation', f'{metric}_property')
-        prediction = {
-            'start_elapsed_time': elapsed,
-            'subject_type': subject_type,
-            'subject': subject,
-            'predicted_property': f'{metric.upper()}:{property}',
-            'prediction': value,
-            }
-        msg['predictions'].append(prediction)
+        for prediction in predictions:
+            if prediction['subject'] == 'team':
+                subject_type = prediction['subject']
+                subject = next(iter(row['Team'].to_dict().values()))
+            else:
+                subject_type = 'individual'
+                subject = prediction['subject']
+            property = self.config.get('evaluation', f'{metric}_property')
+            prediction_msg = {
+                'start_elapsed_time': elapsed,
+                'subject_type': subject_type,
+                'subject': subject,
+                'predicted_property': f'{metric.upper()}:{property}',
+                'prediction': prediction['value'],
+                }
+            if 'probability' in prediction:
+                prediction_msg['probability_type'] = 'float'
+                prediction_msg['probability'] = prediction['probability']
+            msg['data']['predictions'].append(prediction_msg)
+        return msg
 
 if __name__ == '__main__':
     # Process command-line arguments
