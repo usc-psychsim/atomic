@@ -57,7 +57,54 @@ class Feature(ABC):
     
     def getDataframe(self):
         return self.dataframe
-    
+
+class PlayerRoomPercentage(Feature):    
+    def __init__(self, mission_length=15, logger=logging):
+        super().__init__("percentage of time in room per player", logger)
+        # Length of mission in minutes
+        self.mission_length = 15
+        # Current room per player
+        self.player_loc = dict()
+        # Number of seconds player has spent in each room
+        self.player_occupancy = dict()
+        # Last mission time of processed message
+        self.last_time = {}
+        # Total elapsed time (for normalization)
+        self.total_time = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)        
+        if self.msg_type == 'Event:location':
+            player = self.msg_player
+            msg_time = tuple(map(int, self.msg_time.split(':')))
+            msg_time = self.mission_length*60 - (msg_time[0]*60 + msg_time[1])
+            if player in self.player_loc:
+                room = self.player_loc[player]
+                if room != msg['room_name']:
+                    elapsed = msg_time - self.last_time[player]
+                    self.player_occupancy[player][room] = self.player_occupancy[player].get(room, 0) + elapsed
+                    # Roll forward
+                    self.player_loc[player] = msg['room_name']
+                    self.last_time[player] = msg_time
+                    self.total_time[player] += elapsed
+            else:
+                self.player_loc[player] = msg['room_name']
+                self.player_occupancy[player] = {}
+                self.last_time[player] = msg_time
+                self.total_time[player] = 0
+        # Convert times into percentages
+        data = {}
+        for player, occupancy in self.player_occupancy.items():
+            if self.total_time[player] > 0:
+                for room, elapsed in occupancy.items():
+                    label = f'{player}_in_{room}'
+                    data[label] = elapsed/self.total_time[player]
+        self.addRow(data)
+
+    def printValue(self):
+        print(f'{self.name} {self.player_visits}')
+
+
 class CountVisitsPerRole(Feature):
     def __init__(self, roomsToTrack, logger=logging):
         super().__init__("visit count per room per role", logger)    
@@ -197,7 +244,7 @@ class CountAction(Feature):
         self.arg_values = arg_values
         
     def _getColName(self, pl):
-        return pl + self.type_to_count + str(self.arg_values)
+        return f'{pl}_{self.type_to_count}_{str(self.arg_values)}'
         
     def processMsg(self, msg):
         super().processMsg(msg)
