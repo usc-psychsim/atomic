@@ -300,7 +300,7 @@ class Replayer(object):
                 self.pre_step()
                 self.world.step(actions, debug=debug)
                 if simulate:
-                    self.world.step(real=False, debug=debug_s)
+                    self.world.step(real=False, debug=debug_s) # This is where the script hangs
                 if len(actions) < len(self.parser.agentToPlayer):
                     logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
                     break

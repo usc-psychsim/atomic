@@ -96,7 +96,8 @@ class Analyzer(Replayer):
             logger.info(self.beliefs[name])
 
             self.debug_data.append({"WORLD": self.world,
-                                    "AGENT_DEBUG": debug})
+                                    "AGENT_DEBUG": self.decisions,
+                                    "AGENT_ACTIONS": actions})
             pass
         
 
