@@ -101,7 +101,12 @@ domain mv_tr_v1 {
 				vcounter_saved_regular(?lc);
 
 		room_marker'(?lc) = 
-				@unmarked;
+			if (  exists_{?p : agent} [ (pLoc'(?p) == ?lc)^ (place_marker'(?p) == @regular_mark)  ] )
+				then @regular_mark
+			else if (  exists_{?p : agent} [ (pLoc'(?p) == ?lc)^ (place_marker'(?p) == @none_mark)  ] )
+				then @none_mark
+			else
+				room_marker(?lc);
 
 	};		
 	reward = 	
@@ -138,9 +143,9 @@ NBR-0(sga_A) = sga_B;
 HAS-NBR-0(sga_A) = true;
 NBR-1(sga_A) = ew_A;
 HAS-NBR-1(sga_A) = true;
-NBR-0(ew_A) = sga_A;
+NBR-0(ew_A) = el_A;
 HAS-NBR-0(ew_A) = true;
-NBR-1(ew_A) = el_A;
+NBR-1(ew_A) = sga_A;
 HAS-NBR-1(ew_A) = true;
 NBR-0(sga_B) = sga_A;
 HAS-NBR-0(sga_B) = true;
