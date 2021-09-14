@@ -25,6 +25,8 @@ class Feature(ABC):
     def processMsg(self, msg):
         self.msg_type = msg['sub_type']
         self.msg_player = msg.get('playername', msg.get('participant_id', None))
+        if self.msg_player == 'Server':
+            self.msg_player = None  # ignore server messages
         self.msg_time = msg['mission_timer'] if 'mission_timer' in msg else '-1:-1'
 
     @abstractmethod
@@ -74,7 +76,7 @@ class PlayerRoomPercentage(Feature):
 
     def processMsg(self, msg):
         super().processMsg(msg)        
-        if self.msg_type == 'Event:location':
+        if self.msg_player is not None and self.msg_type == 'Event:location':
             player = self.msg_player
             msg_time = tuple(map(int, self.msg_time.split(':')))
             msg_time = self.mission_length*60 - (msg_time[0]*60 + msg_time[1])
@@ -114,27 +116,28 @@ class CountVisitsPerRole(Feature):
     # keep track of each player's role and list of rooms
     def processMsg(self, msg):
         super().processMsg(msg)
-        
-        if self.msg_type == 'Event:location':
-            room = msg['room_name']
-            if room not in self.roomToRoleToCount.keys():
-                self.roomToRoleToCount[room] = dict()
-            if self.msg_player in self.playerToRole:
-                role = self.playerToRole[self.msg_player]
-                if role not in self.roomToRoleToCount[room].keys():
-                    self.roomToRoleToCount[room][role] = 0
-                self.roomToRoleToCount[room][role] = self.roomToRoleToCount[room][role] + 1
+
+        if self.msg_player is not None:
+            if self.msg_type == 'Event:location':
+                room = msg['room_name']
+                if room not in self.roomToRoleToCount.keys():
+                    self.roomToRoleToCount[room] = dict()
+                if self.msg_player in self.playerToRole:
+                    role = self.playerToRole[self.msg_player]
+                    if role not in self.roomToRoleToCount[room].keys():
+                        self.roomToRoleToCount[room][role] = 0
+                    self.roomToRoleToCount[room][role] = self.roomToRoleToCount[room][role] + 1
+                    self.history.append(msg)
+
+            if self.msg_type == 'Event:RoleSelected':
+                role = msg['new_role']
+                oldRole = msg['prev_role']
+                if self.msg_player not in self.playerToRole.keys():
+                    self.playerToRole[self.msg_player] = oldRole
+                if self.playerToRole[self.msg_player] != oldRole:
+                    super().warn('Previous role does not match ' + self.msg_player + ' actually ' + self.playerToRole[self.msg_player] + ' from msg ' + oldRole)
+                self.playerToRole[self.msg_player] = role
                 self.history.append(msg)
-            
-        if self.msg_type == 'Event:RoleSelected':
-            role = msg['new_role']
-            oldRole = msg['prev_role']
-            if self.msg_player not in self.playerToRole.keys():
-                self.playerToRole[self.msg_player] = oldRole
-            if self.playerToRole[self.msg_player] != oldRole:
-                super().warn('Previous role does not match ' + self.msg_player + ' actually ' + self.playerToRole[self.msg_player] + ' from msg ' + oldRole)                
-            self.playerToRole[self.msg_player] = role
-            self.history.append(msg)
 
         row_dict = {}
         for room, role_counts in self.roomToRoleToCount.items():
@@ -156,7 +159,7 @@ class CountRoleChanges(Feature):
     def processMsg(self, msg):
         super().processMsg(msg)
         
-        if self.msg_type == 'Event:RoleSelected':
+        if self.msg_player is not None and self.msg_type == 'Event:RoleSelected':
             if self.msg_player not in self.playerToCount.keys():
                 self.playerToCount[self.msg_player] = 0
                 self.addCol(self.msg_player+'_role_change')
@@ -180,7 +183,7 @@ class CountEnterExit(Feature):
     def processMsg(self, msg):
         super().processMsg(msg)
         
-        if self.msg_player is None:
+        if self.msg_player is not None:
             if self.msg_player not in self.playerToActed.keys():
                 self.playerToActed[self.msg_player] = False
             if self.msg_player not in self.playerToCount.keys():
@@ -189,20 +192,20 @@ class CountEnterExit(Feature):
             if self.msg_player not in self.playerToPrevLoc.keys():
                 self.playerToPrevLoc[self.msg_player] = ''
         
-        if self.msg_type == 'Event:location':
-            prevRoom = self.playerToPrevLoc[self.msg_player]
-            room = msg['room_name']
-            if self.tracked(prevRoom):
-                if not self.playerToActed[self.msg_player]:
-                    self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
-            if self.tracked(prevRoom) or self.tracked(room):
+            if self.msg_type == 'Event:location':
+                prevRoom = self.playerToPrevLoc[self.msg_player]
+                room = msg['room_name']
+                if self.tracked(prevRoom):
+                    if not self.playerToActed[self.msg_player]:
+                        self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
+                if self.tracked(prevRoom) or self.tracked(room):
+                    self.history.append(msg)
+                self.playerToPrevLoc[self.msg_player] = room
+                self.playerToActed[self.msg_player] = False
+
+            if self.msg_type == 'Event:ToolUsed':
+                self.playerToActed[self.msg_player] = True
                 self.history.append(msg)
-            self.playerToPrevLoc[self.msg_player] = room
-            self.playerToActed[self.msg_player] = False
-            
-        if self.msg_type == 'Event:ToolUsed':
-            self.playerToActed[self.msg_player] = True
-            self.history.append(msg)
 
         self.addRow({pl+'_entry_exit':ct for pl, ct in  self.playerToCount.items()})  
             
@@ -248,8 +251,8 @@ class CountAction(Feature):
         
     def processMsg(self, msg):
         super().processMsg(msg)
-        
-        if self.msg_type == self.type_to_count:
+
+        if self.msg_player is not None and self.msg_type == self.type_to_count:
             for arg, value in self.arg_values.items():
                 if (arg not in msg.keys()) or (msg[arg] != value):
                     return
@@ -265,22 +268,22 @@ class CountAction(Feature):
         print(self.name, self.playerToCount)
 
         
-#This was written to work w/T000315
-class CountPlayerDialogueEvents(Feature):
-    def __init__(self, logger=logging):
-        super().__init__("count number of times a player talks", logger)
-        self.playerToCount = dict()
-        
-    def processMsg(self, msg):
-        super().processMsg(msg)
-        
-        if self.msg_type == 'Event:dialogue_event':
-            if self.msg_player not in self.playerToCount.keys():
-                self.playerToCount[self.msg_player] = 0
-            self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
-            self.history.append(msg)
-            
-        self.addRow({f'{pl}_talks': count for pl, count in self.playerToCount.items()})
-
-    def printValue(self):
-        print(self.name, self.playerToCount)
+# #This was written to work w/T000315
+# class CountPlayerDialogueEvents(Feature):
+#     def __init__(self, logger=logging):
+#         super().__init__("count number of times a player talks", logger)
+#         self.playerToCount = dict()
+#
+#     def processMsg(self, msg):
+#         super().processMsg(msg)
+#
+#         if self.msg_type == 'Event:dialogue_event':
+#             if self.msg_player not in self.playerToCount.keys():
+#                 self.playerToCount[self.msg_player] = 0
+#             self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
+#             self.history.append(msg)
+#
+#         self.addRow({f'{pl}_talks': count for pl, count in self.playerToCount.items()})
+#
+#     def printValue(self):
+#         print(self.name, self.playerToCount)
