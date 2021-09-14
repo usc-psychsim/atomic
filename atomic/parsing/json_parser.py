@@ -45,12 +45,13 @@ class JSONReader(object):
         self.victims = []
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
-        self.msg_types = ['Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
-                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted', 
+        self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
+                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
-                          'Event:RubbleDestroyed', 'Event:ItemEquipped']
-        
-        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name']
+                          'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event'}
+
+        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name',
+                              'timestamp']
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
@@ -70,7 +71,7 @@ class JSONReader(object):
         self.fname = fname
         if use_ihmc_locations:
             self.locations_from = LOCATION_MONITOR
-            self.msg_types.append('Event:location')
+            self.msg_types.add('Event:location')
         else:
             self.locations_from = STATE_MSGS
             
@@ -246,7 +247,7 @@ class JSONReader(object):
                     if self.verbose: print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
                           %(player, self.player_to_curr_room[player], mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
 
-        if m['mission_timer'] == 'Mission Timer not initialized.':
+        if 'mission_timer' in m and m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
         
         smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}

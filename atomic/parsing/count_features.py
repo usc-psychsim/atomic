@@ -25,7 +25,7 @@ class Feature(ABC):
     def processMsg(self, msg):
         self.msg_type = msg['sub_type']
         self.msg_player = msg.get('playername', msg.get('participant_id', None))
-        self.msg_time = msg['mission_timer']
+        self.msg_time = msg['mission_timer'] if 'mission_timer' in msg else '-1:-1'
 
     @abstractmethod
     def printValue(self):
@@ -180,7 +180,7 @@ class CountEnterExit(Feature):
     def processMsg(self, msg):
         super().processMsg(msg)
         
-        if self.msg_player is not None:
+        if self.msg_player is None:
             if self.msg_player not in self.playerToActed.keys():
                 self.playerToActed[self.msg_player] = False
             if self.msg_player not in self.playerToCount.keys():

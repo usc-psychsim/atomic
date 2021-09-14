@@ -41,7 +41,7 @@ class MsgQCreator(GameLogParser):
         for i,p in enumerate(self.players):
             self.playerToAgent[p] = 'p' + str(i+1)
             self.agentToPlayer['p' + str(i+1)] = p      
-        self.player_maps = {self.playerToAgent[p]: map_version for p, map_version in self.jsonParser.player_maps.items()}
+        # self.player_maps = {self.playerToAgent[p]: map_version for p, map_version in self.jsonParser.player_maps.items()}
         self.createActionQs()
         
 
@@ -51,13 +51,13 @@ class MsgQCreator(GameLogParser):
         while nextMsg < len(self.playerToMsgs[player]):
             msg = self.playerToMsgs[player][nextMsg]
             
-            if ':' not in msg['mission_timer']:
+            if 'mission_timer' not in msg or ':' not in msg['mission_timer']:
                 nextMsg = nextMsg + 1
                 continue
             
             ## If malformed time, skip
             nums = msg['mission_timer'].split(':')
-            if np.any([not n.strip().isdigit() for n in nums]):
+            if any(not n.strip().isdigit() for n in nums):
                 nextMsg = nextMsg + 1
                 continue
             
@@ -97,6 +97,7 @@ class MsgQCreator(GameLogParser):
             for player, msgIdx in self.nextMsgIdx.items():
                 if msgIdx < len(self.playerToMsgs[player]):
                     allDone = False
+                    break
             if allDone:
                 print('Everyone done')
                 break
