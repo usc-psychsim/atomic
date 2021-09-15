@@ -59,6 +59,8 @@ def main():
                              'comma-separated string with the paths to individual log files.')
     parser.add_argument('--output', '-o', type=str, required=True, help='Directory in which to save results.')
     parser.add_argument('--filter', type=str, help='Regex expression to filter input files (using match).')
+    parser.add_argument('--trial', type=int, default=-1,
+                        help='Trial number to analyze for each team. -1 ignores the trial filter.')
     parser.add_argument('--processes', '-p', type=int, default=1,
                         help='Number of processes for parallel processing. Value < 1 uses all available cpus.')
     parser.add_argument('--format', '-f', type=str, default='png', help='Format of result images.')
@@ -98,7 +100,7 @@ def main():
         files = get_files_with_extension(args.input, LOG_FILE_EXTENSION)
 
     # checks files
-    files = _filter_files(files, args.filter)
+    files = _filter_files(files, args)
     if len(files) == 0:
         raise ValueError(f'Could not find any files to process in: {args.input}, matching {args.filter}!')
 
@@ -160,44 +162,9 @@ def main():
     clustering.fit(norm_data)
     logging.info(f'Found {clustering.n_clusters_} clusters at max. distance: {clustering.distance_threshold}')
 
-    # saves clustering results
     clustering_dir = os.path.join(args.output, 'clustering')
-    os.makedirs(clustering_dir, exist_ok=True)
-    logging.info('========================================')
-    logging.info('Saving clustering results...')
-    plot_clustering_distances(clustering, os.path.join(clustering_dir, f'clustering-distances.{args.format}'))
-    plot_clustering_dendrogram(clustering, os.path.join(clustering_dir, f'clustering-dendrogram.{args.format}'))
 
-    # gets lof files idxs for each cluster
-    clusters = {}
-    for idx, cluster in enumerate(clustering.labels_):
-        if cluster not in clusters:
-            clusters[cluster] = []
-        clusters[cluster].append(idx)
-
-    df = pd.DataFrame([{CLUSTER_ID_COL: cluster,
-                        CLUSTER_COUNT_COL: len(idxs),
-                        FILE_NAMES_COL: [file_names[idx] for idx in idxs]}
-                       for cluster, idxs in clusters.items()])
-    df.set_index([CLUSTER_ID_COL], inplace=True)
-    df.sort_index(inplace=True)
-    file_path = os.path.join(clustering_dir, 'cluster-ids.csv')
-    df.to_csv(file_path)
-
-    logging.info('========================================')
-    logging.info('Clusters\' distribution:')
-    for cluster, idxs in clusters.items():
-        logging.info(f'Cluster {cluster}: {len(idxs)}')
-
-    # saves mean feature vectors
-    logging.info('========================================')
-    logging.info('Computing mean feature vectors for each cluster...')
-    mean_vecs = [[cluster] + np.mean(data[idxs], axis=0).tolist() for cluster, idxs in clusters.items()]
-    df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features.tolist())
-    df.set_index([CLUSTER_ID_COL], inplace=True)
-    df.sort_index(inplace=True)
-    file_path = os.path.join(clustering_dir, 'cluster-mean-feats.csv')
-    df.to_csv(file_path)
+    _save_clustering_results(clustering, clustering_dir, data, features, file_names, args)
 
     # performs internal evaluation
     _internal_evaluation(norm_data, clustering, clustering_dir, args)
@@ -205,14 +172,15 @@ def main():
     logging.info('Done!')
 
 
-def _filter_files(files: List[str], filter_str: str) -> List[str]:
-    # first filter files using cmd line regex
-    files = set([file for file in files if filter_str is None or re.search(filter_str, file)])
-
-    # then filter only the highest versions of each file
+def _filter_files(files: List[str], args: argparse.Namespace) -> List[str]:
+    # first filter valid files and only the highest versions of each file
     filtered = set()
     for file in files:
-        if file in filtered or not file.endswith(LOG_FILE_EXTENSION) or not os.path.isfile(file):
+        if file in filtered or not file.endswith(LOG_FILE_EXTENSION) or not os.path.isfile(file) \
+                or 'TrialMessages_TrialPlanning' in file \
+                or 'TrialMessages_Trial-Training' in file \
+                or 'TrialMessages_Trial-Competency' in file \
+                or 'TrialMessages-FoV' in file:
             continue
         i = re.search(r'Vers-(\d+)', file)
         if i is None:
@@ -224,7 +192,29 @@ def _filter_files(files: List[str], filter_str: str) -> List[str]:
             if file_ in files:
                 file = file_
         filtered.add(file)
-    return sorted(filtered)
+    files = filtered
+
+    # filter trial number by team
+    if args.trial >= 0:
+        team_files = {}
+        for file in files:
+            i = re.search(r'Team-TM\d+', file)
+            if i is None:
+                continue
+            team = i.group(0)
+            if team not in team_files:
+                team_files[team] = []
+            team_files[team].append(file)
+        files = []
+        for team, t_files in team_files.items():
+            t_files = sorted(t_files, key=lambda file: int(re.search(r'Trial-T(\d+)_Team', file).group(1)))
+            if len(t_files) > args.trial:
+                files.append(t_files[args.trial])
+
+    # then filter files using cmd line regex
+    files = set([file for file in files if args.filter is None or re.search(args.filter, file)])
+
+    return sorted(files)
 
 
 def _get_derived_features(msg_qs: MsgQCreator) -> List[Feature]:
@@ -269,6 +259,7 @@ def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
         df.to_csv(file_path, index=False)
 
         return features
+    # except IOError as e:
     except (KeyError, AttributeError, ValueError, UnboundLocalError, IndexError) as e:
         logging.info(f'Could not process log file {log_file}, {e}!')
         return None
@@ -342,6 +333,46 @@ def _plot_evaluation(metric: str, scores: Dict[int, Dict[int, float]], output_im
     plt.figure()
     plt.plot(scores.keys(), scores.values())
     format_and_save_plot(plt.gca(), metric, output_img, x_label='Num. Clusters', show_legend=False)
+
+
+def _save_clustering_results(clustering, clustering_dir, data, features, file_names, args):
+    # saves clustering results
+    os.makedirs(clustering_dir, exist_ok=True)
+    logging.info('========================================')
+    logging.info('Saving clustering results...')
+    plot_clustering_distances(clustering, os.path.join(clustering_dir, f'clustering-distances.{args.format}'))
+    plot_clustering_dendrogram(clustering, os.path.join(clustering_dir, f'clustering-dendrogram.{args.format}'))
+
+    # gets log files idxs for each cluster
+    clusters = {}
+    for idx, cluster in enumerate(clustering.labels_):
+        if cluster not in clusters:
+            clusters[cluster] = []
+        clusters[cluster].append(idx)
+
+    df = pd.DataFrame([{CLUSTER_ID_COL: cluster,
+                        CLUSTER_COUNT_COL: len(idxs),
+                        FILE_NAMES_COL: [file_names[idx] for idx in idxs]}
+                       for cluster, idxs in clusters.items()])
+    df.set_index([CLUSTER_ID_COL], inplace=True)
+    df.sort_index(inplace=True)
+    file_path = os.path.join(clustering_dir, 'cluster-ids.csv')
+    df.to_csv(file_path)
+
+    logging.info('========================================')
+    logging.info('Clusters\' distribution:')
+    for cluster, idxs in clusters.items():
+        logging.info(f'Cluster {cluster}: {len(idxs)}')
+
+    # saves mean feature vectors
+    logging.info('========================================')
+    logging.info('Computing mean feature vectors for each cluster...')
+    mean_vecs = [[cluster] + np.mean(data[idxs], axis=0).tolist() for cluster, idxs in clusters.items()]
+    df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features.tolist())
+    df.set_index([CLUSTER_ID_COL], inplace=True)
+    df.sort_index(inplace=True)
+    file_path = os.path.join(clustering_dir, 'cluster-mean-feats.csv')
+    df.to_csv(file_path)
 
 
 def _internal_evaluation(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str, args):
