@@ -14,14 +14,14 @@ import os
 
 USE_COLLAPSED = True
 
-log_name = 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
-fname = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'ASU_DATA', log_name)
+names = ['study-2_2021.06_HSRData_TrialMessages_Trial-T000421_Team-TM000111_Member-na_CondBtwn-2_CondWin-SaturnA_Vers-6.metadata',
+'study-2_2021.06_HSRData_TrialMessages_Trial-T000401_Team-TM000101_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-6.metadata']
 
 
-jsonParser = JSONReader(fname, use_collapsed_map=USE_COLLAPSED)
-vList = jsonParser.get_victims()
-
-
-victim_pickle = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'rddl_psim', 'victims.pickle')
-with open(victim_pickle, 'wb') as f:
-    pickle.dump(vList, f)
+for i, tag in enumerate(['A', 'B']):
+    fname = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'ASU_DATA', names[i])
+    jsonParser = JSONReader(fname, use_collapsed_map=USE_COLLAPSED)
+    vList = jsonParser.get_victims()
+    victim_pickle = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
+    with open(victim_pickle, 'wb') as f:
+        pickle.dump(vList, f)

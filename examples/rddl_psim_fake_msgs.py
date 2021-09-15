@@ -1,6 +1,6 @@
 import argparse
 import logging
-import sys
+import sys, os
 
 from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
@@ -14,7 +14,8 @@ USE_COLLAPSED = True
 if USE_COLLAPSED:
     json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_fol.csv'
     lookup_aux_data_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/maps/Saturn/rddl_clpsd_neighbors.csv'
-    RDDL_FILE = '../data/rddl_psim/role_clpsd_map.rddl'
+    RDDL_FILE_BASE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map')
+    RDDL_FILES = {tag:RDDL_FILE_BASE+tag+'.rddl' for tag in ['A','B']}
 else:
     json_msg_action_lookup_fname = '/home/mostafh/Documents/psim/new_atomic/atomic/data/rddl_psim/rddl2actions_small.csv'
     lookup_aux_data_fname = None
@@ -40,7 +41,7 @@ def _log_agent_reward(ag_name):
     rwd = None if len(rwd) == 0 else rwd[0]
     logging.info(f'{ag_name}\'s action: {action} reward: {rwd}')
 
-
+RDDL_FILE = '../data/rddl_psim/b_small.rddl' #RDDL_FILES['B']
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', type=str, default=RDDL_FILE, help='RDDL file to be converted to PsychSim.')
 parser.add_argument('--threshold', '-t', type=float, default=THRESHOLD,
@@ -61,19 +62,31 @@ conv.convert_file(RDDL_FILE, verbose=True)
 all_msgs = []
 if USE_COLLAPSED:    
     ## correct message
-    all_msgs.append({'p1': {'room_name':'sga_B', 'playername':'p1', 'old_room_name':'', 'sub_type':'Event:location'}, 
-                 'p2':{'room_name':'sga_B', 'playername':'p2', 'old_room_name':'', 'sub_type':'Event:location'}, 
-                 'p3':{'room_name':'sga_A', 'playername':'p3', 'old_room_name':'', 'sub_type':'Event:location'}})
+    all_msgs.append({'p1': {'room_name':'kco_A', 'playername':'p1', 'old_room_name':'', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'kco_A', 'playername':'p2', 'old_room_name':'', 'sub_type':'Event:location'}, 
+                 'p3':{'room_name':'kco_A', 'playername':'p3', 'old_room_name':'', 'sub_type':'Event:location'}})
 
     ## correct message
-    all_msgs.append({'p1': {'room_name':'sga_A', 'playername':'p1', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
-                 'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}, 
-                 'p3':{'room_name':'ew_A', 'playername':'p3', 'old_room_name':'sga_A', 'sub_type':'Event:location'}})
-
+    all_msgs.append({'p1': {'room_name':'tkt_A', 'playername':'p1', 'old_room_name':'kco_A', 'sub_type':'Event:location'}, 
+                   'p2': {'mission_timer': '14 : 23',
+                      'triage_state': 'SUCCESSFUL',
+                      'type': 'REGULAR',
+                      'sub_type': 'Event:Triage',
+                      'playername': 'p2',
+                      'room_name': 'sdc_A',
+                      'realname': 'E000302'},
+                     'p3': {'mission_timer': '14 : 27',
+                      'type': 'REGULAR',
+                      'sub_type': 'Event:VictimPickedUp',
+                      'playername': 'p3',
+                      'room_name': 'sdc_A',
+                      'realname': 'E000301'}
+                        })
+                    
     ## message with an impossible move
-    all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
-                 'p2':{'room_name':'ccn', 'playername':'p2', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
-                 'p3':{'room_name':'el_A', 'playername':'p3', 'old_room_name':'ew_A', 'sub_type':'Event:location'}})
+#    all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
+#                 'p2':{'room_name':'ccn', 'playername':'p2', 'old_room_name':'sga_A', 'sub_type':'Event:location'}, 
+#                 'p3':{'room_name':'el_A', 'playername':'p3', 'old_room_name':'ew_A', 'sub_type':'Event:location'}})
 
 else:
     all_msgs.append({'p1': {'room_name':'sdc', 'playername':'p1', 'old_room_name':'el', 'sub_type':'Event:location'}, 

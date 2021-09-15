@@ -16,13 +16,15 @@ USE_COLLAPSED = True
 if USE_COLLAPSED:
     json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
     lookup_aux_data_fname = os.path.join(os.path.dirname(__file__), '..', 'maps', 'Saturn', 'rddl_clpsd_neighbors.csv')
-    RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map.rddl')
+    RDDL_FILE_BASE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map')
+    RDDL_FILES = {tag:RDDL_FILE_BASE+tag+'.rddl' for tag in ['A','B']}
 else:
     json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
     lookup_aux_data_fname = None
+    ## TODO create 2 RDDL files for the uncollapsed map version
     RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_big.rddl')
 ddir = '../data/ASU_DATA/'
-fname = ddir + 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
+metadata_file = ddir + 'study-2_2021.06_HSRData_TrialMessages_Trial-T000401_Team-TM000101_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-6.metadata'
     
 Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
 usable_msg_types = Msg2ActionEntry.get_msg_types()
@@ -48,10 +50,13 @@ def _log_agent_reward(ag_name):
 #hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
 #room_names = main_names.difference(hallways)
 
-
+if 'SaturnA' in metadata_file:
+    RDDL_FILE = RDDL_FILES['A']
+else:
+    RDDL_FILE = RDDL_FILES['B']
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', type=str, default=RDDL_FILE, help='RDDL file to be converted to PsychSim.')
-parser.add_argument('--data', type=str, default=fname, help='JSON file containing messages from game log.')
+parser.add_argument('--data', type=str, default=metadata_file, help='JSON file containing messages from game log.')
 parser.add_argument('--threshold', '-t', type=float, default=THRESHOLD,
                     help='Stochastic outcomes with a likelihood below this threshold are pruned.')
 parser.add_argument('--select', action='store_true',

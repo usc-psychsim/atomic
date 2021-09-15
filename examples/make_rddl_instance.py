@@ -9,6 +9,7 @@ Created on Sat May 15 17:27:09 2021
 import pickle
 import pandas as pd
 import json
+import os
 from atomic.parsing.map_parser import read_semantic_map
 from atomic.parsing.remap_connections import transformed_connections
 
@@ -118,8 +119,8 @@ def make_rddl_inst(rooms, edges,
 def make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
                        rddl_template,
                        rddl_out,
-                       map_out_csv,
-                       victim_pickle='../data/rddl_psim/victims.pickle'):
+                       victim_pickles,
+                       map_out_csv):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
@@ -153,21 +154,23 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
 
     loc_str, nbr_str = generate_rddl_map_portals(neighbors)
     init_loc = list(neighbors.keys())[0]
-    vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
     nbr_consts, move_vars, move_dyn, move_pre_cond = generate_rddl_move_actions(neighbors)
 
     rddl_temp_file = open(rddl_template, "r")
 
-    rddl_str = rddl_temp_file.read()
-    rddl_str = rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
-        replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
-        replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
+    master_rddl_str = rddl_temp_file.read()
 
-    rddl_inst_file = open(rddl_out, "w")
-    rddl_inst_file.write(rddl_str)
+    for tag, victim_pickle in victim_pickles.items():
+        vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
+        rddl_str = master_rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
+            replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
+            replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
+    
+        rddl_inst_file = open(rddl_out + tag + '.rddl', "w")
+        rddl_inst_file.write(rddl_str)    
+        rddl_inst_file.close()
 
     rddl_temp_file.close()
-    rddl_inst_file.close()
 
 
 if __name__ == '__main__':
@@ -190,7 +193,11 @@ if __name__ == '__main__':
             edges.append((a,b))
             edges.append((b,a))
             
+    victim_pickles = {}
+    for tag in ['A', 'B']:
+        victim_pickles[tag] = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
     make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
                        '../data/rddl_psim/role_fol_template.rddl',
-                       '../data/rddl_psim/role_clpsd_map.rddl',
+                       '../data/rddl_psim/role_clpsd_map',
+                       victim_pickles,
                        '../maps/Saturn/rddl_clpsd_neighbors.csv')
