@@ -121,7 +121,12 @@ for i, msgs in enumerate(msg_qs.actions):
             
         action = conv.actions[player_name][action_name]
         actions[player_name] = action        
-    
+        if not action in conv.world.agents[player_name].getLegalActions():
+            logging.error(f'Illegal action: {action}')
+            logging.error(f'{player_name} has role {conv.world.getState(player_name, "pRole", unique=True)}, with the following available actions: {", ".join(sorted(map(str, conv.world.agents[player_name].getLegalActions())))}')
+            loc = conv.world.getState(player_name, 'pLoc', unique=True)
+            print(f'Victims in {loc}:', conv.world.getFeature(f'__WORLD__\'s (vcounter_unsaved_regular, {loc})', unique=True))           
+            raise ValueError(f'Illegal action: {action}')
     conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
 
     conv.log_state(log_actions=args.log_actions)
