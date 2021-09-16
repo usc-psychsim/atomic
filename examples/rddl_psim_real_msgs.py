@@ -7,7 +7,7 @@ import numpy as np
 from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from atomic.parsing.count_features import CountAction, CountPlayerDialogueEvents, CountRoleChanges, CountTriageInHallways, CountEnterExit
+from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit
 
 THRESHOLD = 0
 
@@ -23,8 +23,8 @@ else:
     lookup_aux_data_fname = None
     ## TODO create 2 RDDL files for the uncollapsed map version
     RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_big.rddl')
-ddir = '../data/ASU_DATA/'
-metadata_file = ddir + 'study-2_2021.06_HSRData_TrialMessages_Trial-T000401_Team-TM000101_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-6.metadata'
+ddir = os.path.join(os.path.dirname(__file__), '..', 'data', 'ASU_DATA')
+metadata_file = os.path.join(ddir, 'study-2_2021.06_HSRData_TrialMessages_Trial-T000401_Team-TM000101_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-6.metadata')
     
 Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
 usable_msg_types = Msg2ActionEntry.get_msg_types()
