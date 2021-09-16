@@ -11,6 +11,11 @@ from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from rddl2psychsim.conversion.converter import Converter
+try:
+    import enlighten
+    pbar_manager = enlighten.get_manager()
+except ImportError:
+    pbar_manager = None
 
 from psychsim.pwl import *
 
@@ -238,7 +243,13 @@ class Replayer(object):
             num = len(self.parser.actions)
             old_rooms = {}
             new_rooms = {}
+            global pbar_manager
+            if pbar_manager:
+                pbar = pbar_manager.counter(total=len(self.parser.actions), unit='steps')
+            else:
+                pbar = None
             for i, msgs in enumerate(self.parser.actions):
+                if pbar: pbar.update()
                 self.t = i
                 if i > duration:
                     break
@@ -255,7 +266,6 @@ class Replayer(object):
                         logger.warning(f'Empty room in message {i} {msg} for player {player_name}')
                         self.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
                         msg['sub_type'] = 'noop'
-                        action_name = Msg2ActionEntry.get_action(msg)
                 for player_name, msg in msgs.items():
                     action_name = Msg2ActionEntry.get_action(msg)
                     if action_name not in self.rddl_converter.actions[player_name]:
@@ -371,6 +381,8 @@ def parse_replay_config(fname, parser):
                 args[flag] = config.getint(entry[0], entry[1], fallback=default)
             else:
                 args[flag] = config.get(entry[0], entry[1], fallback=None)
+                if flag in {'rddl', 'actions', 'aux'}:
+                    args[flag] = os.path.join(root, args[flag])
     elif language == 'none':
         pass
     else:
