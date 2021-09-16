@@ -133,7 +133,7 @@ def main():
     df_norm.to_csv(file_path, index=False)
 
     # split
-    features = df.columns[1:]
+    features = df.columns[1:].tolist()
     file_names = df[FILE_NAME_COL].values
     data = df.iloc[:, 1:].values
     norm_data = df_norm.iloc[:, 1:].values
@@ -164,10 +164,13 @@ def main():
 
     clustering_dir = os.path.join(args.output, 'clustering')
 
-    _save_clustering_results(clustering, clustering_dir, data, features, file_names, args)
+    clusters = _save_clustering_results(data, clustering, clustering_dir, features, file_names, args)
 
     # performs internal evaluation
     _internal_evaluation(norm_data, clustering, clustering_dir, args)
+
+    # analyzes feature importance
+    _analyze_cluster_features(norm_data, clusters, clustering_dir, features)
 
     logging.info('Done!')
 
@@ -211,7 +214,7 @@ def _filter_files(files: List[str], args: argparse.Namespace) -> List[str]:
             if len(t_files) > args.trial:
                 files.append(t_files[args.trial])
 
-    # then filter files using cmd line regex
+    # then filter files using regex
     files = set([file for file in files if args.filter is None or re.search(args.filter, file)])
 
     return sorted(files)
@@ -335,7 +338,8 @@ def _plot_evaluation(metric: str, scores: Dict[int, Dict[int, float]], output_im
     format_and_save_plot(plt.gca(), metric, output_img, x_label='Num. Clusters', show_legend=False)
 
 
-def _save_clustering_results(clustering, clustering_dir, data, features, file_names, args):
+def _save_clustering_results(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str,
+                             features: List[str], file_names: List[str], args: argparse.Namespace):
     # saves clustering results
     os.makedirs(clustering_dir, exist_ok=True)
     logging.info('========================================')
@@ -368,14 +372,17 @@ def _save_clustering_results(clustering, clustering_dir, data, features, file_na
     logging.info('========================================')
     logging.info('Computing mean feature vectors for each cluster...')
     mean_vecs = [[cluster] + np.mean(data[idxs], axis=0).tolist() for cluster, idxs in clusters.items()]
-    df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features.tolist())
+    df = pd.DataFrame(mean_vecs, columns=[CLUSTER_ID_COL] + features)
     df.set_index([CLUSTER_ID_COL], inplace=True)
     df.sort_index(inplace=True)
     file_path = os.path.join(clustering_dir, 'cluster-mean-feats.csv')
     df.to_csv(file_path)
 
+    return clusters
 
-def _internal_evaluation(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str, args):
+
+def _internal_evaluation(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str,
+                         args: argparse.Namespace):
     sub_dir = os.path.join(clustering_dir, 'internal eval')
     os.makedirs(sub_dir, exist_ok=True)
 
@@ -398,6 +405,43 @@ def _internal_evaluation(data: np.ndarray, clustering: AgglomerativeClustering, 
     for metric, scores in evals.items():
         file_path = os.path.join(sub_dir, f'{metric.lower().replace(" ", "-")}.{args.format}')
         _plot_evaluation(metric, scores, file_path, True)
+
+
+def _analyze_cluster_features(norm_data: np.ndarray, clusters: Dict[int, List[int]], clustering_dir: str,
+                              features: List[str]):
+    # gets pairwise component distances
+    logging.info('========================================')
+    logging.info('Calculating inter-cluster pairwise distances...')
+    cluster_embeds = {c: [norm_data[idx] for idx in idxs] for c, idxs in clusters.items()}
+    clusters = list(cluster_embeds.keys())
+    num_clusters = len(clusters)
+    mean_embed_diffs = 0.
+    embed_count = 0
+    for i in range(num_clusters):
+        logging.info(f'Processing cluster {i}...')
+        c_i = clusters[i]
+        len_c_i = len(cluster_embeds[c_i])
+        for j in range(i + 1, num_clusters):
+            c_j = clusters[j]
+            len_c_j = len(cluster_embeds[c_j])
+            for k, l in tqdm.tqdm(it.product(range(len_c_i), range(len_c_j)), total=len_c_i * len_c_j):
+                if k == l:
+                    continue
+                dist = (cluster_embeds[c_i][k] - cluster_embeds[c_j][l]) ** 2
+                mean_embed_diffs = (mean_embed_diffs * embed_count + dist) / (embed_count + 1)
+                embed_count += 1
+
+    # gets mean component distances across all pairs of all clusters
+    logging.info('========================================')
+    df = pd.DataFrame(zip(features, mean_embed_diffs), columns=['Feature', 'Mean Difference'])
+    df.sort_values('Mean Difference', ascending=False, inplace=True)
+    logging.info('Top-10 features:')
+    logging.info(df.iloc[:10])
+
+    logging.info('========================================')
+    file_path = os.path.join(clustering_dir, 'feat-diffs.csv')
+    logging.info(f'Saving mean features differences to: {file_path}...')
+    df.to_csv(file_path, index=False)
 
 
 if __name__ == '__main__':
