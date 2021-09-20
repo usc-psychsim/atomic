@@ -48,10 +48,15 @@ class JSONReader(object):
         self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
                           'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
-                          'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event'}
+                          'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event',
+                          # dp added:
+                          'Event:Scoreboard', 'Event:MarkerPlaced'
+                          }
 
-        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name',
-                              'timestamp']
+        self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
+                            # dp added:
+                            'scoreboard', 'participant_id', 'marker_type', 'victim_type', 
+                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions'                              ]
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
@@ -74,6 +79,9 @@ class JSONReader(object):
             self.msg_types.add('Event:location')
         else:
             self.locations_from = STATE_MSGS
+        self.subjects = None
+        self.player_maps = {}
+        self.player_marker = {}
             
     def registerFeatures(self, feats):
         for f in feats:
@@ -93,35 +101,35 @@ class JSONReader(object):
         jsonfile.close()        
         self.allMTypes = set()
         
-        if tqdm and not self.verbose:
-            iterable = tqdm(self.jsonMsgs)
-        else:
-            iterable = self.jsonMsgs
-        for jmsg in iterable:
+#        if tqdm and not self.verbose:
+#            iterable = tqdm(self.jsonMsgs)
+#        else:
+#            iterable = self.jsonMsgs
+        for jmsg in self.jsonMsgs:
             self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
             
     def read_semantic_map(self):        
         jsonfile = open(self.fname, 'rt')
         
-        semantic_map = None
+        self.semantic_map = None
         for line in jsonfile.readlines():
             jmsg = json.loads(line)
             if 'semantic_map' in jmsg['data'].keys():
-                semantic_map = jmsg['data']['semantic_map']
+                self.semantic_map = jmsg['data']['semantic_map']
                 break
         else:
             raise ValueError('Unable to find semantic map')
         jsonfile.close()
-        
+
         # Sudeepta's map transformation code
-        room_dict, room_connections = extract_map(semantic_map)
+        room_dict, room_connections = extract_map(self.semantic_map)
         
         if self.USE_COLLAPSED_MAP:
             ## Overwrite room_edges and store name lookup and new room names
             from atomic.parsing.remap_connections import transformed_connections
             self.room_edges = []
-            edges, self.room_name_lookup, new_map, orig_map = transformed_connections(semantic_map)
+            edges, self.room_name_lookup, new_map, orig_map = transformed_connections(self.semantic_map)
             for a,b in edges:
                 self.room_edges.append((a,b))
                 self.room_edges.append((b,a))     
@@ -155,7 +163,15 @@ class JSONReader(object):
         
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
-        if mtype not in self.msg_types:
+        if mtype == 'start' and 'client_info' in jmsg['data']:
+            # Initial message about experimental setup
+            if self.subjects is None:
+                self.subjects = {entry.get('playername', entry['callsign']): entry['participant_id'] for entry in jmsg['data']['client_info']}
+            self.player_maps = {entry.get('playername', entry['participant_id']): entry['staticmapversion'] 
+                for entry in jmsg['data']['client_info'] if 'staticmapversion' in entry}
+            self.player_marker = {entry.get('playername', entry['participant_id']): entry['markerblocklegend'] 
+                for entry in jmsg['data']['client_info'] if 'markerblocklegend' in entry}
+        elif mtype not in self.msg_types:
             return
         m = jmsg['data']
         m['sub_type'] = mtype
@@ -181,6 +197,9 @@ class JSONReader(object):
 
         player = m.get('playername', m.get('participant_id', None))
         m['playername'] = player
+        if 'participant_id' not in m:
+            m['participant_id'] = self.subjects.get(m['playername'], None)
+        player = m['playername']
         is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
@@ -199,6 +218,17 @@ class JSONReader(object):
                 return
             room_name = room_names[0]
             is_location_event = True
+        elif mtype == 'Event:MarkerPlaced':
+            m['room_name'] = self.getRoom(m['marker_x'], m['marker_z'])
+            m['marker_type'] = m['type']
+            m['victim_type'] = 'none'
+            if player and player in self.player_marker:
+                m['marker_legend'] = self.player_marker[player]
+            m['closest_room'] = self.getClosestRoom(m['marker_x'], m['marker_z'], True)[0].name
+            victims = [v['block_type'] for v in self.vList if v['room_name'] == m['room_name']]
+            victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
+            m['mark_regular'] = victims.count('regular')
+            m['mark_critical'] = victims.count('critical')
 
         if is_location_event:
             if player not in self.player_to_curr_room:
@@ -286,10 +316,12 @@ class JSONReader(object):
         nbr2 = set([edge[1] for edge in self.room_edges if edge[1] == rm2])
         return len(nbr1.intersection(nbr2)) > 0
 
-    def getClosestRoom(self, x, z):
+    def getClosestRoom(self, x, z, force_neighbor=False):
         min_diff = 1e5
         closest = None
         for rm in self.rooms.values():
+            if rm.in_room(x, z):
+                continue
             x_diff = 0
             z_diff = 0
             if x < rm.x0:
