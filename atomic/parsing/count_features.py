@@ -13,7 +13,9 @@ import numpy as np
 from abc import ABC, abstractmethod
  
 class Feature(ABC):
- 
+
+    COMPACT_DATA = True
+
     def __init__(self, nm, logger):
         self.logger = logger
         self.name = nm
@@ -24,7 +26,7 @@ class Feature(ABC):
     
     def processMsg(self, msg):
         self.msg_type = msg['sub_type']
-        self.msg_player = msg.get('playername', msg.get('participant_id', None))
+        self.msg_player = msg.get('playername', None)
         if self.msg_player == 'Server':
             self.msg_player = None  # ignore server messages
         self.msg_time = msg['mission_timer'] if 'mission_timer' in msg else '-1:-1'
@@ -75,9 +77,10 @@ class PlayerRoomPercentage(Feature):
         self.total_time = {}
 
     def processMsg(self, msg):
-        super().processMsg(msg)        
-        if self.msg_player is not None and self.msg_type == 'Event:location':
-            player = self.msg_player
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if self.msg_type == 'Event:location':
+            player = msg['participant_id']
             msg_time = tuple(map(int, self.msg_time.split(':')))
             msg_time = self.mission_length*60 - (msg_time[0]*60 + msg_time[1])
             if player in self.player_loc:
@@ -94,14 +97,16 @@ class PlayerRoomPercentage(Feature):
                 self.player_occupancy[player] = {}
                 self.last_time[player] = msg_time
                 self.total_time[player] = 0
-        # Convert times into percentages
-        data = {}
-        for player, occupancy in self.player_occupancy.items():
-            if self.total_time[player] > 0:
-                for room, elapsed in occupancy.items():
-                    label = f'{player}_in_{room}'
-                    data[label] = elapsed/self.total_time[player]
-        self.addRow(data)
+            add_flag = True
+        if add_flag:
+            # Convert times into percentages
+            for player, occupancy in self.player_occupancy.items():
+                if self.total_time[player] > 0:
+                    data = {'Participant': player}
+                    for room, elapsed in occupancy.items():
+                        label = f'Occupancy of {room}'
+                        data[label] = elapsed/self.total_time[player]
+                    self.addRow(data)
 
     def printValue(self):
         print(f'{self.name} {self.player_visits}')
@@ -116,7 +121,7 @@ class CountVisitsPerRole(Feature):
     # keep track of each player's role and list of rooms
     def processMsg(self, msg):
         super().processMsg(msg)
-
+        add_flag = not self.COMPACT_DATA
         if self.msg_player is not None:
             if self.msg_type == 'Event:location':
                 room = msg['room_name']
@@ -128,6 +133,7 @@ class CountVisitsPerRole(Feature):
                         self.roomToRoleToCount[room][role] = 0
                     self.roomToRoleToCount[room][role] = self.roomToRoleToCount[room][role] + 1
                     self.history.append(msg)
+                    add_flag = True
 
             if self.msg_type == 'Event:RoleSelected':
                 role = msg['new_role']
@@ -138,15 +144,15 @@ class CountVisitsPerRole(Feature):
                     super().warn('Previous role does not match ' + self.msg_player + ' actually ' + self.playerToRole[self.msg_player] + ' from msg ' + oldRole)
                 self.playerToRole[self.msg_player] = role
                 self.history.append(msg)
-
-        row_dict = {}
-        for room, role_counts in self.roomToRoleToCount.items():
-            for role, count in role_counts.items():
-                label = f'{role}_visits_{room}'
-                if label not in self.dataframe.columns:
-                    self.addCol(label)
-                row_dict[label] = count
-        self.addRow(row_dict)
+        if add_flag:
+            row_dict = {}
+            for room, role_counts in self.roomToRoleToCount.items():
+                for role, count in role_counts.items():
+                    label = f'{role}_visits_{room}'
+                    if label not in self.dataframe.columns:
+                        self.addCol(label)
+                    row_dict[label] = count
+            self.addRow(row_dict)
             
     def printValue(self):
         print(self.name, self.roomToRoleToCount)
@@ -158,15 +164,20 @@ class CountRoleChanges(Feature):
         
     def processMsg(self, msg):
         super().processMsg(msg)
-        
+        add_flag = not self.COMPACT_DATA
         if self.msg_player is not None and self.msg_type == 'Event:RoleSelected':
             if self.msg_player not in self.playerToCount.keys():
                 self.playerToCount[self.msg_player] = 0
                 self.addCol(self.msg_player+'_role_change')
             self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
             self.history.append(msg)
-            
-        self.addRow({pl+'_role_change':ct for pl, ct in  self.playerToCount.items()})
+            add_flag = True
+        if add_flag:
+            if self.COMPACT_DATA:
+                for pl, ct in self.playerToCount.items():
+                    self.addRow({'Participant': pl, 'role_change': ct})
+            else:
+                self.addRow({pl+'_role_change':ct for pl, ct in  self.playerToCount.items()})
             
     def printValue(self):
         print(self.name, self.playerToCount)
@@ -182,13 +193,14 @@ class CountEnterExit(Feature):
         
     def processMsg(self, msg):
         super().processMsg(msg)
-        
+        add_flag = not self.COMPACT_DATA
         if self.msg_player is not None:
             if self.msg_player not in self.playerToActed.keys():
                 self.playerToActed[self.msg_player] = False
             if self.msg_player not in self.playerToCount.keys():
                 self.playerToCount[self.msg_player] = 0
-                self.addCol(self.msg_player+'_entry_exit')
+                if not self.COMPACT_DATA:
+                    self.addCol(self.msg_player+'_entry_exit')
             if self.msg_player not in self.playerToPrevLoc.keys():
                 self.playerToPrevLoc[self.msg_player] = ''
         
@@ -198,6 +210,7 @@ class CountEnterExit(Feature):
                 if self.tracked(prevRoom):
                     if not self.playerToActed[self.msg_player]:
                         self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
+                        add_flag = True
                 if self.tracked(prevRoom) or self.tracked(room):
                     self.history.append(msg)
                 self.playerToPrevLoc[self.msg_player] = room
@@ -206,8 +219,12 @@ class CountEnterExit(Feature):
             if self.msg_type == 'Event:ToolUsed':
                 self.playerToActed[self.msg_player] = True
                 self.history.append(msg)
-
-        self.addRow({pl+'_entry_exit':ct for pl, ct in  self.playerToCount.items()})  
+        if add_flag:
+            if self.COMPACT_DATA:
+                for pl, ct in self.playerToCount.items():
+                    self.addRow({'Participant': pl, 'entry_exit': ct})
+            else:
+                self.addRow({pl+'_entry_exit':ct for pl, ct in  self.playerToCount.items()})  
             
     def printValue(self):
         print(self.name, self.playerToCount)
@@ -224,7 +241,7 @@ class CountTriageInHallways(Feature):
         
     def processMsg(self, msg):
         super().processMsg(msg)
-        
+        add_flag = not self.COMPACT_DATA
         if (self.msg_type == 'Event:Triage') and (msg['triage_state'] == 'SUCCESSFUL'):
             room = msg['room_name']
             if self.tracked(room):
@@ -232,8 +249,10 @@ class CountTriageInHallways(Feature):
             else:
                 self.triagesInRooms = self.triagesInRooms + 1
             self.history.append(msg)
-            
-        self.addRow({'hallway_triage':self.triagesInHallways, 'room_triage':self.triagesInRooms})
+            add_flag = True
+
+        if add_flag:
+            self.addRow({'hallway_triage':self.triagesInHallways, 'room_triage':self.triagesInRooms})
         
     def printValue(self):
         print('Total triaged', self.triagesInRooms + self.triagesInHallways, 
@@ -246,23 +265,33 @@ class CountAction(Feature):
         self.type_to_count= type_to_count
         self.arg_values = arg_values
         
-    def _getColName(self, pl):
-        return f'{pl}_{self.type_to_count}_{str(self.arg_values)}'
+    def _getColName(self, pl=None):
+        if pl:
+            return f'{pl}_{self.type_to_count}_{str(self.arg_values)}'
+        else:
+            return f'{self.type_to_count}_{str(self.arg_values)}'
         
     def processMsg(self, msg):
         super().processMsg(msg)
-
+        add_flag = not self.COMPACT_DATA
         if self.msg_player is not None and self.msg_type == self.type_to_count:
             for arg, value in self.arg_values.items():
                 if (arg not in msg.keys()) or (msg[arg] != value):
                     return
             if self.msg_player not in self.playerToCount.keys():
                 self.playerToCount[self.msg_player] = 0
-                self.addCol(self._getColName(self.msg_player))
+                if not self.COMPACT_DATA:
+                    self.addCol(self._getColName(self.msg_player))
             self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
             self.history.append(msg)
-            
-        self.addRow({self._getColName(pl):val for pl,val in self.playerToCount.items()})
+            add_flag = True
+
+        if add_flag:
+            if self.COMPACT_DATA:
+                for pl, val in self.playerToCount.items():
+                    self.addRow({'Participant': pl, self._getColName(): val})
+            else:
+                self.addRow({self._getColName(pl):val for pl,val in self.playerToCount.items()})
             
     def printValue(self):
         print(self.name, self.playerToCount)
