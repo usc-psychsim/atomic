@@ -100,6 +100,8 @@ class Replayer(object):
         self.conditions = None
         self.file_name = None
 
+        self.pbar = None
+
     def get_map(self, logger=logging):
         # try to get map name directly from conditions dictionary
         try:
@@ -162,8 +164,11 @@ class Replayer(object):
                 except:
                     logger.error(traceback.format_exc())
                     logger.error(f'Re-simulation exited on message {self.t}')
+                if self.pbar:
+                    self.pbar.close()
             self.post_replay(logger)
             if self.world_map: self.world_map.clear()
+        self.finish()
 
     def pre_replay(self, config=None, logger=logging):
         # Create PsychSim model
@@ -180,7 +185,7 @@ class Replayer(object):
             if self.rddl_file:
                 # Team mission
                 self.rddl_converter = Converter()
-                self.rddl_converter.convert_file(self.rddl_file)
+                self.rddl_converter.convert_file(self.rddl_file, verbose=False)
                 self.world = self.rddl_converter.world
 
                 self.victim_counts = {}
@@ -245,11 +250,11 @@ class Replayer(object):
             new_rooms = {}
             global pbar_manager
             if pbar_manager:
-                pbar = pbar_manager.counter(total=len(self.parser.actions), unit='steps')
+                self.pbar = pbar_manager.counter(total=len(self.parser.actions), unit='steps', leave=False)
             else:
                 pbar = None
             for i, msgs in enumerate(self.parser.actions):
-                if pbar: pbar.update()
+                if self.pbar: self.pbar.update()
                 self.t = i
                 if i > duration:
                     break
@@ -267,18 +272,20 @@ class Replayer(object):
                         self.world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
                         msg['sub_type'] = 'noop'
                 for player_name, msg in msgs.items():
-                    action_name = Msg2ActionEntry.get_action(msg)
-                    if action_name not in self.rddl_converter.actions[player_name]:
-                        if msg['sub_type'] == 'Event:Triage':
-                            if msg['triage_state'] != 'SUCCESSFUL':
-                                loc = self.world.getState(player_name, 'pLoc', unique=True)
-                                count = self.world.getState(WORLD, f'(vcounter_unsaved_{msg["type"].lower()}, {loc})', unique=True)
-                                logger.warning(f'Ignoring {msg["triage_state"].lower()} triage by {player_name} of {msg["type"].lower()} victim (out of {count} unsaved in {loc})')
-                            else:
-                                logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
-                        action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
-                    else:
+                    logging.info(msg)
+                    try:
+                        action_name = Msg2ActionEntry.get_action(msg)
+                    except KeyError:
+                        logger.error(f'Unable to extract action from {msg}')
+                        del msg['room_name']
+                        action_name = None
+                    if action_name in self.rddl_converter.actions[player_name]:
                         logger.info(f'Msg {msg} becomes {action_name}')
+                    else:
+                        logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
+                        if msg['sub_type'] == 'Event:location':
+                            logger.warning(f'Unable to find message {i} move action for {player_name} from {msg["old_room_name"]} to {msg["room_name"]}')
+                        action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
                     action = self.rddl_converter.actions[player_name][action_name]
                     actions[player_name] = action
                     if action not in self.world.agents[player_name].getLegalActions():
@@ -307,6 +314,7 @@ class Replayer(object):
                                 if room and self.world.getState(player_name, 'pLoc', beliefs, True) != room:
                                     raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {self.world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
                 self.pre_step()
+                logger.info(f'Actions: {", ".join(sorted(map(str, actions.values())))}')
                 self.world.step(actions, debug=debug)
                 if len(actions) < len(self.parser.agentToPlayer):
                     logger.error(f'Missing action in msg {i} for {sorted(self.parser.agentToPlayer.keys()-actions.keys())}')
@@ -350,8 +358,8 @@ class Replayer(object):
     def post_step(self, actions, debug, logger=logging):
         pass
 
-    def read_filename(self, fname):
-        raise DeprecationWarning('Use filename_to_condition function (in this module) instead')
+    def finish(self):
+        pass
 
     def parameterized_replay(self, args):
         if args['profile']:
