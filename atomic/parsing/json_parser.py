@@ -50,7 +50,7 @@ class JSONReader(object):
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
                           'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
-                          'Event:Scoreboard', 'Event:MarkerPlaced'
+                          'Event:Scoreboard', 'Event:MarkerPlaced', 'asr:transcription'
                           }
 
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
@@ -229,6 +229,9 @@ class JSONReader(object):
             victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
             m['mark_regular'] = victims.count('regular')
             m['mark_critical'] = victims.count('critical')
+        elif mtype == 'asr:transcription':
+            m['extractions'] = jmsg['data'].get('extractions', [])
+            m['text'] = jmsg['data']['text']
 
         if is_location_event:
             if player not in self.player_to_curr_room:
