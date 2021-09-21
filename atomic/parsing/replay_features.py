@@ -14,19 +14,44 @@ from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
 from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 
+class Metric:
+    def __init__(self, name, times=None):
+        self.name = name
+        if times is None:
+            self.times = []
+        else:
+            self.times = times
+        self.data = {t: pandas.DataFrame() for t in self.times}
+
+    def add_data(self, data):
+        for t in self.times:
+            data = data[data['time'] > (15-int(t), 0)]
+            if len(data) > 0:
+                data = data[data['time'] == min(data['time'])]
+                self.data[t] = self.data[t].append(data, ignore_index=True)
+
 class RecordScore(Feature):
     def __init__(self, logger=logging):
         super().__init__('record score', logger)
-        self.team_score = 0
+        self.score = {}
 
     def processMsg(self, msg):
         super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
         if msg['sub_type'] == 'Event:Scoreboard':
-            self.team_score = msg['scoreboard']['TeamScore']
-        self.addRow({'Team Score': self.team_score})
+            self.score.update({field if 'Score' in field else f'Score for {field}': value for field, value in msg['scoreboard'].items()})
+            add_flag = True
+
+        if add_flag:
+            for field, value in self.score.items():
+                if field[:10] == 'Score for ':
+                    row = {'Participant': field[10:], 'Individual Score': value, 'Team Score': self.score['TeamScore']}
+                else:
+                    row = {'Participant': 'Team', 'Team Score': value}
+                self.addRow(row)
             
     def printValue(self):
-        print(f'{self.name} {self.team_score}')
+        print(f'{self.name} {self.score}')
 
 class MarkerPlacement(Feature):
     def __init__(self, logger=logging):
@@ -36,26 +61,65 @@ class MarkerPlacement(Feature):
 
     def processMsg(self, msg):
         super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
         if self.msg_type == 'Event:MarkerPlaced':
-            if self.msg_player not in self.marker_count:
-                self.marker_count[self.msg_player] = {}
-            if msg['marker_type'] not in self.marker_count[self.msg_player]:
-                self.marker_count[self.msg_player][msg['marker_type']] = {}
-            self.marker_count[self.msg_player][msg['marker_type']][msg['victim_type']] = self.marker_count[self.msg_player][msg['marker_type']].get(msg['victim_type'], 0) + 1
+            player = msg['participant_id']
+            if player not in self.marker_count:
+                self.marker_count[player] = {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
+            if msg['mark_critical'] > 0:
+                self.marker_count[player][msg['marker_type']]['critical'] += 1
+            elif msg['mark_regular'] > 0:
+                self.marker_count[player][msg['marker_type']]['regular'] += 1
+            else:
+                self.marker_count[player][msg['marker_type']]['none'] += 1
             if 'marker_legend' in msg:
-                self.marker_legend[self.msg_player] = msg['marker_legend']
-        for player, markers in self.marker_count.items():
-            row = {'Player': player}
-            if player in self.marker_legend:
-                row[f'Marker Legend {self.marker_legend[player]}'] = 1
-            for marker, table in markers.items():
-                norm = sum(table.values())
-                row.update({f'{marker}_{victim}': count/norm for victim, count in table.items()})
-                row[marker] = norm
-            self.addRow(row)
+                self.marker_legend[player] = msg['marker_legend']
+            add_flag = True
+
+        if add_flag:
+            for player, markers in self.marker_count.items():
+                row = {'Participant': player}
+                if player in self.marker_legend:
+                    row[f'Marker Legend'] =  self.marker_legend[player]
+                for marker, table in markers.items():
+                    norm = sum(table.values())
+                    if norm > 0:
+                        norm_count = {f'{marker}_{victim}': count/norm for victim, count in table.items()}
+                        row.update(norm_count)
+                        row[marker] = norm
+    #                    print(f'{player} {self.marker_legend[player]}: {norm_count}')
+                self.addRow(row)
 
     def printValue(self):
         print(f'{self.name} {self.marker_count}')
+
+
+class DialogueLabels(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('count utterances per player per label', logger)
+        self.utterances = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if self.msg_type == 'asr:transcription':
+            player = msg['participant_id']
+            if player not in self.utterances:
+                self.utterances[player] = {}
+            for label in msg['extractions']:
+                field = f'Utterance {label["label"]}'
+                self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
+                add_flag = True
+        if add_flag:
+            for player, utterances in self.utterances.items():
+                row = {'Participant': player, 'Utterance Total': sum(self.utterances[player].values())}
+                row.update(utterances)
+                if len(self.dataframe) > 0:
+                    self.dataframe = self.dataframe[self.dataframe['Participant'] != player]
+                self.addRow(row)
+
+    def printValue(self):
+        print(f'{self.name} {self.utterances}')
 
 class FeatureReplayer(Replayer):
     def __init__(self, files=[], config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
@@ -63,122 +127,83 @@ class FeatureReplayer(Replayer):
         self.completed = []
         # Feature count bookkeeping
         self.feature_output = output
-        self.feature_data = []
+        self.feature_data = pandas.DataFrame()
         self.fields = None
-        self.condition_fields = None
-        self.feature_fields = None
         self.prediction_models = {}
 
-        # Look for evaluation files
-        self.train = self.config.get('evaluation', 'train', fallback=None)
         self.training_trials = set()
-        if self.train:
-            with open(self.train, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    self.training_trials.add(row['Trial'].split('_')[-1])
-            training_files = {filename_to_condition(f)['Trial']: f for f in self.files 
-                if filename_to_condition(f)['Trial'] in self.training_trials}
-            missing = sorted([trial for trial in self.training_trials if trial not in training_files])
-            if missing:
-                logger.warning(f'Unable to find files for training trials: {", ".join(missing)}')
-                self.training_trials -= set(missing)
-        self.test = self.config.get('evaluation', 'test', fallback=None)
         self.testing_trials = set()
-        if self.test:
-            with open(self.test, 'r') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    self.testing_trials.add(row['Trial'])
-            testing_files = {filename_to_condition(f)['Trial']: f for f in self.files 
-                if filename_to_condition(f)['Trial'] in self.testing_trials}
-            missing = sorted([t for t in self.testing_trials if t not in testing_files])
-            if missing:
-                logger.warning(f'Unable to find files for testing trials: {", ".join(missing)}')
-                self.testing_trials -= set(missing)
-        if self.train or self.test:
-            missing = sorted([f for f in self.files if f not in training_files.values() and f not in testing_files.values()])
-            if missing:
-                logger.warning(f'Skipping non-training, non-testing trials: {", ".join(missing)}')
-            self.files = sorted(training_files.values()) + sorted(testing_files.values())
-        self.models = {metric: {t: {'data': pandas.DataFrame()} for t in self.config.get('evaluation', f'{metric}_times', fallback='').split(',')} 
-            for metric in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
+        if self.config:
+            # Look for evaluation files
+            self.train = self.config.get('evaluation', 'train', fallback=None)
+            if self.train:
+                with open(self.train, 'r') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        self.training_trials.add(row['Trial'].split('_')[-1])
+                training_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                    if filename_to_condition(f)['Trial'] in self.training_trials}
+                missing = sorted([trial for trial in self.training_trials if trial not in training_files])
+                if missing:
+                    logger.warning(f'Unable to find files for training trials: {", ".join(missing)}')
+                    self.training_trials -= set(missing)
+            self.test = self.config.get('evaluation', 'test', fallback=None)
+            if self.test:
+                with open(self.test, 'r') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        self.testing_trials.add(row['Trial'])
+                testing_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                    if filename_to_condition(f)['Trial'] in self.testing_trials}
+                missing = sorted([t for t in self.testing_trials if t not in testing_files])
+                if missing:
+                    logger.warning(f'Unable to find files for testing trials: {", ".join(missing)}')
+                    self.testing_trials -= set(missing)
+            if self.train or self.test:
+                missing = sorted([f for f in self.files if f not in training_files.values() and f not in testing_files.values()])
+                if missing:
+                    logger.warning(f'Skipping non-training, non-testing trials: {", ".join(missing)}')
+                self.files = sorted(training_files.values()) + sorted(testing_files.values())
+            self.metrics = {Metric(metric, [t for t in self.config.get('evaluation', f'{metric}_train', fallback='15').split(',')])
+                for metric in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
+        else:
+            self.models = {}
 
     def pre_replay(self, config=None, logger=logging):
         self.derived_features = [RecordScore(logger)]
         self.derived_features += _get_derived_features(self.parser)
         self.derived_features.append(PlayerRoomPercentage(mission_length=15, logger=logger))
         self.derived_features.append(MarkerPlacement(logger))
+        self.derived_features.append(DialogueLabels(logger))
         result = super().pre_replay(config, logger)
+        trial_fields = filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0]))
+        if self.fields is None:
+            self.fields = list(trial_fields.keys())
+            self.fields.append('Participant')
+            self.fields.append('time')
+            self.fields.append('Team Score')
+            self.fields.append('Individual Score')
         # processes data to extract features depending on type of count
         for feature in self.derived_features:
-            df = feature.dataframe
-            df['seconds'] = df.apply(lambda row: row['time'][0]*60+row['time'][1], axis=1)
-            for player, agent in self.parser.playerToAgent.items():
-                df = df.rename(columns={col: col.replace(player, agent) for col in df.columns})
-            feature.dataframe = df
-        for metric, models in self.models.items():
-            for t in models:
-                record = filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0]))
-                if self.fields is None:
-                    self.condition_fields = ['Trial'] + [field for field in record if field != 'Trial']
-                    self.feature_fields = []
-                for feature in self.derived_features:
-                    if metric == 'm1' and isinstance(feature, RecordScore):
-                        # Use final score for M1
-                        values = {'Team Score': feature.team_score}
-                    elif isinstance(feature, MarkerPlacement):
-                        if metric == 'm6':
-                            feature.msg_time = '15:0'
-                            for player in self.parser.players:
-                                feature.addRow({'Player': player, 'seconds': 15*60})
-                            feature.dataframe['Trial'] = record['Trial']
-                            models[t]['data'] = models[t]['data'].append(feature.dataframe, ignore_index=True)
-                            break
-                        else:
-                            # Ignore this feature for other metrics
-                            continue
-                    elif metric != 'm6':
-                        frame = feature.dataframe
-                        subset = frame[frame['time'] > (15-int(t), 0)]
-                        row = subset[subset['seconds'] == subset['seconds'].min()]
-                        values = row.to_dict('records')[-1]
-                        record['time'] = min(values['time'], record.get('time', (15, 0)))
-                        del values['time']
-                        del values['seconds']
-                    record.update(values)
-                    if self.fields is None:
-                        self.feature_fields += sorted(values.keys())
-                if self.fields is None:
-                    self.fields = self.condition_fields + ['time'] + self.feature_fields
-                if metric == 'm3':
-                    # Break data down by player
-                    models[t]['players'] = {}
-                    for player in self.parser.agentToPlayer:
-                        player_record = {field[len(player)+1:]: record.get(field, 0) 
-                            for field in self.feature_fields if player in field}
-                        if player in self.parser.player_maps:
-                            # Training trial
-                            player_record[self.parser.player_maps[player]] = 1
-                        else:
-                            # Testing trial
-                            player_record['Player'] = player
-                        player_record['Trial'] = record['Trial']
-                        player_record['time'] = record['time']
-                        player_record[record['CondWin']] = 1
-                        models[t]['data'] = models[t]['data'].append(player_record, ignore_index=True)
-                elif metric != 'm6':
-                    models[t]['data'] = models[t]['data'].append(record, ignore_index=True)
+            for field, value in trial_fields.items():
+                feature.dataframe[field] = value
+            for metric in self.metrics:
+                metric.add_data(feature.dataframe)
         if self.feature_output is not None:
-            if os.path.splitext(self.feature_output)[1] == '.csv':
-                with open(self.feature_output, 'w' if len(self.completed) == 0 else 'a') as csvfile:
-                    first = len(self.completed) == 0
-                    for metric, models in self.models.items():
-                        for t, table in models.items():
-                            table['data'].to_csv(csvfile, header=first)
-                            first = False
-            else:
-                raise ValueError(f'Unable to output feature stats in {os.path.splitext(self.feature_output)[1][1:]} format.')
+            data = None
+            suffix = '_y'
+            for feature in self.derived_features:
+#                new_data = feature.dataframe[feature.dataframe['time'] == feature.dataframe['time'].min()]
+                new_data = feature.dataframe.replace(self.parser.jsonParser.subjects)
+                if 'Participant' not in new_data.columns:
+                    new_data['Participant'] = 'Team'
+                new_data = new_data.drop_duplicates(subset='Participant', keep='last')
+                if data is None:
+                    data = new_data
+                else:
+                    data = data.merge(new_data, how='outer', on='Participant', suffixes=(None, suffix))
+                    data = data.drop(columns=[col for col in data.columns if col[-2:] == suffix])
+            self.feature_data = self.feature_data.append(data.drop_duplicates(), ignore_index=True)
         return result
 
     def post_replay(self, logger=logging):
@@ -196,13 +221,14 @@ class FeatureReplayer(Replayer):
                         X_fields = [field for field in data.columns if field not in y_fields and field != 'time' and field not in self.condition_fields]
                     elif metric == 'm6':
                         y_fields = [field for field in data.columns if 'Legend' in field]
-                        X_fields = [field for field in data.columns if field not in y_fields and field not in {'time', 'seconds', 'Player'} and field not in self.condition_fields]
+                        X_fields = [field for field in data.columns if field not in y_fields and field not in {'time', 'seconds', 'Participant'} and field not in self.condition_fields]
                     else:
                         y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
                         X_fields = [field for field in self.feature_fields if field not in y_fields]
                     X = data.filter(items=X_fields)
                     y = data.filter(items=y_fields)
                     table['X_fields'] = X_fields
+                    # TODO: logit
                     table['regression'] = LinearRegression().fit(X, y)
         elif trial in self.testing_trials:
             # We have finished processing the testing data
@@ -237,7 +263,7 @@ class FeatureReplayer(Replayer):
                         predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'), 
                             'value': int(round(prediction[0][0]))}]
                     elif metric == 'm3' or metric == 'm6':
-                        players = list(data['Player'])
+                        players = list(data['Participant'])
                         predictions = []
                         for idx, values in enumerate(prediction):
                             if metric == 'm3':
@@ -256,19 +282,32 @@ class FeatureReplayer(Replayer):
                     for msg in table.values():
                         print(json.dumps(msg), file=prediction_file)
 
+    def finish(self):
+        super().finish()
+        if self.feature_output:
+            columns = self.fields + sorted(set(self.feature_data.columns)-set(self.fields))
+            columns.remove('Member')
+            data = self.feature_data[columns]
+            if os.path.splitext(self.feature_output)[1] == '.csv':
+                with open(self.feature_output, 'w') as csvfile:
+                    data.to_csv(csvfile, index=False, header=True)
+            else:
+                raise ValueError(f'Unable to output feature stats in {os.path.splitext(self.feature_output)[1][1:]} format.')
+
     def make_prediction_header(self, msg_type, mission_time):
         base_msg = self.parser.jsonParser.jsonMsgs[0]
         message = {'header': {
                     'timestamp': f'{datetime.datetime.utcnow().isoformat()}Z',
                     'message_type': 'agent',
-                    'version': '0.2'
+                    'version': '0.3'
                     },
                 }
         message['msg'] = {
                         'trial_id': base_msg['msg']['trial_id'],
                         'timestamp': message['header']['timestamp'],
                         'sub_type': f'Prediction:{msg_type}',
-                        'version': message['header']['version']
+                        'version': message['header']['version'],
+                        'source': f'atomic:{message["header"]["version"]}',
                         }
         message['data'] = {
             'created': message['header']['timestamp'],
