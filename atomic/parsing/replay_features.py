@@ -167,7 +167,7 @@ class FeatureReplayer(Replayer):
             self.metrics = {Metric(metric, [t for t in self.config.get('evaluation', f'{metric}_train', fallback='15').split(',')])
                 for metric in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
         else:
-            self.models = {}
+            self.metrics = {}
 
     def pre_replay(self, config=None, logger=logging):
         self.derived_features = [RecordScore(logger)]
