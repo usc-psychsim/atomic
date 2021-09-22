@@ -9,9 +9,9 @@ Created on Wed Mar 10 13:22:33 2021
 import logging
 import pandas as pd
 import numpy as np
-
 from abc import ABC, abstractmethod
- 
+
+
 class Feature(ABC):
 
     COMPACT_DATA = True
@@ -61,6 +61,7 @@ class Feature(ABC):
     
     def getDataframe(self):
         return self.dataframe
+
 
 class PlayerRoomPercentage(Feature):    
     def __init__(self, mission_length=15, logger=logging):
@@ -156,7 +157,8 @@ class CountVisitsPerRole(Feature):
             
     def printValue(self):
         print(self.name, self.roomToRoleToCount)
-                
+
+
 class CountRoleChanges(Feature):
     def __init__(self, logger=logging):
         super().__init__("count role changes", logger)
@@ -181,7 +183,8 @@ class CountRoleChanges(Feature):
             
     def printValue(self):
         print(self.name, self.playerToCount)
-            
+
+
 class CountEnterExit(Feature):
     def __init__(self, roomsToTrack, logger=logging):
         super().__init__("enter-exit", logger)
@@ -258,6 +261,7 @@ class CountTriageInHallways(Feature):
         print('Total triaged', self.triagesInRooms + self.triagesInHallways, 
               'Fraction in hallways', self.triagesInHallways / (self.triagesInRooms + self.triagesInHallways))
 
+
 class CountAction(Feature):
     def __init__(self, type_to_count, arg_values, logger=logging):
         super().__init__("count number of times a player sees msg %s with args %s" % (type_to_count, arg_values), logger)
@@ -297,22 +301,94 @@ class CountAction(Feature):
         print(self.name, self.playerToCount)
 
         
-# #This was written to work w/T000315
-# class CountPlayerDialogueEvents(Feature):
-#     def __init__(self, logger=logging):
-#         super().__init__("count number of times a player talks", logger)
-#         self.playerToCount = dict()
-#
-#     def processMsg(self, msg):
-#         super().processMsg(msg)
-#
-#         if self.msg_type == 'Event:dialogue_event':
-#             if self.msg_player not in self.playerToCount.keys():
-#                 self.playerToCount[self.msg_player] = 0
-#             self.playerToCount[self.msg_player] = self.playerToCount[self.msg_player] + 1
-#             self.history.append(msg)
-#
-#         self.addRow({f'{pl}_talks': count for pl, count in self.playerToCount.items()})
-#
-#     def printValue(self):
-#         print(self.name, self.playerToCount)
+class RecordScore(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('record score', logger)
+        self.score = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if msg['sub_type'] == 'Event:Scoreboard':
+            self.score.update({field if 'Score' in field else f'Score for {field}': value for field, value in msg['scoreboard'].items()})
+            add_flag = True
+
+        if add_flag:
+            for field, value in self.score.items():
+                if field[:10] == 'Score for ':
+                    row = {'Participant': field[10:], 'Individual Score': value, 'Team Score': self.score['TeamScore']}
+                else:
+                    row = {'Participant': 'Team', 'Team Score': value}
+                self.addRow(row)
+
+    def printValue(self):
+        print(f'{self.name} {self.score}')
+
+
+class MarkerPlacement(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('count marker placement per player per room', logger)
+        self.marker_count = {}
+        self.marker_legend = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if self.msg_type == 'Event:MarkerPlaced':
+            player = msg['participant_id']
+            if player not in self.marker_count:
+                self.marker_count[player] = {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
+            if msg['mark_critical'] > 0:
+                self.marker_count[player][msg['marker_type']]['critical'] += 1
+            elif msg['mark_regular'] > 0:
+                self.marker_count[player][msg['marker_type']]['regular'] += 1
+            else:
+                self.marker_count[player][msg['marker_type']]['none'] += 1
+            if 'marker_legend' in msg:
+                self.marker_legend[player] = msg['marker_legend']
+            add_flag = True
+
+        if add_flag:
+            for player, markers in self.marker_count.items():
+                row = {'Participant': player}
+                if player in self.marker_legend:
+                    row[f'Marker Legend'] =  self.marker_legend[player]
+                for marker, table in markers.items():
+                    norm = sum(table.values())
+                    if norm > 0:
+                        norm_count = {f'{marker}_{victim}': count/norm for victim, count in table.items()}
+                        row.update(norm_count)
+                        row[marker] = norm
+    #                    print(f'{player} {self.marker_legend[player]}: {norm_count}')
+                self.addRow(row)
+
+    def printValue(self):
+        print(f'{self.name} {self.marker_count}')
+
+
+class DialogueLabels(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('count utterances per player per label', logger)
+        self.utterances = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if self.msg_type == 'asr:transcription':
+            player = msg['participant_id']
+            if player not in self.utterances:
+                self.utterances[player] = {}
+            for label in msg['extractions']:
+                field = f'Utterance {label["label"]}'
+                self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
+                add_flag = True
+        if add_flag:
+            for player, utterances in self.utterances.items():
+                row = {'Participant': player, 'Utterance Total': sum(self.utterances[player].values())}
+                row.update(utterances)
+                if len(self.dataframe) > 0:
+                    self.dataframe = self.dataframe[self.dataframe['Participant'] != player]
+                self.addRow(row)
+
+    def printValue(self):
+        print(f'{self.name} {self.utterances}')
