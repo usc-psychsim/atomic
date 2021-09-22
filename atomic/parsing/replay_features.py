@@ -169,14 +169,14 @@ class FeatureReplayer(Replayer):
         else:
             self.metrics = {}
 
-    def pre_replay(self, config=None, logger=logging):
+    def pre_replay(self, parser, config=None, logger=logging):
         self.derived_features = [RecordScore(logger)]
-        self.derived_features += _get_derived_features(self.parser)
+        self.derived_features += _get_derived_features(parser)
         self.derived_features.append(PlayerRoomPercentage(mission_length=15, logger=logger))
         self.derived_features.append(MarkerPlacement(logger))
         self.derived_features.append(DialogueLabels(logger))
-        result = super().pre_replay(config, logger)
-        trial_fields = filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0]))
+        result = super().pre_replay(parser, config, logger)
+        trial_fields = filename_to_condition(os.path.basename(os.path.splitext(parser.jsonFile)[0]))
         if self.fields is None:
             self.fields = list(trial_fields.keys())
             self.fields.append('Participant')
@@ -194,7 +194,7 @@ class FeatureReplayer(Replayer):
             suffix = '_y'
             for feature in self.derived_features:
 #                new_data = feature.dataframe[feature.dataframe['time'] == feature.dataframe['time'].min()]
-                new_data = feature.dataframe.replace(self.parser.jsonParser.subjects)
+                new_data = feature.dataframe.replace(parser.jsonParser.subjects)
                 if 'Participant' not in new_data.columns:
                     new_data['Participant'] = 'Team'
                 new_data = new_data.drop_duplicates(subset='Participant', keep='last')
@@ -206,10 +206,10 @@ class FeatureReplayer(Replayer):
             self.feature_data = self.feature_data.append(data.drop_duplicates(), ignore_index=True)
         return result
 
-    def post_replay(self, logger=logging):
-        super().post_replay(logger)
-        trial = filename_to_condition(self.file_name)['Trial']
-        map_name = filename_to_condition(self.file_name)['CondWin']
+    def post_replay(self, parser, logger=logging):
+        super().post_replay(parser, logger)
+        trial = filename_to_condition(parser.jsonFile)['Trial']
+        map_name = filename_to_condition(parser.jsonFile)['CondWin']
         self.completed.append(trial)
         if trial in self.training_trials and len(self.completed) == len(self.training_trials):
             # We have finished processing the training trials
@@ -247,7 +247,8 @@ class FeatureReplayer(Replayer):
                         data = data[data['seconds'] == data['seconds'].min()]
                     data = data.fillna(0)
                     if msg_type not in messages[t]:
-                        messages[t][msg_type] = self.make_prediction_header(msg_type, data['time'])
+                        base_msg = parser.jsonParser.jsonMsgs[0]
+                        messages[t][msg_type] = self.make_prediction_header(base_msg, msg_type, data['time'])
                     msg = messages[t][msg_type]
                     # Generate input data
                     if metric == 'm3':
@@ -274,7 +275,7 @@ class FeatureReplayer(Replayer):
                             for value, prob in dist.items():
                                 if metric == 'm6':
                                     value = value[len('Marker Legend '):]
-                                predictions.append({'subject': self.parser.agentToPlayer[players[idx]] if metric == 'm3' else players[idx],
+                                predictions.append({'subject': parser.agentToPlayer[players[idx]] if metric == 'm3' else players[idx],
                                     'value': value, 'probability': prob/norm})
                     self.add_prediction_message(msg, data, predictions, metric)
             with open(fname, 'w') as prediction_file:
@@ -294,8 +295,7 @@ class FeatureReplayer(Replayer):
             else:
                 raise ValueError(f'Unable to output feature stats in {os.path.splitext(self.feature_output)[1][1:]} format.')
 
-    def make_prediction_header(self, msg_type, mission_time):
-        base_msg = self.parser.jsonParser.jsonMsgs[0]
+    def make_prediction_header(self, base_msg, msg_type, mission_time):
         message = {'header': {
                     'timestamp': f'{datetime.datetime.utcnow().isoformat()}Z',
                     'message_type': 'agent',
