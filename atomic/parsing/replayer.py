@@ -1,11 +1,8 @@
 from argparse import ArgumentParser
 import configparser
-import copy
-import csv
-import itertools
-import logging
 import os.path
 import sys
+import glob
 import traceback
 from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
@@ -41,6 +38,9 @@ def accumulate_files(files, ext='.metadata'):
         elif os.path.isfile(fname) and fname not in result:
             # We have a lonely single log file (that is not already in the list)
             result.append(fname)
+        else:
+            # assume this is a file pattern, try to get matches
+            result.extend(glob.glob(fname))
     # Look for alternate versions of the same trial and use only the most recent
     trials = {}
     for fname in result:
