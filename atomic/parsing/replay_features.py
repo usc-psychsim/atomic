@@ -12,7 +12,7 @@ Subclass for adding feature counts to replay
 """
 from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
-from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
+from atomic.bin.cluster_features import _get_derived_features
 
 class Metric:
     def __init__(self, name, times=None):
@@ -49,7 +49,7 @@ class RecordScore(Feature):
                 else:
                     row = {'Participant': 'Team', 'Team Score': value}
                 self.addRow(row)
-            
+
     def printValue(self):
         print(f'{self.name} {self.score}')
 
@@ -141,7 +141,7 @@ class FeatureReplayer(Replayer):
                     reader = csv.DictReader(csvfile)
                     for row in reader:
                         self.training_trials.add(row['Trial'].split('_')[-1])
-                training_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                training_files = {filename_to_condition(f)['Trial']: f for f in self.files
                     if filename_to_condition(f)['Trial'] in self.training_trials}
                 missing = sorted([trial for trial in self.training_trials if trial not in training_files])
                 if missing:
@@ -153,7 +153,7 @@ class FeatureReplayer(Replayer):
                     reader = csv.DictReader(csvfile)
                     for row in reader:
                         self.testing_trials.add(row['Trial'])
-                testing_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                testing_files = {filename_to_condition(f)['Trial']: f for f in self.files
                     if filename_to_condition(f)['Trial'] in self.testing_trials}
                 missing = sorted([t for t in self.testing_trials if t not in testing_files])
                 if missing:
@@ -176,7 +176,8 @@ class FeatureReplayer(Replayer):
         self.derived_features.append(MarkerPlacement(logger))
         self.derived_features.append(DialogueLabels(logger))
         result = super().pre_replay(config, logger)
-        trial_fields = filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0]))
+        trial_fields = {'File': os.path.basename(self.file_name)}
+        trial_fields.update(filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0])))
         if self.fields is None:
             self.fields = list(trial_fields.keys())
             self.fields.append('Participant')
@@ -253,14 +254,14 @@ class FeatureReplayer(Replayer):
                     if metric == 'm3':
                         y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
                     elif metric =='m6':
-                        y_fields = [field for field in data.columns if 'Legend' in field]                        
+                        y_fields = [field for field in data.columns if 'Legend' in field]
                     else:
                         y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
                     X = data.filter(items=table['X_fields']).fillna(0)
                     # Generate prediction
                     prediction = table['regression'].predict(X)
                     if metric == 'm1':
-                        predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'), 
+                        predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'),
                             'value': int(round(prediction[0][0]))}]
                     elif metric == 'm3' or metric == 'm6':
                         players = list(data['Participant'])
