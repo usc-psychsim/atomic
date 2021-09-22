@@ -1,18 +1,26 @@
-import csv
-import json
-import logging
-import os
-import datetime
-
-import pandas
-from sklearn.linear_model import LinearRegression
-
 """
 Subclass for adding feature counts to replay
 """
+import csv
+import json
+import os
+import datetime
+import pandas
+from sklearn.linear_model import LinearRegression
 from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
-from atomic.bin.cluster_features import _get_derived_features
+
+
+HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
+
+COUNT_ACTIONS_ARGS = [
+    ('Event:dialogue_event', {}),
+    ('Event:VictimPickedUp', {}),
+    ('Event:VictimPlaced', {}),
+    ('Event:ToolUsed', {}),
+    ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
+    ('Event:RoleSelected', {})
+]
 
 class Metric:
     def __init__(self, name, times=None):
@@ -169,12 +177,27 @@ class FeatureReplayer(Replayer):
         else:
             self.metrics = {}
 
-    def pre_replay(self, config=None, logger=logging):
+    def _create_derived_features(self, logger=logging):
+        # processes room names
+        all_loc_name = list(self.parser.jsonParser.rooms.keys())
+        main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
+        main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
+        room_names = main_names.difference(HALLWAYS)
+
+        # adds feature counters
         self.derived_features = [RecordScore(logger)]
-        self.derived_features += _get_derived_features(self.parser)
+        for args in COUNT_ACTIONS_ARGS:
+            self.derived_features.append(CountAction(*args, logger=logger))
+        self.derived_features.append(CountEnterExit(room_names.copy(), logger=logger))
+        self.derived_features.append(CountTriageInHallways(HALLWAYS, logger=logger))
+        self.derived_features.append(CountVisitsPerRole(room_names, logger=logger))
+        # self.derived_features.append(CountRoleChanges(logger=logger))
         self.derived_features.append(PlayerRoomPercentage(mission_length=15, logger=logger))
         self.derived_features.append(MarkerPlacement(logger))
         self.derived_features.append(DialogueLabels(logger))
+
+    def pre_replay(self, config=None, logger=logging):
+        self._create_derived_features(logger)
         result = super().pre_replay(config, logger)
         trial_fields = {'File': os.path.basename(self.file_name)}
         trial_fields.update(filename_to_condition(os.path.basename(os.path.splitext(self.file_name)[0])))
@@ -341,6 +364,7 @@ class FeatureReplayer(Replayer):
                 prediction_msg['probability'] = prediction['probability']
             msg['data']['predictions'].append(prediction_msg)
         return msg
+
 
 if __name__ == '__main__':
     # Process command-line arguments
