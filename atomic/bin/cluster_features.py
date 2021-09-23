@@ -20,6 +20,8 @@ __email__ = 'pedrodbs@gmail.com'
 __desc__ = 'Loads a series of game logs (metadata files), performs feature counting, gets set of derived features ' \
            '(stats over the original features) and then clusters files based on this feature embedding distance.'
 
+IGNORE_FEATURES = ['Marker Legend']
+
 TRIAL_COL = 'Trial'
 TEAM_COL = 'Team'
 MAP_COL = 'CondWin'
@@ -28,7 +30,7 @@ TIME_COL = 'time'
 LAST_META_COL = TIME_COL
 
 CLUSTER_ID_COL = 'Cluster'
-CLUSTER_COUNT_COL = 'Count'
+CLUSTER_COUNT_COL = 'Cluster Count'
 FILE_NAMES_COL = 'Files'
 
 SILHOUETTE_COEFFICIENT = 'Silhouette Coefficient'
@@ -67,9 +69,6 @@ def main():
                         help='Clear output directories before generating results.')
     parser.add_argument('--verbosity', '-v', type=int, default=0, help='Verbosity level.')
     args = parser.parse_args()
-
-    # TODO move methods to replay_features
-    # TODO add filename column in original csv
 
     # prepares output dir and log
     create_clear_dir(args.output, args.clear)
@@ -153,6 +152,9 @@ def main():
 
 
 def _filter_data(df, args):
+    # first remove all unwanted features/columns
+    df = df.drop(IGNORE_FEATURES, axis=1)
+    
     # filter by trial for each team
     if args.trial >= 0:
         logging.info(f'Filtering data by selecting trial="{args.trial}"...')
@@ -210,7 +212,7 @@ def _one_hot_encode_cols(df, start_idx):
     # transforms categorical data into one-hot encodings
     new_cols = {}
     for col, d_type in df.dtypes[start_idx:].iteritems():
-        if d_type == np.object:
+        if d_type == object:
             one_hot_df = pd.get_dummies(df[col], prefix=col)
             new_cols[col] = one_hot_df
     df = df.drop(new_cols.keys(), axis=1)
@@ -261,7 +263,7 @@ def _save_clustering_results(data: np.ndarray, clustering: AgglomerativeClusteri
         df.loc[idxs, CLUSTER_ID_COL] = cluster
         df.loc[idxs, CLUSTER_COUNT_COL] = len(idxs)
     file_path = os.path.join(clustering_dir, 'clusters.csv')
-    df.to_csv(file_path)
+    df.to_csv(file_path, index=False)
 
     logging.info('========================================')
     logging.info('Clusters\' distribution:')
