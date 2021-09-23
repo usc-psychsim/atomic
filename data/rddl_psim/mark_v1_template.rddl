@@ -68,16 +68,15 @@ domain mv_tr_v1 {
 
 		correct_sem'(?p) = correct_sem(?p);
 
-		place_marker'(?p) = 
-			if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular'(?lc) > 0) ^ correct_sem(?p) ] )
+		place_marker'(?p) =
+		    if (correct_sem(?p))
+		        then if (exists_{?lc : loc} [(pLoc'(?p) == ?lc) ^ (vcounter_unsaved_regular'(?lc) == 0) ] )
+				    then @novictim_mark
+				else
+				    @regular_mark
+		    else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc) ^ (vcounter_unsaved_regular'(?lc) == 0) ] )
 				then @regular_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular'(?lc) == 0) ^ correct_sem(?p) ] )
-				then @novictim_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular'(?lc) > 0) ^ ~correct_sem(?p) ] )
-				then @novictim_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular'(?lc) == 0) ^ ~correct_sem(?p) ] )
-				then @regular_mark
-			else @unmarked;
+			else @novictim_mark;
 				
 
 		vcounter_unsaved_regular'(?lc) =

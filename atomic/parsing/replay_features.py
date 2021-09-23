@@ -1,18 +1,26 @@
-import csv
-import json
-import logging
-import os
-import datetime
-
-import pandas
-from sklearn.linear_model import LinearRegression
-
 """
 Subclass for adding feature counts to replay
 """
+import csv
+import json
+import os
+import datetime
+import pandas
+from sklearn.linear_model import LinearRegression
 from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
-from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
+
+
+HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
+
+COUNT_ACTIONS_ARGS = [
+    ('Event:dialogue_event', {}),
+    ('Event:VictimPickedUp', {}),
+    ('Event:VictimPlaced', {}),
+    ('Event:ToolUsed', {}),
+    ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
+    ('Event:RoleSelected', {})
+]
 
 def collapse_rows(data_list, subjects={}):
     """
@@ -75,101 +83,6 @@ class Metric:
             # TODO: logit
             self.regression = LinearRegression().fit(X, y)
 
-class RecordScore(Feature):
-    def __init__(self, logger=logging):
-        super().__init__('record score', logger)
-        self.score = {}
-
-    def processMsg(self, msg):
-        super().processMsg(msg)
-        add_flag = not self.COMPACT_DATA
-        if msg['sub_type'] == 'Event:Scoreboard':
-            self.score.update({field if 'Score' in field else f'Score for {field}': value for field, value in msg['scoreboard'].items()})
-            add_flag = True
-
-        if add_flag:
-            for field, value in self.score.items():
-                if field[:10] == 'Score for ':
-                    row = {'Participant': field[10:], 'Individual Score': value, 'Team Score': self.score['TeamScore']}
-                else:
-                    row = {'Participant': 'Team', 'Team Score': value}
-                self.addRow(row)
-            
-    def printValue(self):
-        print(f'{self.name} {self.score}')
-
-class MarkerPlacement(Feature):
-    def __init__(self, logger=logging):
-        super().__init__('count marker placement per player per room', logger)
-        self.marker_legend = {}
-        self.marker_count = {'Team': {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}}
-
-    def processMsg(self, msg):
-        super().processMsg(msg)
-        add_flag = not self.COMPACT_DATA
-        if self.msg_type == 'Event:MarkerPlaced':
-            player = msg['participant_id']
-            if player not in self.marker_count:
-                self.marker_count[player] = {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
-            if msg['mark_critical'] > 0:
-                self.marker_count[player][msg['marker_type']]['critical'] += 1
-                self.marker_count['Team'][msg['marker_type']]['critical'] += 1
-            elif msg['mark_regular'] > 0:
-                self.marker_count[player][msg['marker_type']]['regular'] += 1
-                self.marker_count['Team'][msg['marker_type']]['regular'] += 1
-            else:
-                self.marker_count[player][msg['marker_type']]['none'] += 1
-                self.marker_count['Team'][msg['marker_type']]['none'] += 1
-            if 'marker_legend' in msg:
-                self.marker_legend[player] = msg['marker_legend']
-            add_flag = True
-
-        if add_flag:
-            for player, markers in self.marker_count.items():
-                row = {'Participant': player}
-                if player in self.marker_legend:
-                    row[f'Marker Legend'] =  self.marker_legend[player]
-                for marker, table in markers.items():
-                    norm = sum(table.values())
-                    if norm > 0:
-                        norm_count = {f'{marker}_{victim}': count/norm for victim, count in table.items()}
-                        row.update(norm_count)
-                        row[marker] = norm
-    #                    print(f'{player} {self.marker_legend[player]}: {norm_count}')
-                self.addRow(row)
-
-    def printValue(self):
-        print(f'{self.name} {self.marker_count}')
-
-
-class DialogueLabels(Feature):
-    def __init__(self, logger=logging):
-        super().__init__('count utterances per player per label', logger)
-        self.utterances = {'Team': {}}
-
-    def processMsg(self, msg):
-        super().processMsg(msg)
-        add_flag = not self.COMPACT_DATA
-        if self.msg_type == 'asr:transcription':
-            player = msg['participant_id']
-            if player not in self.utterances:
-                self.utterances[player] = {}
-            for label in msg['extractions']:
-                field = f'Utterance {label["label"]}'
-                self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
-                self.utterances['Team'][field] = self.utterances['Team'].get(field, 0) + 1
-                add_flag = True
-        if add_flag:
-            for player, utterances in self.utterances.items():
-                row = {'Participant': player, 'Utterance Total': sum(self.utterances[player].values())}
-                row.update(utterances)
-                if len(self.dataframe) > 0:
-                    self.dataframe = self.dataframe[self.dataframe['Participant'] != player]
-                self.addRow(row)
-
-    def printValue(self):
-        print(f'{self.name} {self.utterances}')
-
 class FeatureReplayer(Replayer):
     def __init__(self, files=[], config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
         super().__init__(files=files, config=config, maps=maps, rddl_file=rddl_file, action_file=action_file, aux_file=aux_file, logger=logger)
@@ -193,7 +106,7 @@ class FeatureReplayer(Replayer):
                     reader = csv.DictReader(csvfile)
                     for row in reader:
                         self.training_trials.add(row['Trial'].split('_')[-1])
-                training_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                training_files = {filename_to_condition(f)['Trial']: f for f in self.files
                     if filename_to_condition(f)['Trial'] in self.training_trials}
                 missing = sorted([trial for trial in self.training_trials if trial not in training_files])
                 if missing:
@@ -207,7 +120,7 @@ class FeatureReplayer(Replayer):
                     reader = csv.DictReader(csvfile)
                     for row in reader:
                         self.testing_trials.add(row['Trial'])
-                testing_files = {filename_to_condition(f)['Trial']: f for f in self.files 
+                testing_files = {filename_to_condition(f)['Trial']: f for f in self.files
                     if filename_to_condition(f)['Trial'] in self.testing_trials}
                 missing = sorted([t for t in self.testing_trials if t not in testing_files])
                 if missing:
@@ -227,14 +140,36 @@ class FeatureReplayer(Replayer):
         else:
             self.metrics = {}
 
+    def _create_derived_features(self, parser, logger=logging):
+        # processes room names
+        all_loc_name = list(parser.jsonParser.rooms.keys())
+        main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
+        main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
+        room_names = main_names.difference(HALLWAYS)
+
+        # adds feature counters
+        self.derived_features[parser.jsonFile] = [RecordScore(logger)]
+        for args in COUNT_ACTIONS_ARGS:
+            self.derived_features[parser.jsonFile].append(CountAction(*args, logger=logger))
+        self.derived_features[parser.jsonFile].append(CountEnterExit(room_names.copy(), logger=logger))
+        self.derived_features[parser.jsonFile].append(CountTriageInHallways(HALLWAYS, logger=logger))
+        self.derived_features[parser.jsonFile].append(CountVisitsPerRole(room_names, logger=logger))
+        # self.derived_features[parser.jsonFile].append(CountRoleChanges(logger=logger))
+        self.derived_features[parser.jsonFile].append(PlayerRoomPercentage(mission_length=15, logger=logger))
+        self.derived_features[parser.jsonFile].append(MarkerPlacement(logger))
+        self.derived_features[parser.jsonFile].append(DialogueLabels(logger))
+
     def pre_replay(self, parser, config=None, logger=logging):
-        feature_list = self.derived_features[parser.jsonFile] = [RecordScore(logger)]
-        feature_list += _get_derived_features(parser)
-        feature_list.append(PlayerRoomPercentage(mission_length=15, logger=logger))
-        feature_list.append(MarkerPlacement(logger))
-        feature_list.append(DialogueLabels(logger))
-        result = super().pre_replay(parser, config, logger)
-        trial_fields = filename_to_condition(os.path.basename(os.path.splitext(parser.jsonFile)[0]))
+        self._create_derived_features(parser, logger)
+        result = super().pre_replay(config, logger)
+        trial_fields = {'File': os.path.basename(self.file_name)}
+        trial_fields.update(filename_to_condition(os.path.basename(os.path.splitext(parser.jsonFile)[0])))
+        if self.fields is None:
+            self.fields = list(trial_fields.keys())
+            self.fields.append('Participant')
+            self.fields.append('time')
+            self.fields.append('Team Score')
+            self.fields.append('Individual Score')
         # processes data to extract features depending on type of count
         for feature in feature_list:
             for field, value in trial_fields.items():
@@ -279,14 +214,14 @@ class FeatureReplayer(Replayer):
                     if metric == 'm3':
                         y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
                     elif metric =='m6':
-                        y_fields = [field for field in data.columns if 'Legend' in field]                        
+                        y_fields = [field for field in data.columns if 'Legend' in field]
                     else:
                         y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
                     X = data.filter(items=table['X_fields']).fillna(0)
                     # Generate prediction
                     prediction = table['regression'].predict(X)
                     if metric == 'm1':
-                        predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'), 
+                        predictions = [{'subject': self.config.get('evaluation', f'{metric}_subject'),
                             'value': int(round(prediction[0][0]))}]
                     elif metric == 'm3' or metric == 'm6':
                         players = list(data['Participant'])
@@ -365,6 +300,7 @@ class FeatureReplayer(Replayer):
                 prediction_msg['probability'] = prediction['probability']
             msg['data']['predictions'].append(prediction_msg)
         return msg
+
 
 if __name__ == '__main__':
     # Process command-line arguments

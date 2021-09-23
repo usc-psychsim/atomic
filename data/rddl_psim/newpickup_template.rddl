@@ -1,0 +1,192 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+
+	types {
+  		agent   : object;
+ 	  	loc     : object;
+		role    : { @Search_Specialist, @Hazardous_Material_Specialist, @Medical_Specialist};
+	};
+	pvariables {
+
+	    // neighbors (constants)
+	    NBR_CONSTS_STR
+
+		// move actions
+		MOVE_VARS_STR
+
+        // agent state
+	    pLoc(agent)         : { state-fluent, loc, default = null };
+		pRole(agent)        : { state-fluent, role, default = @Search_Specialist } ;
+		has_critical_saved(agent) : { state-fluent, bool, default = false };
+		has_regular_saved(agent)  : { state-fluent, bool, default = false };
+		has_critical_unsaved(agent) : { state-fluent, bool, default = false };
+		has_regular_unsaved(agent)  : { state-fluent, bool, default = false };
+
+        // victim counters
+		vcounter_saved_critical(loc)    : {state-fluent, int, default=0};
+		vcounter_unsaved_critical(loc)  : {state-fluent, int, default=0};
+		vcounter_saved_regular(loc)     : {state-fluent, int, default=0};
+		vcounter_unsaved_regular(loc)   : {state-fluent, int, default=0};
+
+        // victim-related actions
+		triage_critical(agent)  : { action-fluent, bool, default = false };
+		triage_regular(agent)   : { action-fluent, bool, default = false };
+		pickup_critical_unsaved(agent)  : { action-fluent, bool, default = false };
+		pickup_regular_unsaved(agent)   : { action-fluent, bool, default = false };
+		pickup_critical_saved(agent)  : { action-fluent, bool, default = false };
+		pickup_regular_saved(agent)   : { action-fluent, bool, default = false };
+		dropVictim(agent)       : { action-fluent, bool, default = false };
+
+		becomeRole(agent, role) : { action-fluent, bool, default = false} ;
+        noop(agent)             : { action-fluent, bool, default = false };
+	};
+
+	cpfs {
+
+	    pLoc'(?p) =
+	        MOVE_DYN_STR
+
+		pRole'(?p) =
+			if (becomeRole(?p, @Search_Specialist)) then
+			    @Search_Specialist
+			else if (becomeRole(?p, @Hazardous_Material_Specialist)) then
+			    @Hazardous_Material_Specialist
+			else if (becomeRole(?p, @Medical_Specialist)) then
+			    @Medical_Specialist
+			else
+			    pRole(?p);
+
+		vcounter_unsaved_critical'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_critical(?p)  ] )
+				then vcounter_unsaved_critical(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_critical_unsaved(?p) ])
+				then vcounter_unsaved_critical(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_critical_unsaved(?p) ^ dropVictim(?p) ])
+				then vcounter_unsaved_critical(?lc) + 1
+			else
+				vcounter_unsaved_critical(?lc);
+
+
+		// If either victim type was triaged, increment
+		vcounter_saved_critical'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_critical(?p)  ] )
+				then vcounter_saved_critical(?lc) + 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_critical_saved(?p) ])
+				then vcounter_saved_critical(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_critical_saved(?p) ^ dropVictim(?p) ])
+				then vcounter_saved_critical(?lc) + 1
+			else
+				vcounter_saved_critical(?lc);
+
+		vcounter_unsaved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_regular_unsaved(?p) ])
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_regular_unsaved(?p) ^ dropVictim(?p) ])
+				then vcounter_unsaved_regular(?lc) + 1
+			else
+				vcounter_unsaved_regular(?lc);
+
+		// If either victim type was triaged, increment
+		vcounter_saved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_saved_regular(?lc) + 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_regular_saved(?p) ])
+				then vcounter_saved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_regular_saved(?p) ^ dropVictim(?p) ])
+				then vcounter_saved_regular(?lc) + 1
+			else
+				vcounter_saved_regular(?lc);
+
+		has_critical_saved'(?p) =
+			if (pickup_critical_saved(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_critical_saved(?p);
+
+		has_regular_saved'(?p) =
+			if (pickup_regular_saved(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_regular_saved(?p);
+
+		has_critical_unsaved'(?p) =
+			if (pickup_critical_unsaved(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_critical_unsaved(?p);
+
+		has_regular_unsaved'(?p) =
+			if (pickup_regular_unsaved(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_regular_unsaved(?p);
+	};
+
+	reward = [sum_{?lc : loc} [vcounter_saved_critical(?lc) * 50 ] ];
+
+	action-preconditions {
+
+	    // to move through a portal, current loc has to have neighbor through that portal
+	    MOVE_PRE_COND
+
+	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
+	    forall_{?p : agent} [
+	        triage_critical(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_critical( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        triage_regular(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_regular_unsaved(?p) => pRole(?p) == @Search_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_critical_unsaved(?p) => pRole(?p) == @Search_Specialist ^ vcounter_unsaved_critical( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_regular_saved(?p) => pRole(?p) == @Search_Specialist ^ vcounter_saved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_critical_saved(?p) => pRole(?p) == @Search_Specialist ^ vcounter_saved_critical( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        dropVictim(?p) => pRole(?p) == @Search_Specialist ^ (has_regular_unsaved(?p) | has_critical_unsaved(?p) | has_regular_saved(?p) | has_critical_saved(?p))
+        ];
+    };
+}
+
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1;
+	objects {
+		agent : {p1, p2, p3};
+		loc : {LOCSTR};
+	};
+	non-fluents {
+		NBRSTR
+ 	};
+ }
+instance mv_tr_v1_inst1 {
+	domain = mv_tr_v1;
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state {
+		pLoc(p1) = LOC0; 
+		pLoc(p2) = LOC0; 
+		pLoc(p3) = LOC0; 
+		VICSTR
+	};
+	max-nondef-actions = 3;
+	horizon = 2;
+	discount = 1.0;
+} 

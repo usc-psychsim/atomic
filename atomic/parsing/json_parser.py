@@ -82,6 +82,7 @@ class JSONReader(object):
         self.subjects = None
         self.player_maps = {}
         self.player_marker = {}
+        self.saved_victim_ids = []
             
     def registerFeatures(self, feats):
         for f in feats:
@@ -194,12 +195,22 @@ class JSONReader(object):
         if mtype == 'Mission:VictimList':
             self.vList = self.make_victims_list(m['mission_victim_list'])
             return
+        
+        ## Keep track of saved victim IDs
+        if (mtype == 'Event:Triage') and (m['triage_state'] == 'SUCCESSFUL'):
+            self.saved_victim_ids.append(m['victim_id'])
+        
+        ## If the picked up victim is saved/unsaved, inject the corresponding field in the msg
+        if mtype == 'Event:VictimPickedUp':
+            if m['victim_id'] in self.saved_victim_ids:
+                m['state'] = 'saved'
+            else:
+                m['state'] = 'unsaved'        
 
         player = m.get('playername', m.get('participant_id', None))
         m['playername'] = player
         if 'participant_id' not in m:
             m['participant_id'] = self.subjects.get(m['playername'], None)
-        player = m['playername']
         is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
@@ -283,7 +294,7 @@ class JSONReader(object):
         if 'mission_timer' in m and m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
         
-        smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
+        smallMsg = m # {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
         self.messages.append(smallMsg)
 
         ## For every derived feature, ask it to process this message

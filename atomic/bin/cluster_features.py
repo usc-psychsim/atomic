@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import tqdm
-import re
 import itertools as it
 import pandas as pd
 import numpy as np
@@ -12,12 +11,7 @@ from typing import Dict, List
 from sklearn import metrics
 from sklearn import preprocessing
 from sklearn.cluster import AgglomerativeClustering
-from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit, Feature, \
-    CountVisitsPerRole
-from atomic.util.io import str2bool, create_clear_dir, save_args, change_log_handler, get_files_with_extension, \
-    get_file_name_without_extension, get_file_changed_extension
-from atomic.util.mp import get_pool_and_map
+from atomic.util.io import str2bool, create_clear_dir, save_args, change_log_handler, get_file_changed_extension
 from atomic.util.clustering import hopkins_statistic, get_n_clusters
 from atomic.util.plot import plot_clustering_distances, plot_clustering_dendrogram, format_and_save_plot
 
@@ -26,25 +20,18 @@ __email__ = 'pedrodbs@gmail.com'
 __desc__ = 'Loads a series of game logs (metadata files), performs feature counting, gets set of derived features ' \
            '(stats over the original features) and then clusters files based on this feature embedding distance.'
 
-MAX_VERS = 20  # maximum metadata file version to search for
+IGNORE_FEATURES = ['Marker Legend']
 
-HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
+TRIAL_COL = 'Trial'
+TEAM_COL = 'Team'
+MAP_COL = 'CondWin'
+PARTICIPANT_COL = 'Participant'
+TIME_COL = 'time'
+LAST_META_COL = TIME_COL
 
-LOG_FILE_EXTENSION = 'metadata'
-
-FILE_NAME_COL = 'File'
 CLUSTER_ID_COL = 'Cluster'
-CLUSTER_COUNT_COL = 'Count'
+CLUSTER_COUNT_COL = 'Cluster Count'
 FILE_NAMES_COL = 'Files'
-
-COUNT_ACTIONS_ARGS = [
-    ('Event:dialogue_event', {}),
-    ('Event:VictimPickedUp', {}),
-    ('Event:VictimPlaced', {}),
-    ('Event:ToolUsed', {}),
-    ('Event:Triage', {'triage_state': 'SUCCESSFUL'}),
-    ('Event:RoleSelected', {})
-]
 
 SILHOUETTE_COEFFICIENT = 'Silhouette Coefficient'
 CALINSKI_HARABASZ_INDEX = 'Calinski-Harabasz Index'
@@ -55,15 +42,13 @@ def main():
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', '-i', type=str, required=True,
-                        help='The path to a directory containing the game logs (.metadata files) or a'
-                             'comma-separated string with the paths to individual log files.')
+                        help='The path to the CSV file containing the individual- and team-level count features.')
     parser.add_argument('--output', '-o', type=str, required=True, help='Directory in which to save results.')
-    parser.add_argument('--filter', type=str, help='Regex expression to filter input files (using match).')
+    parser.add_argument('--map', type=str,
+                        help='World map trials to be analyzed.')
     parser.add_argument('--trial', type=int, default=-1,
                         help='Trial number to analyze for each team. -1 ignores the trial filter.')
-    parser.add_argument('--processes', '-p', type=int, default=1,
-                        help='Number of processes for parallel processing. Value < 1 uses all available cpus.')
-    parser.add_argument('--format', '-f', type=str, default='png', help='Format of result images.')
+    parser.add_argument('--format', '-f', type=str, default='png', help='Format of resulting images.')
 
     parser.add_argument('--affinity', '-a', type=str, default='euclidean',
                         help='Metric used to compute the linkage. Can be “euclidean”, “l1”, “l2”, '
@@ -90,35 +75,25 @@ def main():
     save_args(args, os.path.join(args.output, 'args.json'))
     change_log_handler(os.path.join(args.output, 'cluster-features.log'), args.verbosity)
 
-    # parses game log files
+    # checks CSV file
     logging.info('========================================')
-    if ',' in args.input or args.input.endswith(LOG_FILE_EXTENSION):
-        # files mode, split them
-        files = [file.strip() for file in args.input.split(',')]
-    else:
-        # directory mode, load all metadata files
-        files = get_files_with_extension(args.input, LOG_FILE_EXTENSION)
+    if args.input is None or not os.path.isfile(args.input):
+        raise ValueError(f'Could not find input CSV in: {args.input}!')
 
-    # checks files
-    files = _filter_files(files, args)
-    if len(files) == 0:
-        raise ValueError(f'Could not find any files to process in: {args.input}, matching {args.filter}!')
+    # read dataframe
+    df = pd.read_csv(args.input)
+    if len(df) == 0:
+        raise ValueError(f'No data loaded from input CSV file: {args.input}!')
+    logging.info(f'Loaded {len(df)} records from input CSV file: {args.input}')
 
-    # check cache dir
-    cache_dir = os.path.join(args.output, 'data')
-    os.makedirs(cache_dir, exist_ok=True)
+    # filter data and transforms / gets stats from players' data
+    df = _filter_data(df, args)
+    start_idx = list(df.columns).index(LAST_META_COL) + 1
+    df = _transform_data(df, start_idx)
 
-    # loads data from logs
-    logging.info(f'Loading {len(files)} game log files...')
-    pool, map_func = get_pool_and_map(args.processes, star=True, iterator=True)
-    f_args = list(it.product(files, [cache_dir]))
-    results = list(tqdm.tqdm(map_func(_parse_log_file, f_args), total=len(files)))
-    results = [result for result in results if result is not None]
-
-    # converts to dataframe and saves to file
-    df = pd.DataFrame(results).fillna(0)
+    # merge dataframes and saves to file
     logging.info('========================================')
-    logging.info(f'Finished processing log files, got {len(df.columns)} features for {len(df)} files.')
+    logging.info(f'Finished processing data, got {len(df.columns) - start_idx + 1} features for {len(df)} files.')
     file_path = os.path.join(args.output, 'features.csv')
     logging.info(f'Saving CSV file with all features to {file_path}...')
     df.to_csv(file_path, index=False)
@@ -127,16 +102,16 @@ def main():
     logging.info('========================================')
     logging.info('Normalizing data...')
     df_norm = df.copy()
-    df_norm.iloc[:, 1:] = preprocessing.MinMaxScaler().fit_transform(df.iloc[:, 1:].values)  # ignore ID column
+    df_norm.iloc[:, start_idx:] = preprocessing.MinMaxScaler().fit_transform(df.iloc[:, start_idx:].values)
     file_path = os.path.join(args.output, 'features-norm.csv')
     logging.info(f'Saving CSV file with all normalized features to {file_path}...')
     df_norm.to_csv(file_path, index=False)
 
-    # split
-    features = df.columns[1:].tolist()
-    file_names = df[FILE_NAME_COL].values
-    data = df.iloc[:, 1:].values
-    norm_data = df_norm.iloc[:, 1:].values
+    # split data
+    features = df.columns[start_idx:].tolist()
+    metadata = df.iloc[:, :start_idx]
+    data = df.iloc[:, start_idx:].values
+    norm_data = df_norm.iloc[:, start_idx:].values
 
     logging.info('========================================')
     logging.info('Computing Hopkins statistic for the data...')
@@ -150,6 +125,8 @@ def main():
         logging.info('\tData is random')
     elif h > 0.75:
         logging.info('\tData has a high tendency to cluster')
+    else:
+        logging.info('\tData does not have high tendency to cluster')
 
     # cluster data
     logging.info('========================================')
@@ -163,8 +140,7 @@ def main():
     logging.info(f'Found {clustering.n_clusters_} clusters at max. distance: {clustering.distance_threshold}')
 
     clustering_dir = os.path.join(args.output, 'clustering')
-
-    clusters = _save_clustering_results(data, clustering, clustering_dir, features, file_names, args)
+    clusters = _save_clustering_results(data, clustering, clustering_dir, features, metadata, args)
 
     # performs internal evaluation
     _internal_evaluation(norm_data, clustering, clustering_dir, args)
@@ -175,147 +151,73 @@ def main():
     logging.info('Done!')
 
 
-def _filter_files(files: List[str], args: argparse.Namespace) -> List[str]:
-    # first filter valid files and only the highest versions of each file
-    filtered = set()
-    for file in files:
-        if file in filtered or not file.endswith(LOG_FILE_EXTENSION) or not os.path.isfile(file) \
-                or 'TrialMessages_TrialPlanning' in file \
-                or 'TrialMessages_Trial-Training' in file \
-                or 'TrialMessages_Trial-Competency' in file \
-                or 'TrialMessages-FoV' in file:
-            continue
-        i = re.search(r'Vers-(\d+)', file)
-        if i is None:
-            filtered.add(file)  # did not find version info
-            continue
-        i = int(i.group(1)) + 1  # search for higher version
-        for i in range(i, MAX_VERS + 1):
-            file_ = re.sub(r'Vers-\d+', f'Vers-{i}', file)
-            if file_ in files:
-                file = file_
-        filtered.add(file)
-    files = filtered
-
-    # filter trial number by team
+def _filter_data(df, args):
+    # first remove all unwanted features/columns
+    df = df.drop(IGNORE_FEATURES, axis=1)
+    
+    # filter by trial for each team
     if args.trial >= 0:
-        team_files = {}
-        for file in files:
-            i = re.search(r'Team-TM\d+', file)
-            if i is None:
-                continue
-            team = i.group(0)
-            if team not in team_files:
-                team_files[team] = []
-            team_files[team].append(file)
-        files = []
-        for team, t_files in team_files.items():
-            t_files = sorted(t_files, key=lambda file: int(re.search(r'Trial-T(\d+)_Team', file).group(1)))
-            if len(t_files) > args.trial:
-                files.append(t_files[args.trial])
+        logging.info(f'Filtering data by selecting trial="{args.trial}"...')
+        teams_dfs = []
+        for _, team_df in df.groupby(TEAM_COL):
+            trials = sorted(team_df[TRIAL_COL].unique())
+            if len(trials) > args.trial:
+                team_df = team_df[team_df[TRIAL_COL] == trials[args.trial]]
+                teams_dfs.append(team_df)
+        df = pd.concat(teams_dfs)
 
-    # then filter files using regex
-    files = set([file for file in files if args.filter is None or re.search(args.filter, file)])
+    # filter by map
+    if args.map is not None and args.map != '':
+        logging.info(f'Filtering data by selecting map="{args.map}"...')
+        df = df[df[MAP_COL] == args.map]
 
-    return sorted(files)
+    return df
 
 
-def _get_derived_features(msg_qs: MsgQCreator) -> List[Feature]:
-    # processes room names
-    all_loc_name = list(msg_qs.jsonParser.rooms.keys())
-    main_names = [nm[:nm.find('_')] for nm in all_loc_name if nm.find('_') >= 0]
-    main_names = set(main_names + [nm for nm in all_loc_name if nm.find('_') < 0])
-    room_names = main_names.difference(HALLWAYS)
+def _transform_data(df, start_idx):
+    # transform data
+    # first gets all team-level data, filter columns with all NaNs and fills other Nan with zero
+    logging.info('========================================')
+    logging.info('Selecting and processing team data...')
+    teams_df = df[df[PARTICIPANT_COL] == 'Team']
+    teams_df = teams_df.dropna(axis=1, how='all')
+    teams_df = _one_hot_encode_cols(teams_df, start_idx)
+    teams_df = teams_df.fillna(0)
+    logging.info(f'Got data for {len(teams_df)} teams and {len(teams_df.columns) - start_idx + 1} features')
 
-    # adds feature counters
-    derived_features = []
-    for args in COUNT_ACTIONS_ARGS:
-        derived_features.append(CountAction(*args))
-    derived_features.append(CountEnterExit(room_names.copy()))
-    derived_features.append(CountTriageInHallways(HALLWAYS))
-    derived_features.append(CountVisitsPerRole(room_names))
-    # derived_features.append(CountRoleChanges())
-    return derived_features
+    # do the same for the player data
+    logging.info('Selecting and processing players\' data...')
+    players_df = df[df[PARTICIPANT_COL] != 'Team']
+    players_df = players_df.dropna(axis=1, how='all')
+    players_df = _one_hot_encode_cols(players_df, start_idx)
+    players_df = players_df.fillna(0)
 
+    # get statistics for all players in each team and create new features
+    logging.info('Getting stats features from players\' data...')
+    teams_dfs = []
+    for trial, team_df in tqdm.tqdm(players_df.groupby(TRIAL_COL)):
+        team_data = {TRIAL_COL: trial}
+        for feat in team_df.columns.difference(teams_df.columns):
+            feat_data = team_df[feat].describe().fillna(0)
+            team_data.update({f'{feat}_{k.title()}': v for k, v in feat_data.to_dict().items()})
+        teams_dfs.append(pd.DataFrame([team_data]))
+    teams_stats_df = pd.concat(teams_dfs)
+    logging.info(f'Got data for {len(teams_stats_df)} teams and {len(teams_stats_df.columns) - 1} features')
 
-def _parse_log_file(log_file: str, cache_dir: str) -> Dict[str, float] or None:
-    try:
-        # check file in cache, load and skip if exits
-        file_path = os.path.join(cache_dir, f'{get_file_name_without_extension(log_file)}.csv')
-        if os.path.isfile(file_path):
-            df = pd.read_csv(file_path)
-            return df.iloc[0].to_dict()
-
-        msg_qs = MsgQCreator(log_file, logger=logging)
-        derived_features = _get_derived_features(msg_qs)
-
-        # process messages
-        msg_qs.startProcessing(derived_features, msg_types=None)  # use all msg types available
-
-        # processes data to extract features depending on type of count
-        features = {FILE_NAME_COL: get_file_name_without_extension(log_file)}
-        for derived_feature in derived_features:
-            features.update(_get_feature_values(derived_feature))
-
-        # save to output (cache)
-        df = pd.DataFrame([features])
-        df.to_csv(file_path, index=False)
-
-        return features
-    # except IOError as e:
-    except (KeyError, AttributeError, ValueError, UnboundLocalError, IndexError) as e:
-        logging.info(f'Could not process log file {log_file}, {e}!')
-        return None
+    # merge team data with team stats data
+    return pd.merge(teams_df, teams_stats_df, on=TRIAL_COL, how='inner')
 
 
-def _get_feature_values(derived_feature: Feature) -> Dict[str, float]:
-    if isinstance(derived_feature, CountAction) or \
-            isinstance(derived_feature, CountEnterExit) or \
-            isinstance(derived_feature, CountRoleChanges):
-        # get feature name
-        feature_name = derived_feature.type_to_count if isinstance(derived_feature, CountAction) \
-            else f'Enter_Exit' if isinstance(derived_feature, CountEnterExit) \
-            else f'Role_Changes' if isinstance(derived_feature, CountRoleChanges) \
-            else ''
-        feature_name = _change_feature_name(feature_name)
-
-        # if it's a count per player feature, get stats for all players' counts
-        data = pd.DataFrame(derived_feature.playerToCount.values())
-        if len(data) == 0:
-            return {}
-        data = data[0].describe().fillna(0)
-        return {f'{feature_name}_{k.title()}': v for k, v in data.to_dict().items()}
-
-    if isinstance(derived_feature, CountTriageInHallways):
-        return {'Triages_Hallway': derived_feature.triagesInHallways,
-                'Triages_Rooms': derived_feature.triagesInRooms}
-
-    if isinstance(derived_feature, CountVisitsPerRole):
-        # gets mean counts for visits (time really) per role across rooms
-        counts_per_role = {}
-        for room in derived_feature.roomToRoleToCount.keys():
-            for role, count in derived_feature.roomToRoleToCount[room].items():
-                if role not in counts_per_role:
-                    counts_per_role[role] = []
-                counts_per_role[role].append(count)
-        features = {}
-        for role, counts in counts_per_role.items():
-            feature_name = _change_feature_name(f'Visits_Room_{role}')
-            data = pd.DataFrame(counts)
-            if len(data) == 0:
-                continue
-            data = data[0].describe().fillna(0)
-            features.update({f'{feature_name}_{k.title()}': v for k, v in data.to_dict().items()})
-        return features
-
-    logging.warning(f'Could not process feature of type: {type(derived_feature)}!')
-
-
-def _change_feature_name(feature_name: str) -> str:
-    feature_name = re.sub(r'Event:', '', feature_name)
-    feature_name = re.sub('_*([A-Z][a-z]+)', r' \1', feature_name).strip()
-    feature_name = re.sub(' ', '_', feature_name)
-    return feature_name.title()
+def _one_hot_encode_cols(df, start_idx):
+    # transforms categorical data into one-hot encodings
+    new_cols = {}
+    for col, d_type in df.dtypes[start_idx:].iteritems():
+        if d_type == object:
+            one_hot_df = pd.get_dummies(df[col], prefix=col)
+            new_cols[col] = one_hot_df
+    df = df.drop(new_cols.keys(), axis=1)
+    df = pd.concat([df] + list(new_cols.values()), axis=1)
+    return df
 
 
 def _plot_evaluation(metric: str, scores: Dict[int, Dict[int, float]], output_img: str, save_csv: bool = True):
@@ -339,7 +241,7 @@ def _plot_evaluation(metric: str, scores: Dict[int, Dict[int, float]], output_im
 
 
 def _save_clustering_results(data: np.ndarray, clustering: AgglomerativeClustering, clustering_dir: str,
-                             features: List[str], file_names: List[str], args: argparse.Namespace):
+                             features: List[str], metadata: pd.DataFrame, args: argparse.Namespace):
     # saves clustering results
     os.makedirs(clustering_dir, exist_ok=True)
     logging.info('========================================')
@@ -354,14 +256,14 @@ def _save_clustering_results(data: np.ndarray, clustering: AgglomerativeClusteri
             clusters[cluster] = []
         clusters[cluster].append(idx)
 
-    df = pd.DataFrame([{CLUSTER_ID_COL: cluster,
-                        CLUSTER_COUNT_COL: len(idxs),
-                        FILE_NAMES_COL: [file_names[idx] for idx in idxs]}
-                       for cluster, idxs in clusters.items()])
-    df.set_index([CLUSTER_ID_COL], inplace=True)
-    df.sort_index(inplace=True)
-    file_path = os.path.join(clustering_dir, 'cluster-ids.csv')
-    df.to_csv(file_path)
+    df = metadata.copy()
+    df[CLUSTER_ID_COL] = -1
+    df[CLUSTER_COUNT_COL] = -1
+    for cluster, idxs in clusters.items():
+        df.loc[idxs, CLUSTER_ID_COL] = cluster
+        df.loc[idxs, CLUSTER_COUNT_COL] = len(idxs)
+    file_path = os.path.join(clustering_dir, 'clusters.csv')
+    df.to_csv(file_path, index=False)
 
     logging.info('========================================')
     logging.info('Clusters\' distribution:')

@@ -197,7 +197,7 @@ if __name__ == '__main__':
     for tag in ['A', 'B']:
         victim_pickles[tag] = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
     make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
-                       '../data/rddl_psim/role_fol_template.rddl',
-                       '../data/rddl_psim/role_clpsd_map',
+                       '../data/rddl_psim/newpickup_template.rddl',
+                       '../data/rddl_psim/newpickup_v1',
                        victim_pickles,
                        '../maps/Saturn/rddl_clpsd_neighbors.csv')

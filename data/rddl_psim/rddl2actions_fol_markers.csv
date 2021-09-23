@@ -1,0 +1,24 @@
+psysim,args,msg_type,conditions
+move-0,,Event:location,room_name=NBR0(old_room_name)
+move-1,,Event:location,room_name=NBR1(old_room_name)
+move-2,,Event:location,room_name=NBR2(old_room_name)
+move-3,,Event:location,room_name=NBR3(old_room_name)
+move-4,,Event:location,room_name=NBR4(old_room_name)
+move-5,,Event:location,room_name=NBR5(old_room_name)
+move-6,,Event:location,room_name=NBR6(old_room_name)
+move-7,,Event:location,room_name=NBR7(old_room_name)
+move-8,,Event:location,room_name=NBR8(old_room_name)
+move-9,,Event:location,room_name=NBR9(old_room_name)
+move-10,,Event:location,room_name=NBR10(old_room_name)
+move-11,,Event:location,room_name=NBR11(old_room_name)
+move-12,,Event:location,room_name=NBR12(old_room_name)
+move-13,,Event:location,room_name=NBR13(old_room_name)
+triage_critical,,Event:Triage,"triage_state=SUCCESSFUL, type=CRITICAL"
+triage_regular,,Event:Triage,"triage_state=SUCCESSFUL, type=REGULAR"
+pickup_critical,,Event:VictimPickedUp,type=CRITICAL
+pickup_regular,,Event:VictimPickedUp,type=REGULAR
+dropVictim,,Event:VictimPlaced,
+becomeRole,new_role,Event:RoleSelected,
+place_reg_mark,,Event:MarkerPlaced,type=Marker Block 2
+place_none_mark,,Event:MarkerPlaced,type=Marker Block 1
+noop,,noop,

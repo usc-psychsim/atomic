@@ -14,9 +14,9 @@ THRESHOLD = 0
 ####################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
 USE_COLLAPSED = True
 if USE_COLLAPSED:
-    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
+    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_newpickup.csv')
     lookup_aux_data_fname = os.path.join(os.path.dirname(__file__), '..', 'maps', 'Saturn', 'rddl_clpsd_neighbors.csv')
-    RDDL_FILE_BASE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map')
+    RDDL_FILE_BASE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'newpickup_v1')
     RDDL_FILES = {tag:RDDL_FILE_BASE+tag+'.rddl' for tag in ['A','B']}
 else:
     json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
@@ -126,7 +126,7 @@ for i, msgs in enumerate(msg_qs.actions):
             logging.error(f'{player_name} has role {conv.world.getState(player_name, "pRole", unique=True)}, with the following available actions: {", ".join(sorted(map(str, conv.world.agents[player_name].getLegalActions())))}')
             loc = conv.world.getState(player_name, 'pLoc', unique=True)
             print(f'Victims in {loc}:', conv.world.getFeature(f'__WORLD__\'s (vcounter_unsaved_regular, {loc})', unique=True))           
-            raise ValueError(f'Illegal action: {action}')
+            raise ValueError(f'Illegal action: {action} from {msg}')
     conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
 
     conv.log_state(log_actions=args.log_actions)
@@ -134,8 +134,8 @@ for i, msgs in enumerate(msg_qs.actions):
 #        for ag_name in conv.actions.keys():
 #            _log_agent_reward(ag_name)
 #    conv.verify_constraints()
-    if  (i%2) == 0:
-        input('cont..')
+#    if  (i%2) == 0:
+#        input('cont..')
 
 
 
