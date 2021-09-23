@@ -14,21 +14,66 @@ from atomic.parsing.count_features import *
 from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
 from atomic.bin.cluster_features import _get_feature_values, _get_derived_features
 
+def collapse_rows(data_list, subjects={}):
+    """
+    Flattens the mutually exclusive feature columns into a single row per participant (most recent values for each)
+    """
+    data = None
+    suffix = '_y'
+    for new_data in data_list:
+#                new_data = feature.dataframe[feature.dataframe['time'] == feature.dataframe['time'].min()]
+        new_data = new_data.replace(subjects)
+        if 'Participant' not in new_data.columns:
+            new_data['Participant'] = 'Team'
+        new_data = new_data.drop_duplicates(subset='Participant', keep='last')
+        if data is None:
+            data = new_data
+        else:
+            # Let's assume that values are the same for overlapping columns
+            data = data.merge(new_data, how='outer', on='Participant', suffixes=(None, suffix))
+            data = data.drop(columns=[col for col in data.columns if col[-2:] == suffix])
+    return data.drop_duplicates()
+
 class Metric:
-    def __init__(self, name, times=None):
+    def __init__(self, name, y_fields, times=None, team=True, ignore={}):
         self.name = name
         if times is None:
             self.times = []
         else:
             self.times = times
+        self.y_fields = y_fields
         self.data = {t: pandas.DataFrame() for t in self.times}
+        self.team = team
+        self.ignore = ignore
+        self.regression = None
 
-    def add_data(self, data):
+    def add_data(self, data_list, subjects={}):
         for t in self.times:
-            data = data[data['time'] > (15-int(t), 0)]
-            if len(data) > 0:
-                data = data[data['time'] == min(data['time'])]
-                self.data[t] = self.data[t].append(data, ignore_index=True)
+            data_t = [data[data['time'] > (15-int(t), 0)] for data in data_list]
+            self.data[t] = collapse_rows(data_t, subjects)
+
+    def train(self):
+        for t, data in self.data.items():
+            data = data.fillna(0)
+            if self.team:
+                data = data[data['Participant'] == 'Team']
+            else:
+                data = data[data['Participant'] != 'Team']
+            for field in self.ignore + self.y_fields:
+                assert field in data.columns
+            X = data.filter(items=[field for field in data.columns if field not in self.ignore + self.y_fields])
+            print(X)
+            if self.name == 'm1':
+                print(self.data.keys())
+            y = data.filter(items=self.y_fields)
+#            if metric == 'm3':
+#                y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
+#                X_fields = [field for field in data.columns if field not in y_fields and field != 'time' and field not in self.condition_fields]
+#            elif metric == 'm6':
+#                y_fields = [field for field in data.columns if 'Legend' in field]
+#                X_fields = [field for field in data.columns if field not in y_fields and field not in {'time', 'seconds', 'Participant'} and field not in self.condition_fields]
+            # TODO: logit
+            self.regression = LinearRegression().fit(X, y)
 
 class RecordScore(Feature):
     def __init__(self, logger=logging):
@@ -56,8 +101,8 @@ class RecordScore(Feature):
 class MarkerPlacement(Feature):
     def __init__(self, logger=logging):
         super().__init__('count marker placement per player per room', logger)
-        self.marker_count = {}
         self.marker_legend = {}
+        self.marker_count = {'Team': {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}}
 
     def processMsg(self, msg):
         super().processMsg(msg)
@@ -68,10 +113,13 @@ class MarkerPlacement(Feature):
                 self.marker_count[player] = {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
             if msg['mark_critical'] > 0:
                 self.marker_count[player][msg['marker_type']]['critical'] += 1
+                self.marker_count['Team'][msg['marker_type']]['critical'] += 1
             elif msg['mark_regular'] > 0:
                 self.marker_count[player][msg['marker_type']]['regular'] += 1
+                self.marker_count['Team'][msg['marker_type']]['regular'] += 1
             else:
                 self.marker_count[player][msg['marker_type']]['none'] += 1
+                self.marker_count['Team'][msg['marker_type']]['none'] += 1
             if 'marker_legend' in msg:
                 self.marker_legend[player] = msg['marker_legend']
             add_flag = True
@@ -97,7 +145,7 @@ class MarkerPlacement(Feature):
 class DialogueLabels(Feature):
     def __init__(self, logger=logging):
         super().__init__('count utterances per player per label', logger)
-        self.utterances = {}
+        self.utterances = {'Team': {}}
 
     def processMsg(self, msg):
         super().processMsg(msg)
@@ -109,6 +157,7 @@ class DialogueLabels(Feature):
             for label in msg['extractions']:
                 field = f'Utterance {label["label"]}'
                 self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
+                self.utterances['Team'][field] = self.utterances['Team'].get(field, 0) + 1
                 add_flag = True
         if add_flag:
             for player, utterances in self.utterances.items():
@@ -128,7 +177,10 @@ class FeatureReplayer(Replayer):
         # Feature count bookkeeping
         self.feature_output = output
         self.feature_data = pandas.DataFrame()
-        self.fields = None
+
+        trial_fields = list(filename_to_condition(os.path.splitext(os.path.basename(files[0]))[0]))
+        self.fields = trial_fields + ['Participant', 'time', 'Team Score', 'Individual Score']
+
         self.prediction_models = {}
 
         self.training_trials = set()
@@ -147,6 +199,8 @@ class FeatureReplayer(Replayer):
                 if missing:
                     logger.warning(f'Unable to find files for training trials: {", ".join(missing)}')
                     self.training_trials -= set(missing)
+            else:
+                training_files = {}
             self.test = self.config.get('evaluation', 'test', fallback=None)
             if self.test:
                 with open(self.test, 'r') as csvfile:
@@ -159,51 +213,37 @@ class FeatureReplayer(Replayer):
                 if missing:
                     logger.warning(f'Unable to find files for testing trials: {", ".join(missing)}')
                     self.testing_trials -= set(missing)
+            else:
+                testing_files = {}
             if self.train or self.test:
                 missing = sorted([f for f in self.files if f not in training_files.values() and f not in testing_files.values()])
                 if missing:
                     logger.warning(f'Skipping non-training, non-testing trials: {", ".join(missing)}')
                 self.files = sorted(training_files.values()) + sorted(testing_files.values())
-            self.metrics = {Metric(metric, [t for t in self.config.get('evaluation', f'{metric}_train', fallback='15').split(',')])
+            self.metrics = {Metric(metric, self.config.get('evaluation', f'{metric}_y').split(','),
+                [t for t in self.config.get('evaluation', f'{metric}_train', fallback='15').split(',')],
+                self.config.getboolean('evaluation', f'{metric}_team', fallback=False), trial_fields+['time', 'Participant'])
                 for metric in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
         else:
             self.metrics = {}
 
     def pre_replay(self, parser, config=None, logger=logging):
-        self.derived_features = [RecordScore(logger)]
-        self.derived_features += _get_derived_features(parser)
-        self.derived_features.append(PlayerRoomPercentage(mission_length=15, logger=logger))
-        self.derived_features.append(MarkerPlacement(logger))
-        self.derived_features.append(DialogueLabels(logger))
+        feature_list = self.derived_features[parser.jsonFile] = [RecordScore(logger)]
+        feature_list += _get_derived_features(parser)
+        feature_list.append(PlayerRoomPercentage(mission_length=15, logger=logger))
+        feature_list.append(MarkerPlacement(logger))
+        feature_list.append(DialogueLabels(logger))
         result = super().pre_replay(parser, config, logger)
         trial_fields = filename_to_condition(os.path.basename(os.path.splitext(parser.jsonFile)[0]))
-        if self.fields is None:
-            self.fields = list(trial_fields.keys())
-            self.fields.append('Participant')
-            self.fields.append('time')
-            self.fields.append('Team Score')
-            self.fields.append('Individual Score')
         # processes data to extract features depending on type of count
-        for feature in self.derived_features:
+        for feature in feature_list:
             for field, value in trial_fields.items():
                 feature.dataframe[field] = value
-            for metric in self.metrics:
-                metric.add_data(feature.dataframe)
+        for metric in self.metrics:
+            metric.add_data([feature.dataframe for feature in feature_list], parser.jsonParser.subjects)
         if self.feature_output is not None:
-            data = None
-            suffix = '_y'
-            for feature in self.derived_features:
-#                new_data = feature.dataframe[feature.dataframe['time'] == feature.dataframe['time'].min()]
-                new_data = feature.dataframe.replace(parser.jsonParser.subjects)
-                if 'Participant' not in new_data.columns:
-                    new_data['Participant'] = 'Team'
-                new_data = new_data.drop_duplicates(subset='Participant', keep='last')
-                if data is None:
-                    data = new_data
-                else:
-                    data = data.merge(new_data, how='outer', on='Participant', suffixes=(None, suffix))
-                    data = data.drop(columns=[col for col in data.columns if col[-2:] == suffix])
-            self.feature_data = self.feature_data.append(data.drop_duplicates(), ignore_index=True)
+            data = collapse_rows([feature.dataframe for feature in feature_list], parser.jsonParser.subjects)
+            self.feature_data = self.feature_data.append(data, ignore_index=True)
         return result
 
     def post_replay(self, parser, logger=logging):
@@ -213,23 +253,8 @@ class FeatureReplayer(Replayer):
         self.completed.append(trial)
         if trial in self.training_trials and len(self.completed) == len(self.training_trials):
             # We have finished processing the training trials
-            for metric, models in self.models.items():
-                for t, table in models.items():
-                    data = table['data'].fillna(0)
-                    if metric == 'm3':
-                        y_fields = [field for field in data.columns if field[:6] == 'Saturn' and len(field) > 7]
-                        X_fields = [field for field in data.columns if field not in y_fields and field != 'time' and field not in self.condition_fields]
-                    elif metric == 'm6':
-                        y_fields = [field for field in data.columns if 'Legend' in field]
-                        X_fields = [field for field in data.columns if field not in y_fields and field not in {'time', 'seconds', 'Participant'} and field not in self.condition_fields]
-                    else:
-                        y_fields = self.config.get('evaluation', f'{metric}_y').split(',')
-                        X_fields = [field for field in self.feature_fields if field not in y_fields]
-                    X = data.filter(items=X_fields)
-                    y = data.filter(items=y_fields)
-                    table['X_fields'] = X_fields
-                    # TODO: logit
-                    table['regression'] = LinearRegression().fit(X, y)
+            for metric in sorted(self.metrics):
+                metric.train()
         elif trial in self.testing_trials:
             # We have finished processing the testing data
             fname = f'{self.config.get("evaluation", "prediction_prefix", fallback="")}Trial-{self.completed[-1]}_'+\

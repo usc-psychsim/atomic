@@ -87,7 +87,7 @@ class Replayer(object):
             self.msg_types = Msg2ActionEntry.get_msg_types()
         else:
             self.msg_types = None
-        self.derived_features = []
+        self.derived_features = {}
         self.times = {}
 
         # information for each log file # TODO maybe encapsulate in an object and send as arg in post_replay()?
@@ -156,7 +156,7 @@ class Replayer(object):
         logger.debug('Creating world')
 
         try:
-            parser.startProcessing(self.derived_features, self.msg_types)
+            parser.startProcessing(self.derived_features[fname], self.msg_types)
         except:
             logger.error('Unable to start parser')
             logger.error(traceback.format_exc())
