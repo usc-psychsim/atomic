@@ -50,13 +50,14 @@ class JSONReader(object):
                           'Event:VictimPlaced', 'Event:VictimPickedUp',
                           'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
-                          'Event:Scoreboard', 'Event:MarkerPlaced', 'asr:transcription'
+                          'Event:Scoreboard', 'Event:MarkerPlaced', 'asr:transcription', 'start'
                           }
 
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
                             # dp added:
                             'scoreboard', 'participant_id', 'marker_type', 'victim_type', 
-                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions'                              ]
+                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions', 'client_info'
+                            ]
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
@@ -164,14 +165,17 @@ class JSONReader(object):
         
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
-        if mtype == 'start' and 'client_info' in jmsg['data']:
-            # Initial message about experimental setup
-            if self.subjects is None:
-                self.subjects = {entry.get('playername', entry['callsign']): entry['participant_id'] for entry in jmsg['data']['client_info']}
-            self.player_maps = {entry.get('playername', entry['participant_id']): entry['staticmapversion'] 
-                for entry in jmsg['data']['client_info'] if 'staticmapversion' in entry}
-            self.player_marker = {entry.get('playername', entry['participant_id']): entry['markerblocklegend'] 
-                for entry in jmsg['data']['client_info'] if 'markerblocklegend' in entry}
+        if mtype == 'start':
+            if 'client_info' in jmsg['data']:
+                # Initial message about experimental setup
+                if self.subjects is None:
+                    self.subjects = {entry.get('playername', entry['callsign']): entry['participant_id'] for entry in jmsg['data']['client_info']}
+                self.player_maps = {entry.get('playername', entry['participant_id']): entry['staticmapversion'] 
+                    for entry in jmsg['data']['client_info'] if 'staticmapversion' in entry}
+                self.player_marker = {entry.get('playername', entry['participant_id']): entry['markerblocklegend'] 
+                    for entry in jmsg['data']['client_info'] if 'markerblocklegend' in entry}
+            else:
+                return
         elif mtype not in self.msg_types:
             return
         m = jmsg['data']
@@ -188,9 +192,10 @@ class JSONReader(object):
             self.mission_running = (isPaused != "true")
             if self.verbose: print('paused', isPaused )
             return
-            
+
         if (not self.mission_running) or mtype not in self.msg_types:
-            return
+            if mtype != 'start':
+                return
             
         if mtype == 'Mission:VictimList':
             self.vList = self.make_victims_list(m['mission_victim_list'])
