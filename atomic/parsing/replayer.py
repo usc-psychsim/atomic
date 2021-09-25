@@ -24,12 +24,14 @@ TEAM_ID_TAG = 'Team'
 TRIAL_TAG = 'Trial'
 
 
-def accumulate_files(files, ext='.metadata'):
+def accumulate_files(files, include_trials=None, ext='.metadata'):
     """
     Accumulate a list of files from a given list of names of files and directories
     :type files: List(str)
     :rtype: List(str)
+    :type include_trials: Set/List(int)
     """
+    assert include_trials is not None
     result = []
     for fname in files:
         if os.path.isdir(fname):
@@ -45,10 +47,23 @@ def accumulate_files(files, ext='.metadata'):
     # Look for alternate versions of the same trial and use only the most recent
     trials = {}
     for fname in result:
-        trial = fname[:fname.find('Vers')]
-        trials[trial] = trials.get(trial, []) + [fname]
+        conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
+        try:
+            trial = conditions['Trial']
+        except KeyError:
+            try:
+                trial = conditions['TrialPlanning']
+            except KeyError:
+                logger.warning(f'Unable to identify trial corresponding to {os.path.basename(fname)}')
+                continue
+        if trial == 'Competency':
+            logging.warning(f'Ignoring competency trial {os.path.basename(trial)}')
+        elif trial == 'Training':
+            logging.warning(f'Ignoring training trial {os.path.basename(trial)}')
+        elif include_trials is None or int(trial[1:]) in include_trials:
+            trials[trial] = trials.get(trial, []) + [fname]
     for trial, files in trials.items():
-        files.sort(key=lambda fname: filename_to_condition(fname)['Vers'])
+        files.sort(key=lambda fname: int(filename_to_condition(os.path.splitext(os.path.basename(fname))[0])['Vers']))
         if len(files) > 1:
             logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])} '\
                 f'in favor of version {filename_to_condition(files[-1])["Vers"]}')
@@ -68,10 +83,9 @@ class Replayer(object):
     """
     OBSERVER = 'ATOMIC'
 
-    def __init__(self, files=[], config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging):
+    def __init__(self, files=[], trials=None, config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging):
         # Extract files to process
-        self.files = accumulate_files(files)
-
+        self.files = accumulate_files(files, trials)
         # Extract maps
 #        self.maps = get_default_maps(logger) if maps is None else maps
 
@@ -431,6 +445,8 @@ def replay_parser():
     parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
     parser.add_argument('-n', '--number', type=int, default=0,
                         help='Number of steps to replay (default is 0, meaning all)')
+    parser.add_argument('-t', '--trials', type=int, nargs='*',
+                        help='Trials to include (default is all)')
     parser.add_argument('-d', '--debug', default='WARNING', help='Level of logging detail')
     parser.add_argument('--profile', action='store_true', help='Run profiler')
     parser.add_argument('--rddl', help='Name of RDDL file containing domain specification')
@@ -447,10 +463,12 @@ def parse_replay_args(parser):
     if not isinstance(level, int):
         raise ValueError('Invalid debug level: {}'.format(args['debug']))
     logging.basicConfig(level=level)
+    if isinstance(args['trials'], list):
+        args['trials'] = set(args['trials'])
     return args
 
 if __name__ == '__main__':
     # Process command-line arguments
     args = parse_replay_args(replay_parser())
-    replayer = Replayer(args['fname'], args['config'], None, args['rddl'], args['actions'], args['aux'], logging)
+    replayer = Replayer(args['fname'], args['trials'], args['config'], None, args['rddl'], args['actions'], args['aux'], logging)
     replayer.parameterized_replay(args)
