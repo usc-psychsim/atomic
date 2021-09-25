@@ -328,7 +328,7 @@ class RecordScore(Feature):
 class MarkerPlacement(Feature):
     def __init__(self, logger=logging):
         super().__init__('count marker placement per player per room', logger)
-        self.marker_count = {}
+        self.marker_count = {'Team': {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}}
         self.marker_legend = {}
 
     def processMsg(self, msg):
@@ -336,30 +336,35 @@ class MarkerPlacement(Feature):
         add_flag = not self.COMPACT_DATA
         if self.msg_type == 'Event:MarkerPlaced':
             player = msg['participant_id']
-            if player not in self.marker_count:
-                self.marker_count[player] = {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
             if msg['mark_critical'] > 0:
                 self.marker_count[player][msg['marker_type']]['critical'] += 1
+                self.marker_count['Team'][msg['marker_type']]['critical'] += 1
             elif msg['mark_regular'] > 0:
                 self.marker_count[player][msg['marker_type']]['regular'] += 1
+                self.marker_count['Team'][msg['marker_type']]['regular'] += 1
             else:
                 self.marker_count[player][msg['marker_type']]['none'] += 1
-            if 'marker_legend' in msg:
-                self.marker_legend[player] = msg['marker_legend']
+                self.marker_count['Team'][msg['marker_type']]['none'] += 1
+            add_flag = True
+        elif self.msg_type == 'start':
+            self.marker_legend = {entry['participant_id']: entry['markerblocklegend'] for entry in msg['client_info']}
+            self.marker_count.update({player: {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
+                for player in self.marker_legend})
             add_flag = True
 
         if add_flag:
             for player, markers in self.marker_count.items():
                 row = {'Participant': player}
                 if player in self.marker_legend:
-                    row[f'Marker Legend'] =  self.marker_legend[player]
+                    row['Marker Legend'] =  self.marker_legend[player]
+                else:
+                    assert player == 'Team'
                 for marker, table in markers.items():
                     norm = sum(table.values())
                     if norm > 0:
                         norm_count = {f'{marker}_{victim}': count/norm for victim, count in table.items()}
                         row.update(norm_count)
                         row[marker] = norm
-    #                    print(f'{player} {self.marker_legend[player]}: {norm_count}')
                 self.addRow(row)
 
     def printValue(self):
