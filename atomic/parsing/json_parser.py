@@ -246,6 +246,10 @@ class JSONReader(object):
             m['mark_regular'] = victims.count('regular')
             m['mark_critical'] = victims.count('critical')
         elif mtype == 'asr:transcription':
+            if jmsg['msg']['trial_id'] in {'5b748391-9277-4737-8286-6b385ea1d6ce', 'bd035ce8-ac2c-43eb-9f36-5974a08c02ed'}:
+                # Trial 523 or 524 has participant transcripts from Trials 443 and 444
+                if jmsg['data']['participant_id'] in {'E000484', 'E000485', 'E000486'}:
+                    return
             m['extractions'] = jmsg['data'].get('extractions', [])
             m['text'] = jmsg['data']['text']
 
