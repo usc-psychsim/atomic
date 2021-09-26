@@ -397,3 +397,26 @@ class DialogueLabels(Feature):
 
     def printValue(self):
         print(f'{self.name} {self.utterances}')
+
+        
+class RecordMap(Feature):
+    def __init__(self, logger=logging):
+        super().__init__('experimental conditions', logger)
+        self.maps = {}
+
+    def processMsg(self, msg):
+        super().processMsg(msg)
+        add_flag = not self.COMPACT_DATA
+        if msg['sub_type'] == 'start':
+            # HACK!
+            self.msg_time = '15:0'
+            for entry in msg['client_info']:
+                self.maps[entry['participant_id']] = entry['staticmapversion']
+            add_flag = True
+        if add_flag:
+            for player, map_version in self.maps.items():
+                self.addRow({'Participant': player, 'Map': map_version})
+
+    def printValue(self):
+        print(f'{self.name} {self.score}')
+
