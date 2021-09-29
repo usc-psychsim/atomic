@@ -347,7 +347,7 @@ class MarkerPlacement(Feature):
                 self.marker_count['Team'][msg['marker_type']]['none'] += 1
             add_flag = True
         elif self.msg_type == 'start':
-            self.marker_legend = {entry['participant_id']: entry['markerblocklegend'] for entry in msg['client_info']}
+            self.marker_legend = {entry['participant_id']: entry.get('markerblocklegend', None) for entry in msg['client_info']}
             self.marker_count.update({player: {f'Marker Block {i+1}': {'regular': 0, 'critical': 0, 'none': 0} for i in range(3)}
                 for player in self.marker_legend})
             add_flag = True
@@ -411,7 +411,7 @@ class RecordMap(Feature):
             # HACK!
             self.msg_time = '15:0'
             for entry in msg['client_info']:
-                self.maps[entry['participant_id']] = entry['staticmapversion']
+                self.maps[entry['participant_id']] = entry.get('staticmapversion', None)
             add_flag = True
         if add_flag:
             for player, map_version in self.maps.items():
