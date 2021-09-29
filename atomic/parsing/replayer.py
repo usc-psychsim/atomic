@@ -31,7 +31,6 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     :rtype: List(str)
     :type include_trials: Set/List(int)
     """
-    assert include_trials is not None
     result = []
     for fname in files:
         if os.path.isdir(fname):
@@ -65,8 +64,9 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     for trial, files in trials.items():
         files.sort(key=lambda fname: int(filename_to_condition(os.path.splitext(os.path.basename(fname))[0])['Vers']))
         if len(files) > 1:
-            logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} {", ".join([filename_to_condition(fname)["Vers"] for fname in files[:-1]])} '\
-                f'in favor of version {filename_to_condition(files[-1])["Vers"]}')
+            logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} '\
+                f'{", ".join([filename_to_condition(os.path.splitext(fname)[0])["Vers"] for fname in files[:-1]])} '\
+                f'in favor of version {filename_to_condition(os.path.splitext(files[-1])[0])["Vers"]}')
     result = [files[-1] for files in trials.values()]
     return result
 
@@ -161,7 +161,11 @@ class Replayer(object):
                 logger.error(f'Re-simulation exited on message {self.times[fname]}')
             if self.pbar:
                 self.pbar.close()
-        self.post_replay(parser, logger)
+        try:
+            self.post_replay(parser, logger)
+        except:
+            logger.error(traceback.format_exc())
+            logger.error(f'Unable to complete post-processing')
         return True
 
     def pre_replay(self, parser, config=None, logger=logging):
