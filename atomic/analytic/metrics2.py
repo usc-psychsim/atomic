@@ -7,9 +7,10 @@ from atomic.analytic import AnalyticComponent
 class TeamScorePredictor(AnalyticComponent):
     TRAIN_TIMES = [4, 9, 14]
     TEST_TIMES = [4, 9, 14]
+    PROPERTY = 'team_performance'
 
-    def __init__(self, ignore=[], logger=logging):
-        super().__init__(name='team_performance', y_fields=['Team Score'], team=True, ignore=ignore, 
+    def __init__(self, name, ignore=[], logger=logging):
+        super().__init__(name=name, y_fields=['Team Score'], team=True, ignore=ignore, 
             y_type='State', logger=logging)
 
 
@@ -22,17 +23,19 @@ class TeamScorePredictor(AnalyticComponent):
 class MapInference(AnalyticComponent):
     TRAIN_TIMES = [2, 7, 12]
     TEST_TIMES = [2, 7, 12]
+    PROPERTY = 'participant_map'
 
-    def __init__(self, ignore=[], logger=logging):
-        super().__init__(name='participant_map', y_fields=['Map'], team=False, ignore=ignore, 
+    def __init__(self, name, ignore=[], logger=logging):
+        super().__init__(name=name, y_fields=['Map'], team=False, ignore=ignore, 
             y_type='State', logger=logging)
 
 class MarkerInference(AnalyticComponent):
     TRAIN_TIMES = [15]
     TEST_TIMES = [3, 8, 13]
-
-    def __init__(self, ignore=[], logger=logging):
-        super().__init__(name='participant_block_legend', y_fields=['Marker Legend'], team=False, ignore=ignore, 
+    PROPERTY = 'participant_block_legend'
+    
+    def __init__(self, name, ignore=[], logger=logging):
+        super().__init__(name=name, y_fields=['Marker Legend'], team=False, ignore=ignore, 
             y_type='State', logger=logging)
 
 
