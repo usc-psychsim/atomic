@@ -10,7 +10,7 @@ import pandas
 
 from atomic.parsing.count_features import *
 from atomic.parsing.replayer import *
-from atomic.analytic import collapse_rows
+from atomic.analytic import *
 from atomic.analytic.metrics2 import *
 
 HALLWAYS = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
@@ -25,6 +25,9 @@ COUNT_ACTIONS_ARGS = [
 ]
 
 class FeatureReplayer(Replayer):
+    DEFAULT_FEATURES = {'RecordScore', 'MarkerPlacement', 'DialogueLabels', 'RecordMap', 'CountAction', 'CountEnterExit', 
+        'CountTriageInHallways', 'CountVisitsPerRole', 'PlayerRoomPercentage'}
+
     def __init__(self, files=[], trials=None, config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
         super().__init__(files=files, trials=trials, config=config, maps=maps, rddl_file=rddl_file, action_file=action_file, aux_file=aux_file, logger=logger)
         self.completed = []
@@ -77,8 +80,8 @@ class FeatureReplayer(Replayer):
                 if missing:
                     logger.warning(f'Skipping non-training, non-testing trials: {", ".join(missing)}')
                 self.files = sorted(training_files.values()) + sorted(testing_files.values())
-            self.metrics = {name.strip(): STUDY2_METRICS[name.strip()](trial_fields+['time', 'Participant', 'File'], logger) 
-                for name in self.config.get('evaluation', 'metrics', fallback=[]).split(',')}
+            self.metrics = {name.strip(): STUDY2_METRICS[name.strip()](name.strip(), trial_fields+['time', 'Participant', 'File'], logger) 
+                for name in self.config.get('evaluation', 'metrics', fallback=STUDY2_METRICS).split(',')}
         else:
             self.metrics = {}
 
@@ -90,17 +93,24 @@ class FeatureReplayer(Replayer):
         room_names = main_names.difference(HALLWAYS)
 
         # adds feature counters
-        self.derived_features[parser.jsonFile] = [RecordScore(logger)]
-        for args in COUNT_ACTIONS_ARGS:
-            self.derived_features[parser.jsonFile].append(CountAction(*args, logger=logger))
-        self.derived_features[parser.jsonFile].append(CountEnterExit(room_names.copy(), logger=logger))
-        self.derived_features[parser.jsonFile].append(CountTriageInHallways(HALLWAYS, logger=logger))
-        self.derived_features[parser.jsonFile].append(CountVisitsPerRole(room_names, logger=logger))
-        # self.derived_features[parser.jsonFile].append(CountRoleChanges(logger=logger))
-        self.derived_features[parser.jsonFile].append(PlayerRoomPercentage(mission_length=15, logger=logger))
-        self.derived_features[parser.jsonFile].append(MarkerPlacement(logger))
-        self.derived_features[parser.jsonFile].append(DialogueLabels(logger))
-        self.derived_features[parser.jsonFile].append(RecordMap(logger))
+        self.derived_features[parser.jsonFile] = []
+        for feature_cls in Feature.__subclasses__():
+            if self.config.getboolean('features', feature_cls.__name__, fallback=feature_cls.__name__ in self.DEFAULT_FEATURES):
+                if feature_cls is CountAction:
+                    for args in COUNT_ACTIONS_ARGS:
+                        self.derived_features[parser.jsonFile].append(CountAction(*args, logger=logger))
+                elif feature_cls is CountEnterExit:
+                    self.derived_features[parser.jsonFile].append(CountEnterExit(room_names.copy(), logger=logger))
+                elif feature_cls is CountTriageInHallways:
+                    self.derived_features[parser.jsonFile].append(CountTriageInHallways(HALLWAYS, logger=logger))
+                elif feature_cls is CountVisitsPerRole:
+                    self.derived_features[parser.jsonFile].append(CountVisitsPerRole(room_names, logger=logger))
+                elif feature_cls is PlayerRoomPercentage:
+                    self.derived_features[parser.jsonFile].append(PlayerRoomPercentage(mission_length=15, logger=logger))
+                else:
+                    # Fallback is to assume no arguments
+                    self.derived_features[parser.jsonFile].append(feature_cls(logger))
+        return self.derived_features[parser.jsonFile]
 
     def pre_replay(self, parser, config=None, logger=logging):
         self._create_derived_features(parser, logger)
@@ -117,30 +127,42 @@ class FeatureReplayer(Replayer):
         for feature in self.derived_features[parser.jsonFile]:
             for field, value in trial_fields.items():
                 feature.dataframe[field] = value
-        for metric in self.metrics.values():
-            metric.add_data([feature.dataframe for feature in self.derived_features[parser.jsonFile]], parser.jsonParser.subjects)
-        if self.feature_output is not None:
-            data = collapse_rows([feature.dataframe for feature in self.derived_features[parser.jsonFile]], parser.jsonParser.subjects)
-            self.feature_data = self.feature_data.append(data, ignore_index=True)
+        subjects = dict(parser.jsonParser.subjects)
+        subjects['Team'] = trial_fields['Team']
+        feature_data = [feature.dataframe for feature in self.derived_features[parser.jsonFile]]
+        if feature_data:
+            for metric in self.metrics.values():
+                metric.add_data(feature_data, subjects)
+            if self.feature_output is not None:
+                data = collapse_rows(feature_data, subjects)
+                self.feature_data = self.feature_data.append(data, ignore_index=True)
         return result
 
     def post_replay(self, parser, logger=logging):
         super().post_replay(parser, logger)
-        trial = filename_to_condition(parser.jsonFile)['Trial']
-        map_name = filename_to_condition(parser.jsonFile)['CondWin']
-        self.completed.append(trial)
-        if trial in self.training_trials and len(self.completed) == len(self.training_trials):
-            # We have finished processing the training trials
-            for metric in sorted(self.metrics.values(), key=lambda m: m.name):
-                metric.train(self.feature_data)
-        elif trial in self.testing_trials:
-            # We have finished processing the testing data
-            fname = f'{self.config.get("evaluation", "prediction_prefix", fallback="")}Trial-{self.completed[-1]}_'+\
-                f'Vers-{self.config.get("evaluation", "version", fallback=1)}.metadata'
-            results = {metric: metric.test(trial) for metric in self.metrics.values()}
-            with open(os.path.join(os.path.dirname(__file__), '..', '..', fname), 'w') as prediction_file:
+        if len(self.feature_data) > 0:
+            # Train / test
+            trial = filename_to_condition(parser.jsonFile)['Trial']
+            map_name = filename_to_condition(parser.jsonFile)['CondWin']
+            self.completed.append(trial)
+            if trial in self.training_trials and len(self.completed) == len(self.training_trials):
+                # We have finished processing the training trials
+                for metric in sorted(self.metrics.values(), key=lambda m: m.name):
+                    metric.train(self.feature_data)
+            elif trial in self.testing_trials:
+                # We have finished processing the testing data
+                fname = f'{self.config.get("evaluation", "prediction_prefix", fallback="")}Trial-{self.completed[-1]}_'+\
+                    f'Vers-{self.config.get("evaluation", "version", fallback=1)}.metadata'
+                results = {metric: metric.test(trial) for metric in self.metrics.values()}
+                trial_id = parser.jsonParser.jsonMsgs[0]['msg']['trial_id']
+                messages = {}
                 for metric, result in results.items():
-                    print(json.dumps(metric.to_json()), file=prediction_file)
+                    if metric.y_type not in messages:
+                        messages[metric.y_type] = {}
+                    messages[metric.y_type][metric] = result
+                with open(os.path.join(os.path.dirname(__file__), '..', '..', fname), 'w') as prediction_file:
+                    for y_type, result in messages.items():
+                        print(json.dumps(analysis_to_json(result, y_type, trial_id), indent=3), file=prediction_file)
 
     def finish(self):
         super().finish()
