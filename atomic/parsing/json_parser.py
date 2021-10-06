@@ -133,7 +133,6 @@ class JSONReader(object):
             import pickle
             self.room_edges = []
             edges, self.room_name_lookup, new_map, orig_map = transformed_connections(self.semantic_map)
-            pickle.dump([edges,self.room_name_lookup, new_map, self.semantic_map  ],  open("/home/mostafh/clpsd.pickle", "wb") )
             for a,b in edges:
                 self.room_edges.append((a,b))
                 self.room_edges.append((b,a))     
