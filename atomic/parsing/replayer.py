@@ -242,7 +242,7 @@ class Replayer(object):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             logger.error(traceback.format_exc())
             return None
-
+            
     def replay(self, parser, rddl_converter, duration, logger):
         world = rddl_converter.world
         num = len(parser.actions)
@@ -343,10 +343,10 @@ class Replayer(object):
             logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
             self.post_step(world, actions, i, parser, debug, logger)
             for name, models in world.get_current_models().items():
-                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
-                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
-                else:
-                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
+#                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
+#                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
+#                else:
+#                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
                 var = stateKey(name, f'(visited, {world.getState(name, "pLoc", unique=True)})')
                 if var in world.variables:
                     if not world.getFeature(var, unique=True):
