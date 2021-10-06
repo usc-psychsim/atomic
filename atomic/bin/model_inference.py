@@ -41,6 +41,7 @@ class Analyzer(FeatureReplayer):
         self.beliefs = {}
         self.model_data = pandas.DataFrame()
         self.decisions = {}
+        self.debug_data = {}
         self.model_columns = None
 
     def pre_replay(self, parser, logger=logging):
@@ -66,6 +67,10 @@ class Analyzer(FeatureReplayer):
 
     def pre_step(self, world, parser, logger=logging):
         super().pre_step(world, logger)
+        #<SIMULATE>
+        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
+        world.step(real=False, debug=debug_s) # This is where the script hangs
+        #</SIMULATE>
         for name, models in self.beliefs[parser.jsonFile].items():
             self.decisions[parser.jsonFile][name].clear()
             for model in models.domain():
@@ -97,6 +102,10 @@ class Analyzer(FeatureReplayer):
                 if self.model_columns is None:
                     self.model_columns = list(record.keys())
                 self.model_data = self.model_data.append(record, ignore_index=True)
+
+            self.debug_data[parser.jsonFile].append({"WORLD": world,
+                "AGENT_DEBUG": self.decisions[parser.jsonFile],
+                "AGENT_ACTIONS": actions})
 
     def finish(self):
         super().finish()

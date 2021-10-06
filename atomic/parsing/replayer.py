@@ -70,6 +70,55 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     result = [files[-1] for files in trials.values()]
     return result
 
+def make_augmented_world(fname, agent_level=0, visitation=False, omniscient=False)
+    # Team mission
+    rddl_converter = Converter()
+    rddl_converter.convert_file(fname, verbose=False)
+
+    victim_counts = {}
+    for victim in parser.jsonParser.victims:
+        if victim.room not in victim_counts:
+            if visitation:
+                # Add visitation flags for each player/room
+                for player_name in rddl_converter.world.agents:
+                    var = rddl_converter.world.defineState(player_name, f'(visited, {victim.room})', bool)
+                    rddl_converter.world.setFeature(var, rddl_converter.world.getState(player_name, 'pLoc', unique=True) == victim.room)
+                    tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), victim.room),
+                        True: setTrueMatrix(var), False: noChangeMatrix(var)})
+                    rddl_converter.world.setDynamics(var, True, tree)
+            victim_counts[victim.room] = {}
+        victim_counts[victim.room][victim.color] = victim_counts[victim.room].get(victim.color, 0)+1
+    if omniscient:
+        # Load in true victim counts
+        for var in sorted(rddl_converter.world.variables):
+            if var[:37] == '__WORLD__\'s (vcounter_unsaved_regular':
+                room = var[39:-1]
+                value = 'regular'
+                if room not in victim_counts:
+                    rddl_converter.world.setFeature(var, 0)
+                elif value not in victim_counts[room]:
+                    rddl_converter.world.setFeature(var, 0)
+                else:
+                    rddl_converter.world.setFeature(var, victim_counts[room][value])
+            elif var[:38] == '__WORLD__\'s (vcounter_unsaved_critical':
+                room = var[40:-1]
+                value = 'critical'
+                if room not in victim_counts:
+                    rddl_converter.world.setFeature(var, 0)
+                elif value not in victim_counts[room]:
+                    rddl_converter.world.setFeature(var, 0)
+                else:
+                    rddl_converter.world.setFeature(var, victim_counts[room][value])
+    players = set(rddl_converter.world.agents.keys())
+    if agent_level == 0:
+        # Make true agents zero-level
+        zero_models = {name: rddl_converter.world.agents[name].zero_level() for name in players}
+        for name in players:
+            agent = rddl_converter.world.agents[name]
+            agent.setAttribute('selection', 'distribution', zero_models[name])
+    else:
+        raise ValueError('Currently unable to set true players to ToM level > 0')
+    return rddl_converter
 
 class Replayer(object):
     """
@@ -182,54 +231,7 @@ class Replayer(object):
 
         try:
             if self.rddl_file:
-                # Team mission
-                rddl_converter = Converter()
-                rddl_converter.convert_file(self.rddl_file, verbose=False)
-
-                victim_counts = {}
-                for victim in parser.jsonParser.victims:
-                    if victim.room not in victim_counts:
-                        for player_name in rddl_converter.world.agents:
-                            var = rddl_converter.world.defineState(player_name, f'(visited, {victim.room})', bool)
-                            rddl_converter.world.setFeature(var, rddl_converter.world.getState(player_name, 'pLoc', unique=True) == victim.room)
-                            tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), victim.room),
-                                True: setTrueMatrix(var), False: noChangeMatrix(var)})
-                            rddl_converter.world.setDynamics(var, True, tree)
-                        victim_counts[victim.room] = {}
-                    victim_counts[victim.room][victim.color] = victim_counts[victim.room].get(victim.color, 0)+1
-                # Load in true victim counts
-                for var in sorted(rddl_converter.world.variables):
-                    if var[:37] == '__WORLD__\'s (vcounter_unsaved_regular':
-                        room = var[39:-1]
-                        value = 'regular'
-                        if room not in victim_counts:
-                            rddl_converter.world.setFeature(var, 0)
-                        elif value not in victim_counts[room]:
-                            rddl_converter.world.setFeature(var, 0)
-                        else:
-                            rddl_converter.world.setFeature(var, victim_counts[room][value])
-                    elif var[:38] == '__WORLD__\'s (vcounter_unsaved_critical':
-                        room = var[40:-1]
-                        value = 'critical'
-                        if room not in victim_counts:
-                            rddl_converter.world.setFeature(var, 0)
-                        elif value not in victim_counts[room]:
-                            rddl_converter.world.setFeature(var, 0)
-                        else:
-                            rddl_converter.world.setFeature(var, victim_counts[room][value])
-
-                players = set(parser.agentToPlayer.keys())
-                zero_models = {name: rddl_converter.world.agents[name].zero_level() for name in players}
-                for name in players:
-                    agent = rddl_converter.world.agents[name]
-#                    agent.setAttribute('static', True, agent.get_true_model())
-#                    agent.create_belief_state()
-                    agent.setAttribute('selection', 'distribution', zero_models[name])
-#                    agent.set_observations()
-#                for name in players:
-#                    for other_name in players-{name}:
-#                        other_agent = rddl_converter.world.agents[other_name]
-#                        rddl_converter.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
+                rddl_converter = make_augmented_world(self.rddl_file, agent_level=0, visitation=True, omniscient=True)
                 return rddl_converter
 
             else:
@@ -240,7 +242,7 @@ class Replayer(object):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             logger.error(traceback.format_exc())
             return None
-
+            
     def replay(self, parser, rddl_converter, duration, logger):
         world = rddl_converter.world
         num = len(parser.actions)
@@ -341,10 +343,10 @@ class Replayer(object):
             logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
             self.post_step(world, actions, i, parser, debug, logger)
             for name, models in world.get_current_models().items():
-                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
-                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
-                else:
-                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
+#                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
+#                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
+#                else:
+#                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
                 var = stateKey(name, f'(visited, {world.getState(name, "pLoc", unique=True)})')
                 if var in world.variables:
                     if not world.getFeature(var, unique=True):
@@ -377,7 +379,7 @@ class Replayer(object):
     def finish(self):
         pass
 
-    def parameterized_replay(self, args):
+    def parameterized_replay(self, args, simulate=False):
         if args['profile']:
             return cProfile.run('self.process_files(args["number"])', sort=1)
         elif args['1']:
@@ -459,8 +461,8 @@ def replay_parser():
     parser.add_argument('--aux', help='Name of auxiliary CSV file for collapsed map')
     return parser
 
-def parse_replay_args(parser):
-    args = vars(parser.parse_args())
+def parse_replay_args(parser, arg_list=None):
+    args = vars(parser.parse_args(args=arg_list))
     if args['config']:
         args.update(parse_replay_config(args['config'], parser))
     # Extract logging level from command-line argument
