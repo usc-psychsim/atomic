@@ -110,7 +110,7 @@ class Replayer(object):
 
         self.pbar = None
 
-    def process_files(self, num_steps=0, config=None, fname=None):
+    def process_files(self, num_steps=0, fname=None):
         """
         :param num_steps: if nonzero, the maximum number of steps to replay from each log (default is 0)
         :type num_steps: int
@@ -123,10 +123,10 @@ class Replayer(object):
             files = [fname]
         # Get to work
         for fname in files:
-            self.process_file(fname, config, num_steps)
+            self.process_file(fname, num_steps)
         self.finish()
 
-    def process_file(self, fname, config, num_steps):
+    def process_file(self, fname, num_steps):
         logger = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
         logger.debug('Full path: {}'.format(fname))
 
@@ -139,7 +139,7 @@ class Replayer(object):
             logger.error(traceback.format_exc())
             return False
 
-        rddl_converter = self.pre_replay(parser, config, logger=logger.getChild('pre_replay'))
+        rddl_converter = self.pre_replay(parser, logger=logger.getChild('pre_replay'))
 
         if rddl_converter:
             # Replay actions from log file
@@ -162,13 +162,13 @@ class Replayer(object):
             if self.pbar:
                 self.pbar.close()
         try:
-            self.post_replay(parser, logger)
+            self.post_replay(rddl_converter.world, parser, logger)
         except:
             logger.error(traceback.format_exc())
             logger.error(f'Unable to complete post-processing')
         return True
 
-    def pre_replay(self, parser, config=None, logger=logging):
+    def pre_replay(self, parser, logger=logging):
         fname = parser.jsonFile
         # Create PsychSim model
         logger.debug('Creating world')
@@ -230,6 +230,7 @@ class Replayer(object):
 #                    for other_name in players-{name}:
 #                        other_agent = rddl_converter.world.agents[other_name]
 #                        rddl_converter.world.setModel(name, zero_models[name], other_name, other_agent.get_true_model())
+                return rddl_converter
 
             else:
                 # Not creating PsychSim model
@@ -239,7 +240,6 @@ class Replayer(object):
             exc_type, exc_value, exc_traceback = sys.exc_info()
             logger.error(traceback.format_exc())
             return None
-        return rddl_converter
 
     def replay(self, parser, rddl_converter, duration, logger):
         world = rddl_converter.world
@@ -255,7 +255,7 @@ class Replayer(object):
         old_count = {var: world.getFeature(var, unique=True) for var in world.variables if var[:len(prefix)] == prefix}
         for var, count in sorted(old_count.items()):
             if count != 0:
-                logging.info(f'Nonzero victim count {var[len(prefix):-1]}: {count}')
+                logging.debug(f'Nonzero victim count {var[len(prefix):-1]}: {count}')
         for i, msgs in enumerate(parser.actions):
             if self.pbar: self.pbar.update()
             self.times[parser.jsonFile] = i
@@ -331,7 +331,7 @@ class Replayer(object):
                         for player_name, room in old_rooms.items():
                             if room and world.getState(player_name, 'pLoc', beliefs, True) != room:
                                 raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
-            self.pre_step()
+            self.pre_step(world, parser, logger)
             logger.info(f'Actions: {", ".join(sorted(map(str, actions.values())))}')
             world.step(actions, debug=debug)
             if len(actions) < len(parser.agentToPlayer):
@@ -339,10 +339,10 @@ class Replayer(object):
                 break
             player = world.agents['p3']
             logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
-            self.post_step(actions, debug, logger)
+            self.post_step(world, actions, i, parser, debug, logger)
             for name, models in world.get_current_models().items():
                 if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
-                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}')
+                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
                 else:
                     logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
                 var = stateKey(name, f'(visited, {world.getState(name, "pLoc", unique=True)})')
@@ -365,13 +365,13 @@ class Replayer(object):
                     logging.info(f'Victim count change for {var[len(prefix):-1]}: {count} -> {new_count}')
                     old_count[var] = new_count
 
-    def post_replay(self, parser, logger=logging):
+    def post_replay(self, world, parser, logger=logging):
         pass
 
-    def pre_step(self, logger=logging):
+    def pre_step(self, world, parser, logger=logging):
         pass
 
-    def post_step(self, actions, debug, logger=logging):
+    def post_step(self, world, actions, t, parser, debug, logger=logging):
         pass
 
     def finish(self):
@@ -381,9 +381,9 @@ class Replayer(object):
         if args['profile']:
             return cProfile.run('self.process_files(args["number"])', sort=1)
         elif args['1']:
-            return self.process_files(args['number'], args['config'], replayer.files[0])
+            return self.process_files(args['number'], replayer.files[0])
         else:
-            return self.process_files(args['number'], args['config'])
+            return self.process_files(args['number'])
 
 def parse_replay_config(fname, parser):
     """
@@ -417,6 +417,7 @@ def filename_to_condition(fname):
     """
     Follows the ASIST file naming convention to extract key/value pairs out of the given filename
     """
+    fname = os.path.splitext(os.path.basename(fname))[0]
     elements = fname.split('_')
     result = {}
     for term in elements:
