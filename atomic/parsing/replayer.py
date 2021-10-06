@@ -133,7 +133,7 @@ class Replayer(object):
         # Parse events from log file
         logger_name = self.__class__.__name__
         try:
-            parser = MsgQCreator(fname, logger=logger.getChild(logger_name))
+            parser = MsgQCreator(fname, verbose=False, logger=logger.getChild(logger_name))
         except:
             logger.error('Unable to parse gamelog messages')
             logger.error(traceback.format_exc())
