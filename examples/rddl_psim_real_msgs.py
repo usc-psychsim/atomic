@@ -7,22 +7,24 @@ import numpy as np
 from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from atomic.parsing.count_features import CountAction, CountPlayerDialogueEvents, CountRoleChanges, CountTriageInHallways, CountEnterExit
+from atomic.parsing.count_features import CountAction, CountRoleChanges, CountTriageInHallways, CountEnterExit
 
 THRESHOLD = 0
 
 ####################  J S O N   M S G   T O  P S Y C H S I M   A C T I O N   N A M E
 USE_COLLAPSED = True
 if USE_COLLAPSED:
-    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
+    json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_newpickup.csv')
     lookup_aux_data_fname = os.path.join(os.path.dirname(__file__), '..', 'maps', 'Saturn', 'rddl_clpsd_neighbors.csv')
-    RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_clpsd_map.rddl')
+    RDDL_FILE_BASE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'newpickup_v1')
+    RDDL_FILES = {tag:RDDL_FILE_BASE+tag+'.rddl' for tag in ['A','B']}
 else:
     json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_small.csv')
     lookup_aux_data_fname = None
+    ## TODO create 2 RDDL files for the uncollapsed map version
     RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'role_big.rddl')
-ddir = '../data/ASU_DATA/'
-fname = ddir + 'study-2_pilot-2_2021.02_HSRData_TrialMessages_Trial-T000423_Team-TM000112_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-1.metadata'
+ddir = os.path.join(os.path.dirname(__file__), '..', 'data', 'ASU_DATA')
+metadata_file = os.path.join(ddir, 'study-2_2021.06_HSRData_TrialMessages_Trial-T000401_Team-TM000101_Member-na_CondBtwn-2_CondWin-SaturnB_Vers-6.metadata')
     
 Msg2ActionEntry.read_psysim_msg_conversion(json_msg_action_lookup_fname, lookup_aux_data_fname)
 usable_msg_types = Msg2ActionEntry.get_msg_types()
@@ -48,10 +50,13 @@ def _log_agent_reward(ag_name):
 #hallways = ['ccw', 'cce', 'mcw', 'mce', 'scw', 'sce', 'sccc']
 #room_names = main_names.difference(hallways)
 
-
+if 'SaturnA' in metadata_file:
+    RDDL_FILE = RDDL_FILES['A']
+else:
+    RDDL_FILE = RDDL_FILES['B']
 parser = argparse.ArgumentParser()
 parser.add_argument('--input', '-i', type=str, default=RDDL_FILE, help='RDDL file to be converted to PsychSim.')
-parser.add_argument('--data', type=str, default=fname, help='JSON file containing messages from game log.')
+parser.add_argument('--data', type=str, default=metadata_file, help='JSON file containing messages from game log.')
 parser.add_argument('--threshold', '-t', type=float, default=THRESHOLD,
                     help='Stochastic outcomes with a likelihood below this threshold are pruned.')
 parser.add_argument('--select', action='store_true',
@@ -116,7 +121,12 @@ for i, msgs in enumerate(msg_qs.actions):
             
         action = conv.actions[player_name][action_name]
         actions[player_name] = action        
-    
+        if not action in conv.world.agents[player_name].getLegalActions():
+            logging.error(f'Illegal action: {action}')
+            logging.error(f'{player_name} has role {conv.world.getState(player_name, "pRole", unique=True)}, with the following available actions: {", ".join(sorted(map(str, conv.world.agents[player_name].getLegalActions())))}')
+            loc = conv.world.getState(player_name, 'pLoc', unique=True)
+            print(f'Victims in {loc}:', conv.world.getFeature(f'__WORLD__\'s (vcounter_unsaved_regular, {loc})', unique=True))           
+            raise ValueError(f'Illegal action: {action} from {msg}')
     conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
 
     conv.log_state(log_actions=args.log_actions)
@@ -124,8 +134,8 @@ for i, msgs in enumerate(msg_qs.actions):
 #        for ag_name in conv.actions.keys():
 #            _log_agent_reward(ag_name)
 #    conv.verify_constraints()
-    if  (i%2) == 0:
-        input('cont..')
+#    if  (i%2) == 0:
+#        input('cont..')
 
 
 

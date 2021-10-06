@@ -10,7 +10,7 @@ domain mv_tr_v1 {
 	types {
   		agent : object;
  	  	loc    : object;
-		marker_type      : { @regular_mark, @none_mark, @unmarked};
+		marker_type      : { @regular_mark, @novictim_mark, @unmarked};
 	}; 	
 	pvariables { 	
 		correct_sem(agent) : { state-fluent, bool, default = true };		
@@ -68,16 +68,15 @@ domain mv_tr_v1 {
 
 		correct_sem'(?p) = correct_sem(?p);
 
-		place_marker'(?p) = 
-			if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) > 0) ^ correct_sem(?p) ] )
+		place_marker'(?p) =
+		    if (correct_sem(?p))
+		        then if (exists_{?lc : loc} [(pLoc'(?p) == ?lc) ^ (vcounter_unsaved_regular'(?lc) == 0) ] )
+				    then @novictim_mark
+				else
+				    @regular_mark
+		    else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc) ^ (vcounter_unsaved_regular'(?lc) == 0) ] )
 				then @regular_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) == 0) ^ correct_sem(?p) ] )
-				then @none_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) > 0) ^ ~correct_sem(?p) ] )
-				then @none_mark
-			else if (exists_{?lc : loc} [(pLoc'(?p) == ?lc)^  (vcounter_unsaved_regular(?lc) == 0) ^ ~correct_sem(?p) ] )
-				then @regular_mark
-			else @unmarked;
+			else @novictim_mark;
 				
 
 		vcounter_unsaved_regular'(?lc) =
@@ -95,8 +94,8 @@ domain mv_tr_v1 {
 		room_marker'(?lc) = 
 			if (  exists_{?p : agent} [ (pLoc'(?p) == ?lc)^ (place_marker'(?p) == @regular_mark)  ] )
 				then @regular_mark
-			else if (  exists_{?p : agent} [ (pLoc'(?p) == ?lc)^ (place_marker'(?p) == @none_mark)  ] )
-				then @none_mark
+			else if (  exists_{?p : agent} [ (pLoc'(?p) == ?lc)^ (place_marker'(?p) == @novictim_mark)  ] )
+				then @novictim_mark
 			else
 				room_marker(?lc);
 
@@ -135,9 +134,9 @@ NBR-0(sga_A) = sga_B;
 HAS-NBR-0(sga_A) = true;
 NBR-1(sga_A) = ew_A;
 HAS-NBR-1(sga_A) = true;
-NBR-0(ew_A) = sga_A;
+NBR-0(ew_A) = el_A;
 HAS-NBR-0(ew_A) = true;
-NBR-1(ew_A) = el_A;
+NBR-1(ew_A) = sga_A;
 HAS-NBR-1(ew_A) = true;
 NBR-0(sga_B) = sga_A;
 HAS-NBR-0(sga_B) = true;
@@ -151,10 +150,10 @@ instance mv_tr_v1_inst1 {
 	domain = mv_tr_v1; 
  	non-fluents = mv_tr_v1_inst1;
 	init-state { 
-		pLoc(p1) = el_A;
-		pLoc(p2) = sga_A;
+		pLoc(p1) = ew_A;
+		pLoc(p2) = sga_B;
 		vcounter_unsaved_regular(sga_B) = 2;
-		correct_sem(p2) = false;
+		correct_sem(p2) = true;
 	};
 	max-nondef-actions = 2;
 	horizon = 2;

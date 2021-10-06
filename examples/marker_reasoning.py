@@ -49,8 +49,9 @@ conv.convert_file(RDDL_FILE, verbose=True)
 
 p1 = conv.world.agents['p1']
 p1.create_belief_state()
-p1.set_observations(unobservable={stateKey('p2', 'correct_sem')})
-p1.setBelief(stateKey('p2', 'correct_sem'), Distribution({True: 0.5, False: 0.5}))
+#p1.set_observations(unobservable={stateKey('p2', 'correct_sem')})
+#p1.setBelief(stateKey('p2', 'correct_sem'), Distribution({True: 0.5, False: 0.5}))
+p1.set_fully_observable()
 
 p2 = conv.world.agents['p2']
 p2.create_belief_state()
@@ -64,8 +65,12 @@ p2.setAttribute('selection', 'distribution', p2_zero)
 conv.world.setModel(p2.name, p2_zero, p1.name, p1.get_true_model())
 conv.world.setModel(p1.name, p1_zero, p2.name, p2.get_true_model())
 
-beliefs = p1.getBelief(model=p1.get_true_model())
 print('===p1 initial belief')
+beliefs = p1.getBelief(model=p1.get_true_model())
+conv.world.printState(beliefs, beliefs=False)
+
+print('===p2 initial belief')
+beliefs = p2.getBelief(model=p2.get_true_model())
 conv.world.printState(beliefs, beliefs=False)
 
 json_msg_action_lookup_fname = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'rddl2actions_fol.csv')
@@ -75,11 +80,11 @@ usable_msg_types = Msg2ActionEntry.get_msg_types()
 #
 ##################  F A K E    M S G S
 all_msgs = []
-all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'el_A', 'sub_type':'Event:location'}, 
-                 'p2':{'room_name':'sga_B', 'playername':'p2', 'old_room_name':'sga_A', 'sub_type':'Event:location'}})
+all_msgs.append({'p1': {'room_name':'ew_A', 'playername':'p1', 'old_room_name':'', 'sub_type':'Event:location'}, 
+                 'p2':{'room_name':'sga_B', 'playername':'p2', 'old_room_name':'', 'sub_type':'Event:location'}})
 
-all_msgs.append({'p1': {'room_name':'el_A', 'playername':'p1', 'old_room_name':'ew_A', 'sub_type':'Event:location'}, 
-                 'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}})
+#all_msgs.append({'p1': {'room_name':'el_A', 'playername':'p1', 'old_room_name':'ew_A', 'sub_type':'Event:location'}, 
+#                 'p2':{'room_name':'sga_A', 'playername':'p2', 'old_room_name':'sga_B', 'sub_type':'Event:location'}})
     
 #    all_msgs.append({'p1': {'type':'Marker Block 1', 'playername':'p1', 'sub_type':'Event:MarkerPlaced'}, 
 #                 'p2':{'room_name':'loc12', 'playername':'p2', 'sub_type':'Event:location'}})
@@ -91,27 +96,39 @@ for i, msgs in enumerate(all_msgs):
     logging.info(f'\n__________________________________________________{i}')
     debug = {ag_name: {} for ag_name in conv.actions.keys()} if args.log_rewards else dict()
     
-    ## Print legal actions
-    for player_name, msg in msgs.items():
-        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
-        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
+#    ## Print legal actions
+#    for player_name, msg in msgs.items():
+#        leg_acts = [str(a) for a in conv.world.agents[player_name].getLegalActions()]
+#        print('legal actions of', player_name, '\n',  '\n'.join(leg_acts))
     
     if REPLAY:
         actions = {}
-        any_none = False
+        teleported = []
+
+        ## For any player with an Event:location msg with empty old room, teleport to new room
+        for player_name, msg in msgs.items():
+            if (msg['sub_type'] == 'Event:location') and (msg['old_room_name'] == ''):
+                room = msg['room_name']
+                logging.warning('Teleporting %s to %s' %(player_name, room))
+                teleported.append(player_name)
+                conv.world.setFeature(stateKey(player_name, 'pLoc'), room, recurse=True)
+        
+        ## For players that were teleported, replace their msgs with noop actions
+        for tele_player in teleported:
+            msgs[tele_player] = {'playername':tele_player, 'sub_type':'noop'}
+            
         for player_name, msg in msgs.items():
             action_name = Msg2ActionEntry.get_action(msg)
+            ## If no psychsim action, inject a noop
             if action_name not in conv.actions[player_name]:
-                any_none = True
+                action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
                 logging.warning(f'Msg {msg} has no associated action')
             else:
                 logging.info(f'Player {player_name} does {action_name}')
-                action = conv.actions[player_name][action_name]
-                actions[player_name] = action
+                
+            action = conv.actions[player_name][action_name]
+            actions[player_name] = action        
         
-        if any_none:
-            input('cont..')
-            continue
         conv.world.step(actions, debug=debug, threshold=args.threshold, select=args.select)
     else:
         conv.world.step(debug=debug, threshold=args.threshold, select=args.select)

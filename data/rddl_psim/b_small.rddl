@@ -1,0 +1,155 @@
+domain mv_tr_v1 {
+	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+
+	types {
+  		agent   : object;
+ 	  	loc     : object;
+		role    : { @Search_Specialist, @Hazardous_Material_Specialist, @Medical_Specialist};
+	};
+	pvariables {
+
+	    // neighbors (constants)
+	    NBR-0(loc) : { non-fluent, loc, default = null };
+	NBR-1(loc) : { non-fluent, loc, default = null };
+	NBR-2(loc) : { non-fluent, loc, default = null };
+	NBR-3(loc) : { non-fluent, loc, default = null };
+	HAS-NBR-0(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-1(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-2(loc) : { non-fluent, bool, default = false };
+	HAS-NBR-3(loc) : { non-fluent, bool, default = false };
+
+		// move actions
+		move-0(agent) : { action-fluent, bool, default = false};
+	move-1(agent) : { action-fluent, bool, default = false};
+	move-2(agent) : { action-fluent, bool, default = false};
+	move-3(agent) : { action-fluent, bool, default = false};
+        // agent state
+	    pLoc(agent)         : { state-fluent, loc, default = null };
+		pRole(agent)        : { state-fluent, role, default = @Medical_Specialist } ;
+		has_regular(agent)  : { state-fluent, bool, default = false };
+
+        // victim counters
+		vcounter_saved_regular(loc)     : {state-fluent, int, default=0};
+		vcounter_unsaved_regular(loc)   : {state-fluent, int, default=0};
+
+        // victim-related actions
+		triage_regular(agent)   : { action-fluent, bool, default = false };
+		pickup_regular(agent)   : { action-fluent, bool, default = false };
+		dropVictim(agent)       : { action-fluent, bool, default = false };
+
+		becomeRole(agent, role) : { action-fluent, bool, default = false} ;
+        noop(agent)             : { action-fluent, bool, default = false };
+	};
+
+	cpfs {
+
+	    pLoc'(?p) =
+	        if ( move-0(?p) ) then
+		NBR-0(pLoc(?p))
+else 
+	if ( move-1(?p) ) then
+		NBR-1(pLoc(?p))
+else 
+	if ( move-2(?p) ) then
+		NBR-2(pLoc(?p))
+else 
+	if ( move-3(?p) ) then
+		NBR-3(pLoc(?p))
+else 
+	pLoc(?p);
+
+		pRole'(?p) =
+			if (becomeRole(?p, @Search_Specialist)) then
+			    @Search_Specialist
+			else if (becomeRole(?p, @Hazardous_Material_Specialist)) then
+			    @Hazardous_Material_Specialist
+			else if (becomeRole(?p, @Medical_Specialist)) then
+			    @Medical_Specialist
+			else
+			    pRole(?p);
+
+		vcounter_unsaved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ pickup_regular(?p) ])
+				then vcounter_unsaved_regular(?lc) - 1
+			else if (exists_{?p : agent} [pLoc(?p) == ?lc ^ has_regular(?p) ^ dropVictim(?p) ])
+				then vcounter_unsaved_regular(?lc) + 1
+			else
+				vcounter_unsaved_regular(?lc);
+
+		// If either victim type was triaged, increment
+		vcounter_saved_regular'(?lc) =
+			if (  exists_{?p : agent} [ pLoc(?p) == ?lc ^ triage_regular(?p)  ] )
+				then vcounter_saved_regular(?lc) + 1
+			else
+				vcounter_saved_regular(?lc);
+
+
+		has_regular'(?p) =
+			if (pickup_regular(?p))
+				then KronDelta(true)
+			else if (dropVictim(?p))
+				then KronDelta(false)
+			else has_regular(?p);
+	};
+
+	reward = [sum_{?lc : loc} [vcounter_saved_regular(?lc) * 50 ] ];
+
+	action-preconditions {
+
+	    // to move through a portal, current loc has to have neighbor through that portal
+	    forall_{?p: agent} [ move-0(?p) => HAS-NBR-0(pLoc(?p)) ];
+	forall_{?p: agent} [ move-1(?p) => HAS-NBR-1(pLoc(?p)) ];
+	forall_{?p: agent} [ move-2(?p) => HAS-NBR-2(pLoc(?p)) ];
+	forall_{?p: agent} [ move-3(?p) => HAS-NBR-3(pLoc(?p)) ];
+
+	    // To triage a victim, you must be a medic, and there are unsaved victims in your location
+	    forall_{?p : agent} [
+	        triage_regular(?p) => pRole(?p) == @Medical_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        pickup_regular(?p) => pRole(?p) == @Search_Specialist ^ vcounter_unsaved_regular( pLoc(?p) ) > 0
+        ];
+	    forall_{?p : agent} [
+	        dropVictim(?p) => pRole(?p) == @Search_Specialist ^ has_regular(?p) 
+        ];
+    };
+}
+
+non-fluents mv_tr_v1_inst1{
+	domain = mv_tr_v1;
+	objects {
+		agent : {p1, p2, p3};
+		loc : {tkt_A,kco_A,kco_B};
+	};
+	non-fluents {
+NBR-0(tkt_A) = kco_A;
+HAS-NBR-0(tkt_A) = true;
+NBR-0(kco_A) = kco_B;
+HAS-NBR-0(kco_A) = true;
+NBR-1(kco_A) = tkt_A;
+HAS-NBR-1(kco_A) = true;
+NBR-1(kco_B) = kco_A;
+HAS-NBR-1(kco_B) = true;
+ 	};
+ }
+instance mv_tr_v1_inst1 {
+	domain = mv_tr_v1;
+ 	non-fluents = mv_tr_v1_inst1;
+	init-state {
+		pLoc(p1) = tkt_A; 
+		pLoc(p2) = tkt_A; 
+		pLoc(p3) = tkt_A; 
+		vcounter_unsaved_regular(kco_A) = 2;
+	};
+	max-nondef-actions = 3;
+	horizon = 2;
+	discount = 1.0;
+} 

@@ -7,128 +7,111 @@ import itertools
 import json
 import logging
 import os.path
-import pytz
+import re
 import traceback
 from argparse import ArgumentParser
 
 import numpy as np
+import pandas
 from plotly import express as px
 
 from psychsim.probability import Distribution
 from psychsim.pwl import WORLD, modelKey, stateKey
 
-from atomic.parsing import ParsingProcessor
 from atomic.definitions.map_utils import get_default_maps
-from atomic.parsing.replayer import Replayer, replay_parser, parse_replay_args, filename_to_condition
-from atomic.inference import make_observer, create_player_models, DEFAULT_MODELS, DEFAULT_IGNORE
+from atomic.parsing.replay_features import *
+from atomic.inference import *
 
 
 def plot_data(data, color_field, title):
     return px.line(data, x='Timestep', y='Belief', color=color_field, range_y=[0, 1], title=title)
 
 
-class Analyzer(Replayer):
+class Analyzer(FeatureReplayer):
 
-    def __init__(self, files=[], config=None, maps=None, models=None, ignore_models=[], mission_times={}, 
-            rddl_file=None, action_file=None, aux_file=None, logger=logging):
-        super().__init__(files, config, maps, rddl_file, action_file, aux_file, logger)
+    def __init__(self, files=[], trials=None, config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
+        super().__init__(files=files, trials=trials, config=config, maps=maps, rddl_file=rddl_file, action_file=action_file, aux_file=aux_file, output=output,
+            logger=logger)
 
-        self.models = None
-        self.model_list = []
-        self.player_models = None
-        self.observer = None
-        self.model_data = []
-        self.condition_data = []
-        self.prediction_data = []
-        self.mission_times = mission_times
+        if config:
+            self.models = {key: json.loads(values) for key, values in self.config.items('models')}
+            # Build up all combinations of values along the dimensions given
+            self.model_list = [{dimension: value[index] for index, dimension in enumerate(self.models)}
+                               for value in itertools.product(*self.models.values()) if len(value) > 0]
+        self.beliefs = {}
+        self.model_data = pandas.DataFrame()
         self.decisions = {}
-        self.stats = {}
-        self.beliefs = None
-        self.data = []
-        self.data_fields = []
-        self.debug_data = []
+        self.debug_data = {}
+        self.model_columns = None
 
-    def pre_replay(self, config=None, logger=logging):
-        result = super().pre_replay(config, logger)
-        if result is not True:
+    def pre_replay(self, parser, logger=logging):
+        result = super().pre_replay(parser, logger)
+        if result is None:
             # Failed
             return result
-        try:
-            if config: 
-                self.player_models = self.configure_models(config)
-                self.stats = {name: {} for name in self.player_models}
-                self.beliefs = {name: Distribution({model['name']: 1/len(models) for model in models}) for name, models in self.player_models.items()}
-        except:
-            logger.error('Unable to create player models')
-            logger.error(traceback.format_exc())
-            return False
-        return True
-
-    def pre_step(self, logger=logging):
-        super().pre_step(logger)
-        self.previous = copy.deepcopy(self.world.state)
-        for name, models in self.player_models.items():
-            self.decisions[name] = {}
-            for model in models:
-                logger.debug(f'Generating decision for {name} under {model["name"]}')
-                decision = self.world.agents[name].decide(model=model['name'], debug={'preserve_states': True})
-                self.decisions[name][model['name']] = decision
-                V = decision['V']
-                for action, entry in V.items():
-                    logger.info(f'{model["name"]}: V({action}) = {entry["__EV__"]}')
-                    logger.info(', '.join([str(self.world.agents[name].reward(s, model=model['name'])) for s in entry['__S__']]))
-
-    def post_step(self, actions, debug, logger=logging):
-        super().post_step(actions, debug, logger)
-        for name, models in self.player_models.items():
-            prob = {}
-            for model in models:
-                record = {'Msg': self.t, 'Player': name}
-                agent = self.world.agents[name]
-                record.update(agent.models[model['name']]['parameters'])
-                prob[model['name']] = self.decisions[name][model['name']]['action'][actions[name]]
-                record['Prob'] = prob[model['name']]
-                self.beliefs[name][model['name']] *= prob[model['name']]
-                self.data.append(record)
-                if len(self.data_fields) == 0:
-                    self.data_fields = list(record.keys())
-            self.beliefs[name].normalize()
-            logger.info(self.beliefs[name])
-
-            self.debug_data.append({"WORLD": self.world,
-                                    "AGENT_DEBUG": self.decisions,
-                                    "AGENT_ACTIONS": actions})
-            pass
-        
-
-    def post_replay(self, logger=logging):
-        super().post_replay(logger)
-        with open(self.parser.filename.replace('.metadata','_models.tsv'), 'w') as csvfile:
-            writer = csv.DictWriter(csvfile, self.data_fields, delimiter='\t')
-            writer.writeheader()
-            for record in self.data:
-                writer.writerow(record)
-            for name, dist in self.beliefs.items():
-                for model, prob in dist.items():
-                    record = {'Msg': 'END', 'Player': name}
-                    record.update(self.world.agents[name].models[model]['parameters'])
-                    record['Prob'] = prob
-                    writer.writerow(record)
-#        self.draw_plot()
-
-    def configure_models(self, fname):
-        config = configparser.ConfigParser()
-        config.read(fname)
-        models = {key: json.loads(values) for key, values in config.items('models')}
-        if 2 in models.get('reward', []):
+        if self.models and 2 in self.models.get('reward', []):
             # Add visitation reward
             victims = self.victim_counts
         else:
             victims = None
-        self.model_list = [{dimension: value[index] for index, dimension in enumerate(models)}
-                           for value in itertools.product(*models.values()) if len(value) > 0]
-        self.models = models
-        return create_player_models(self.world, {player_name: self.model_list[:] for player_name in self.parser.agentToPlayer}, victims)
+        try:
+            player_models = create_player_models(result.world, {player_name: self.model_list[:] for player_name in parser.agentToPlayer}, victims)
+            self.beliefs[parser.jsonFile] = {name: Distribution({model['name']: 1/len(models) for model in models}) 
+                for name, models in player_models.items()}
+            self.decisions[parser.jsonFile] = {name: {} for name in player_models}
+        except:
+            logger.error('Unable to create player models')
+            logger.error(traceback.format_exc())
+            return None
+        return result
+
+    def pre_step(self, world, parser, logger=logging):
+        super().pre_step(world, logger)
+        #<SIMULATE>
+        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
+        world.step(real=False, debug=debug_s) # This is where the script hangs
+        #</SIMULATE>
+        for name, models in self.beliefs[parser.jsonFile].items():
+            self.decisions[parser.jsonFile][name].clear()
+            for model in models.domain():
+                logger.debug(f'Generating decision for {name} under {model}')
+                decision = world.agents[name].decide(model=model, debug={'preserve_states': True})
+                self.decisions[parser.jsonFile][name][model] = decision
+
+    def post_step(self, world, actions, t, parser, debug, logger=logging):
+        super().post_step(world, actions, t, parser, debug, logger)
+        for name, models in self.decisions[parser.jsonFile].items():
+            prob = {}
+            for model, decision in models.items():
+                prob[model] = decision['action'][actions[name]]
+                self.beliefs[parser.jsonFile][name][model] *= prob[model]
+            self.beliefs[parser.jsonFile][name].normalize()
+            logger.debug(self.beliefs[parser.jsonFile][name])
+            for model in models:
+                record = filename_to_condition(parser.jsonFile)
+                record['Message'] = t
+                participant = parser.agentToPlayer[name]
+                if re.match(REGEX_INDIVIDUAL, participant):
+                    record['Participant'] = participant
+                else:
+                    record['Participant'] = parser.jsonParser.subjects[participant]
+                agent = world.agents[name]
+                record.update(agent.models[model]['parameters'])
+                record['Probability'] = prob[model]
+                record['Belief'] = self.beliefs[parser.jsonFile][name][model]
+                if self.model_columns is None:
+                    self.model_columns = list(record.keys())
+                self.model_data = self.model_data.append(record, ignore_index=True)
+
+            self.debug_data[parser.jsonFile].append({"WORLD": world,
+                "AGENT_DEBUG": self.decisions[parser.jsonFile],
+                "AGENT_ACTIONS": actions})
+
+    def finish(self):
+        super().finish()
+        if self.feature_output and len(self.model_data) > 0:
+            root, ext = os.path.splitext(self.feature_output)
+            self.model_data.to_csv(f'{root}_models{ext}', index=False, columns=self.model_columns)
 
     def draw_plot(self):
         name = os.path.splitext(os.path.basename(self.parser.filename))[0]
@@ -231,8 +214,7 @@ def model_to_cluster(model):
 
 if __name__ == '__main__':
     # Process command-line arguments
-    parser = replay_parser()
-    parser.add_argument('--reward_file', help='Name of CSV file containing alternate reward functions')
+    parser = feature_cmd_parser()
     parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
     args = parse_replay_args(parser)
     if args['clusters']:
@@ -241,9 +223,5 @@ if __name__ == '__main__':
         reward_weights, cluster_map, condition_map = load_clusters(args['clusters'])
         AnalysisParseProcessor.condition_dist = condition_map
         apply_cluster_rewards(reward_weights)
-    elif args['reward_file']:
-        import atomic.model_learning.linear.post_process.clustering as clustering
-
-        apply_cluster_rewards(clustering.load_cluster_reward_weights(args['reward_file']))
-    replayer = Analyzer(args['fname'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], aux_file=args['aux'], logger=logging)
+    replayer = Analyzer(args['fname'], args['trials'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], aux_file=args['aux'], logger=logging, output=args['output'])
     replayer.parameterized_replay(args)
