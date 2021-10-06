@@ -112,9 +112,9 @@ class FeatureReplayer(Replayer):
                     self.derived_features[parser.jsonFile].append(feature_cls(logger))
         return self.derived_features[parser.jsonFile]
 
-    def pre_replay(self, parser, config=None, logger=logging):
+    def pre_replay(self, parser, logger=logging):
         self._create_derived_features(parser, logger)
-        result = super().pre_replay(parser, config, logger)
+        result = super().pre_replay(parser, logger)
         trial_fields = {'File': os.path.basename(parser.jsonFile)}
         trial_fields.update(filename_to_condition(os.path.basename(os.path.splitext(parser.jsonFile)[0])))
         if self.fields is None:
@@ -138,8 +138,8 @@ class FeatureReplayer(Replayer):
                 self.feature_data = self.feature_data.append(data, ignore_index=True)
         return result
 
-    def post_replay(self, parser, logger=logging):
-        super().post_replay(parser, logger)
+    def post_replay(self, world, parser, logger=logging):
+        super().post_replay(world, parser, logger)
         if len(self.feature_data) > 0:
             # Train / test
             trial = filename_to_condition(parser.jsonFile)['Trial']
@@ -166,7 +166,7 @@ class FeatureReplayer(Replayer):
 
     def finish(self):
         super().finish()
-        if self.feature_output:
+        if self.feature_output and len(self.feature_data) > 0:
             columns = self.fields + sorted(set(self.feature_data.columns)-set(self.fields))
             columns.remove('Member')
             data = self.feature_data[columns]
@@ -176,10 +176,14 @@ class FeatureReplayer(Replayer):
             else:
                 raise ValueError(f'Unable to output feature stats in {os.path.splitext(self.feature_output)[1][1:]} format.')
 
-if __name__ == '__main__':
-    # Process command-line arguments
+def feature_cmd_parser():
     parser = replay_parser()
     parser.add_argument('-o','--output', help='Name of file for storing feature stats')
+    return parser
+
+if __name__ == '__main__':
+    # Process command-line arguments
+    parser = feature_cmd_parser()
     args = parse_replay_args(parser)
     replayer = FeatureReplayer(args['fname'], args['trials'], args['config'], rddl_file=args['rddl'], action_file=args['actions'], aux_file=args['aux'], logger=logging, output=args['output'])
     replayer.parameterized_replay(args)
