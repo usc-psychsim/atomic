@@ -14,7 +14,8 @@ import numpy as np
 
 class MsgQCreator(GameLogParser):
 
-    def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True):
+    def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True, verbose=True):
+        self.verbose = verbose
         super().__init__(filename, processor, logger)
         self.playerToAgent = {}
         self.agentToPlayer = {}
@@ -23,7 +24,7 @@ class MsgQCreator(GameLogParser):
         self.grouping_res = 10
         if len(filename) > 0:
             print('Reading json with these input files', filename)
-            self.jsonParser = JSONReader(filename, verbose=True, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
+            self.jsonParser = JSONReader(filename, verbose=verbose, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
             self.jsonParser.read_semantic_map()
             
     def startProcessing(self, featuresToExtract, msg_types): 
@@ -32,7 +33,7 @@ class MsgQCreator(GameLogParser):
         self.allPlayersMs = [m for m in self.jsonParser.messages if msg_types is None or m['sub_type'] in msg_types]
         
         self.players = set([m['playername'] for m in self.allPlayersMs if m['playername'] is not None])
-        print("all players", self.players)
+        if self.verbose: print("all players", self.players)
         
         ## Initialize player-specific data structures
         self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}
@@ -99,7 +100,7 @@ class MsgQCreator(GameLogParser):
                     allDone = False
                     break
             if allDone:
-                print('Everyone done')
+                if self.verbose: print('Everyone done')
                 break
             
             ## Add noops to players who don't have enough actions
