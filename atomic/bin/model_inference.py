@@ -63,20 +63,24 @@ class Analyzer(FeatureReplayer):
             logger.error('Unable to create player models')
             logger.error(traceback.format_exc())
             return None
+        state = VectorDistributionSet()
+        for name, belief in self.beliefs[parser.jsonFile].items():
+            result.world.setFeature(modelKey(name), belief, state=state)
+        tree = {}
+        self.debug_data[parser.jsonFile] = []
         return result
 
     def pre_step(self, world, parser, logger=logging):
         super().pre_step(world, logger)
         #<SIMULATE>
-        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
-        world.step(real=False, debug=debug_s) # This is where the script hangs
+#        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
+#        world.step(real=False, debug=debug_s) # This is where the script hangs
         #</SIMULATE>
         for name, models in self.beliefs[parser.jsonFile].items():
             self.decisions[parser.jsonFile][name].clear()
             for model in models.domain():
                 logger.debug(f'Generating decision for {name} under {model}')
-                decision = world.agents[name].decide(model=model, debug={'preserve_states': True})
-                self.decisions[parser.jsonFile][name][model] = decision
+                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(model=model)
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
         super().post_step(world, actions, t, parser, debug, logger)
@@ -212,10 +216,14 @@ def model_to_cluster(model):
     except ValueError:
         return None
 
-if __name__ == '__main__':
+def model_cmd_parser():
     # Process command-line arguments
     parser = feature_cmd_parser()
     parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
+    return parser
+
+if __name__ == '__main__':
+    parser = model_cmd_parser()
     args = parse_replay_args(parser)
     if args['clusters']:
         import atomic.model_learning.linear.post_process.clustering as clustering
