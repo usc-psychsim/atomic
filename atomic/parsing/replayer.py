@@ -71,25 +71,25 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     result = [files[-1] for files in trials.values()]
     return result
 
-def make_augmented_world(fname, agent_level=0, visitation=False, omniscient=False)
+def make_augmented_world(fname, visitation=False, victims=None):
     # Team mission
     rddl_converter = Converter()
     rddl_converter.convert_file(fname, verbose=False)
-
-    victim_counts = {}
-    for victim in parser.jsonParser.victims:
-        if victim.room not in victim_counts:
-            if visitation:
-                # Add visitation flags for each player/room
-                for player_name in rddl_converter.world.agents:
-                    var = rddl_converter.world.defineState(player_name, f'(visited, {victim.room})', bool)
-                    rddl_converter.world.setFeature(var, rddl_converter.world.getState(player_name, 'pLoc', unique=True) == victim.room)
-                    tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), victim.room),
-                        True: setTrueMatrix(var), False: noChangeMatrix(var)})
-                    rddl_converter.world.setDynamics(var, True, tree)
-            victim_counts[victim.room] = {}
-        victim_counts[victim.room][victim.color] = victim_counts[victim.room].get(victim.color, 0)+1
-    if omniscient:
+    if visitation:
+        # Add visitation flags for each player/room
+        for player_name in rddl_converter.world.agents:
+            for loc in rddl_converter.world.variables[stateKey(player_name, 'pLoc')]['elements']:
+                var = rddl_converter.world.defineState(player_name, f'(visited, {loc})', bool)
+                rddl_converter.world.setFeature(var, rddl_converter.world.getState(player_name, 'pLoc', unique=True) == loc)
+                tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), loc),
+                    True: setTrueMatrix(var), False: noChangeMatrix(var)})
+                rddl_converter.world.setDynamics(var, True, tree)
+    if victims:
+        victim_counts = {}
+        for victim in victims:
+            if victim.room not in victim_counts:
+                victim_counts[victim.room] = {}
+            victim_counts[victim.room][victim.color] = victim_counts[victim.room].get(victim.color, 0)+1
         # Load in true victim counts
         for var in sorted(rddl_converter.world.variables):
             if var[:37] == '__WORLD__\'s (vcounter_unsaved_regular':
@@ -110,15 +110,6 @@ def make_augmented_world(fname, agent_level=0, visitation=False, omniscient=Fals
                     rddl_converter.world.setFeature(var, 0)
                 else:
                     rddl_converter.world.setFeature(var, victim_counts[room][value])
-    players = set(rddl_converter.world.agents.keys())
-    if agent_level == 0:
-        # Make true agents zero-level
-        zero_models = {name: rddl_converter.world.agents[name].zero_level() for name in players}
-        for name in players:
-            agent = rddl_converter.world.agents[name]
-            agent.setAttribute('selection', 'distribution', zero_models[name])
-    else:
-        raise ValueError('Currently unable to set true players to ToM level > 0')
     return rddl_converter
 
 class Replayer(object):
