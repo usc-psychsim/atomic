@@ -265,8 +265,8 @@ class Replayer(object):
             actions = {}
             any_none = False
             for player_name, msg in msgs.items():
-                if msg['sub_type'] == 'Event:location' and msg['old_room_name'] == '':
-                    logger.warning(f'Empty room in message {i} {msg} for player {player_name}')
+                if msg['sub_type'] == 'Event:location' and msg.get('old_room_name', '') == '':
+                    logger.warning(f'Empty or missing old room in message {i} {msg} for player {player_name}')
                     world.setState(player_name, 'pLoc', msg['room_name'], recurse=True)
                     msg['sub_type'] = 'noop'
             for player_name, msg in msgs.items():
@@ -290,28 +290,28 @@ class Replayer(object):
                     verb_elements = action['verb'].split('_')
                     if verb_elements[0] == 'pickup':
                         loc = world.getState(player_name, 'pLoc', unique=True)
-                        unsaved = world.getState(WORLD, f'(vcounter_unsaved_{verb_elements[2]}, {loc})', unique=True)
-                        saved = world.getState(WORLD, f'(vcounter_saved_{verb_elements[2]}, {loc})', unique=True)
+                        unsaved = world.getState(WORLD, f'(vcounter_unsaved_{verb_elements[1]}, {loc})', unique=True)
+                        saved = world.getState(WORLD, f'(vcounter_saved_{verb_elements[1]}, {loc})', unique=True)
                         if unsaved == 0 and saved > 0:
-                            logger.warning(f'No unsaved {verb_elements[2]} victims for {action}.')
+                            logger.warning(f'No unsaved {verb_elements[1]} victims for {action}.')
                             verb = action['verb'].replace('unsaved', 'saved')
                             action = ActionSet([Action({'subject': action['subject'], 'verb': verb})])
                             logger.warning('There are {saved} saved ones, so changing to {action}.')
                             illegal = False
                         else:
-                            logger.error(f'No saved or unsaved {verb_elements[2]} victims in {loc}')
-                    elif action['verb'][:6] in {'pickup', 'triage'}:
+                            logger.error(f'No saved or unsaved {verb_elements[1]} victims in {loc}')
+                    elif verb_elements == 'triage':
                         loc = world.getState(player_name, 'pLoc', unique=True)
                         logger.error(f'{player_name}\'s pLoc = {loc}')
                         logger.error(f'{player_name}\'s role = {world.getState(player_name, "pRole", unique=True)}')
-                        var = stateKey(WORLD, f'(vcounter_unsaved_{action["verb"][7:]}, {loc})')
+                        var = stateKey(WORLD, f'(vcounter_unsaved_{verb_elements[1]}, {loc})')
                         logger.error(f'{var} = {world.getFeature(var, unique=True)}')
                     else:
                         tree = world.agents[player_name].legal[action]
                         for var in sorted(tree.getKeysIn()):
                             logger.error(f'{var} = {world.getFeature(var, unique=True)}')
                     if illegal:
-                        raise ValueError(f'Action {action} in msg {i} is currently illegal')
+                        logger.error(f'Action {action} in msg {i} is currently illegal')
                 actions[player_name] = action
                 if 'old_room_name' in msg and msg['old_room_name']:
                     old_rooms[player_name] = msg['old_room_name']
@@ -319,13 +319,13 @@ class Replayer(object):
                     new_rooms[player_name] = msg['room_name']
             for name, models in world.get_current_models().items():
                 if name in old_rooms and old_rooms[name] != world.getState(name, 'pLoc', unique=True):
-                    raise ValueError(f'Before message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {old_rooms[name]}')
+                    logger.error(f'Before message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {old_rooms[name]}')
                 for model in models:
                     beliefs = world.agents[name].getAttribute('beliefs', model)
                     if beliefs is not True:
                         for player_name, room in old_rooms.items():
                             if room and world.getState(player_name, 'pLoc', beliefs, True) != room:
-                                raise ValueError(f'Before message {i}, {model} believes {player_name} to be in {world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
+                                logger.error(f'Before message {i}, {model} believes {player_name} to be in {world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
             self.pre_step(world, parser, logger)
             logger.info(f'Actions: {", ".join(sorted(map(str, actions.values())))}')
             world.step(actions, debug=debug)
@@ -336,10 +336,10 @@ class Replayer(object):
             logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
             self.post_step(world, actions, i, parser, debug, logger)
             for name, models in world.get_current_models().items():
-#                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
-#                    raise ValueError(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
-#                else:
-#                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
+                if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
+                    logger.warning(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
+                else:
+                    logger.debug(f'After message {i}, {name} is in correct location {world.getState(name, "pLoc", unique=True)}')
                 var = stateKey(name, f'(visited, {world.getState(name, "pLoc", unique=True)})')
                 if var in world.variables:
                     if not world.getFeature(var, unique=True):
