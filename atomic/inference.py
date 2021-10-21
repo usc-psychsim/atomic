@@ -30,23 +30,13 @@ def make_observer(world, team, name='ATOMIC'):
     return agent
 
 def create_player_models(world, players, victims=None):
-    models = {}
     param_names = None
-    zero_models = {player_name: [model_name for model_name in world.agents[player_name].models if model_name[-4:] == 'zero'][0]
-        for player_name in players}
+    zero_models = {}
     null_actions = {}
-    for player_name in players:
-        for action in world.agents[player_name].actions:
-            if action['verb'] == 'noop':
-                null_actions[player_name] = action
-                break
-        else:
-            raise ValueError(f'Unable to find noop for {player_name}')
-    null_models = {player_name: world.agents[player_name].zero_level(null=null_actions[player_name]) for player_name in players}
+    models = {}
     for player_name, param_list in players.items():
         # get the canonical name of the "true" player model
         player = world.agents[player_name]
-        zero_model = zero_models[player_name]
         true_model = player.models[player.get_true_model()]
         new_models = []
         for param_dict in param_list:
@@ -54,23 +44,41 @@ def create_player_models(world, players, victims=None):
                 param_names = sorted(param_dict.keys())
             param_str = '_'.join([f'{param}{param_dict[param]}' for param in param_names])
             model_name = f'{player_name}_{param_str}'
-            if param_dict.get('tom', 0) > 0:
-                new_model = player.addModel(model_name, parent=true_model['name'], selection=param_dict.get('selection', 'distribution'), beliefs=True, static=True)
+            tom_level = param_dict.get('tom', 0)
+            null_zero = param_dict.get('null_zero', 0) == 0
+            if null_zero and len(null_actions) == 0:
+                for name in players:
+                    # Find null action
+                    for action in world.agents[name].actions:
+                        if action['verb'] == 'noop':
+                            null_actions[name] = action
+                            break
+                    else:
+                        raise ValueError(f'Unable to find noop for {player_name}')
+            if tom_level > 0:
+                # Nonzero Theory of Mind
+                new_model = player.n_level(tom_level, parent_models={player_name: {true_model['name']}}, null=null_actions, 
+                    prefix=model_name, selection=param_dict.get('selection', 'distribution'))[true_model['name']]
             elif param_dict.get('null_zero', 0) == 0:
-                new_model = player.addModel(model_name, parent=zero_model, selection=param_dict.get('selection', 'distribution'), beliefs=True, static=True)
+                # Build a null model
+                try:
+                    new_model = null_models[player_name]
+                except KeyError:
+                    null_models[player_name] = new_model = world.agents[player_name].zero_level(null=null_actions[player_name])
             else:
-                # Don't bother building other versions of the zero-level models for zero-level agents
-                continue 
+                # Build a random 0-level model
+                try:
+                    new_model = zero_models[player_name]
+                except KeyError:
+                    models = world.agents[player_name].get_nth_level(0, parent=true_model['name'])
+                    if len(models) == 0:
+                        zero_models[player_name] = new_model = world.agents[player_name].zero_level()
+                    elif len(models) > 1:
+                        raise ValueError(f'Multiple zero-level models found for {player_name}')
+                    else:
+                        zero_models[player_name] = new_model = next(iter(models))
             for key, value in param_dict.items():
-                if key == 'tom':
-                    if value == 1:
-                        if param_dict.get('others', 1) == 1:
-                            new_model['models'] = {other_name: null_models[other_name] for other_name in players if other_name != player_name}
-                        else:
-                            new_model['models'] = {other_name: zero_models[other_name] for other_name in players if other_name != player_name}
-                    elif value > 1:
-                        raise ValueError(f'Have not implemented {value}-level ToM yet')
-                elif key == 'reward':
+                if key == 'reward':
                     if value > 0:
                         R = copy.deepcopy(player.getReward()[true_model['name']])
                         vector = R.getLeaf()[rewardKey(player_name, True)]
