@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 import configparser
+import cProfile
 import os.path
 import sys
 import glob
@@ -381,7 +382,7 @@ class Replayer(object):
 
     def parameterized_replay(self, args, simulate=False):
         if args['profile']:
-            return cProfile.run('self.process_files(args["number"])', sort=1)
+            return cProfile.runctx('self.process_files(args["number"])', {'self': self, 'args': args}, {}, sort=1)
         elif args['1']:
             return self.process_files(args['number'], replayer.files[0])
         else:
