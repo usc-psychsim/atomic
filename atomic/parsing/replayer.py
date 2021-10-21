@@ -202,12 +202,14 @@ class Replayer(object):
                 logger.error(f'Re-simulation exited on message {self.times[fname]}')
             if self.pbar:
                 self.pbar.close()
-        try:
-            self.post_replay(rddl_converter.world, parser, logger)
-        except:
-            logger.error(traceback.format_exc())
-            logger.error(f'Unable to complete post-processing')
-        return True
+            try:
+                self.post_replay(rddl_converter.world, parser, logger)
+            except:
+                logger.error(traceback.format_exc())
+                logger.error(f'Unable to complete post-processing')
+            return True
+        else:
+            return False
 
     def pre_replay(self, parser, logger=logging):
         fname = parser.jsonFile
@@ -215,15 +217,14 @@ class Replayer(object):
         logger.debug('Creating world')
 
         try:
-            parser.startProcessing(self.derived_features[fname], self.msg_types)
+            parser.startProcessing(self.derived_features.get(fname, []), self.msg_types)
         except:
             logger.error('Unable to start parser')
             logger.error(traceback.format_exc())
             return None
-
         try:
             if self.rddl_file:
-                rddl_converter = make_augmented_world(self.rddl_file, agent_level=0, visitation=True, omniscient=True)
+                rddl_converter = make_augmented_world(self.rddl_file, visitation=False, victims=parser.jsonParser.victims)
                 return rddl_converter
 
             else:
