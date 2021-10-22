@@ -87,7 +87,11 @@ class Analyzer(FeatureReplayer):
         for name, models in self.decisions[parser.jsonFile].items():
             prob = {}
             for model, decision in models.items():
-                prob[model] = decision['action'][actions[name]]
+                try:
+                    prob[model] = decision['action'][actions[name]]
+                except KeyError:
+                    # Zero probability, probably because of illegal action
+                    prob[model] = decision['action'].epsilon
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
             self.beliefs[parser.jsonFile][name].normalize()
             logger.debug(self.beliefs[parser.jsonFile][name])
