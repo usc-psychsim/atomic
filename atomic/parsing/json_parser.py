@@ -107,7 +107,7 @@ class JSONReader(object):
 #            iterable = tqdm(self.jsonMsgs)
 #        else:
 #            iterable = self.jsonMsgs
-        for jmsg in self.jsonMsgs:
+        for ji, jmsg in enumerate(self.jsonMsgs):
             self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
             
@@ -130,7 +130,6 @@ class JSONReader(object):
         if self.USE_COLLAPSED_MAP:
             ## Overwrite room_edges and store name lookup and new room names
             from atomic.parsing.remap_connections import transformed_connections
-            import pickle
             self.room_edges = []
             edges, self.room_name_lookup, new_map, orig_map = transformed_connections(self.semantic_map)
             for a,b in edges:
@@ -205,7 +204,7 @@ class JSONReader(object):
             return
 
         if (not self.mission_running) or mtype not in self.msg_types:
-            if mtype != 'start':
+            if (mtype != 'start') and (mtype != 'Event:RoleSelected'):
                 return
             
         if mtype == 'Mission:VictimList':
@@ -340,7 +339,8 @@ class JSONReader(object):
                           %(player, prev_rm, mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
         
         if self.verbose and (not is_location_event) and ('room_name' in m.keys()):
-            print('%s did %s in %s (orig %s) to %s' %(player, mtype, m['room_name'], m.get('orig_room_name', ''), m.get('victim_id', '')))
+            print('%s did %s in %s (orig %s) to %s %s' %(player, mtype, m['room_name'], m.get('orig_room_name', ''), m.get('victim_id', ''),
+                  m.get('triage_state', '')))
         
 
         if 'mission_timer' in m and m['mission_timer'] == 'Mission Timer not initialized.':
