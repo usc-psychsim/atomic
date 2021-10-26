@@ -71,9 +71,11 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     result = [files[-1] for files in trials.values()]
     return result
 
-def make_augmented_world(fname, visitation=False, victims=None):
+def make_augmented_world(fname, visitation=False, victims=None, conditions={}):
     # Team mission
     rddl_converter = Converter()
+    if 'MAP' in fname:
+        fname = fname.replace('MAP', conditions['CondWin'][-1])
     rddl_converter.convert_file(fname, verbose=False)
     if visitation:
         # Add visitation flags for each player/room
@@ -224,7 +226,7 @@ class Replayer(object):
             return None
         try:
             if self.rddl_file:
-                rddl_converter = make_augmented_world(self.rddl_file, visitation=False, victims=parser.jsonParser.victims)
+                rddl_converter = make_augmented_world(self.rddl_file, visitation=True, victims=parser.jsonParser.victims, conditions=filename_to_condition(fname))
                 return rddl_converter
 
             else:
