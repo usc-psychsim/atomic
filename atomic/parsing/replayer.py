@@ -245,9 +245,13 @@ class Replayer(object):
         new_rooms = {}
         global pbar_manager
         if pbar_manager:
-            self.pbar = pbar_manager.counter(total=len(parser.actions), unit='steps', leave=False)
+            try:
+                self.pbar = pbar_manager.counter(total=len(parser.actions), unit='steps', leave=False)
+            except ValueError:
+                # Probably not running in a terminal
+                self.pbar = None
         else:
-            pbar = None
+            self.pbar = None
         prefix = stateKey(WORLD, '(vcounter_')
         old_count = {var: world.getFeature(var, unique=True) for var in world.variables if var[:len(prefix)] == prefix}
         for var, count in sorted(old_count.items()):
