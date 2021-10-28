@@ -34,6 +34,38 @@ def generate_rddl_map_portals(neighbors):
     loc_str = ','.join(neighbors.keys())
     return loc_str, nbr_str
 
+def generate_rddl_victims_from_list(vList, rooms):
+    reg_dict = {}
+    crit_dict = {}
+
+    for vic in vList:
+        rm = vic['room_name']
+            
+        if rm == '':
+            print('WARNING: victim in empty room', vic)
+            continue
+                    
+        if rm not in rooms:
+            print('WARNING: victim in unknown room', rm)
+            continue
+        
+        if vic['block_type'] == 'critical':
+            d = crit_dict
+        else:
+            d = reg_dict
+
+        if rm not in d.keys():
+            d[rm] = 0
+        d[rm] = d[rm] + 1
+
+    vic_str = ''
+    for rm, ctr in crit_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_critical(%s) = %d;\n' % (rm, ctr)
+    for rm, ctr in reg_dict.items():
+        vic_str = vic_str + 'vcounter_unsaved_regular(%s) = %d;\n' % (rm, ctr)
+    return vic_str
+
+
 
 def generate_rddl_victims(victim_pickle, rooms, room_name_lookup, collapse_method):
     with open(victim_pickle, 'rb') as f:
@@ -120,7 +152,8 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
                        rddl_template,
                        rddl_out,
                        victim_pickles,
-                       map_out_csv):
+                       map_out_csv,
+                       generate_victims):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
@@ -160,15 +193,22 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
 
     master_rddl_str = rddl_temp_file.read()
 
-    for tag, victim_pickle in victim_pickles.items():
-        vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
-        rddl_str = master_rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).replace('VICSTR', vic_str). \
-            replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
-            replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
+    rddl_str = master_rddl_str.replace('LOCSTR', loc_str).replace('NBRSTR', nbr_str).\
+                replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
+                replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
     
-        rddl_inst_file = open(rddl_out + tag + '.rddl', "w")
+    if generate_victims:
+        for tag, victim_pickle in victim_pickles.items():
+            vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
+            rddl_str = rddl_str.replace('VICSTR', vic_str)   
+            rddl_inst_file = open(rddl_out + tag + '.rddl', "w")
+            rddl_inst_file.write(rddl_str)    
+            rddl_inst_file.close()
+    else:
+        rddl_inst_file = open(rddl_out + '_novics.rddl', "w")
         rddl_inst_file.write(rddl_str)    
         rddl_inst_file.close()
+        
 
     rddl_temp_file.close()
 
@@ -193,11 +233,20 @@ if __name__ == '__main__':
             edges.append((a,b))
             edges.append((b,a))
             
-    victim_pickles = {}
-    for tag in ['A', 'B']:
-        victim_pickles[tag] = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
-    make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
-                       '../data/rddl_psim/newpickup_template.rddl',
-                       '../data/rddl_psim/newpickup_v1',
-                       victim_pickles,
-                       '../maps/Saturn/rddl_clpsd_neighbors.csv')
+    generate_victims = False
+    
+    if generate_victims:
+        victim_pickles = {}
+        for tag in ['A', 'B']:
+            victim_pickles[tag] = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
+        make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
+                           '../data/rddl_psim/newpickup_template.rddl',
+                           '../data/rddl_psim/newpickup_v1',
+                           victim_pickles,
+                           '../maps/Saturn/rddl_clpsd_neighbors.csv', generate_victims)
+    else:
+        make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
+                           '../data/rddl_psim/newpickup_template.rddl',
+                           '../data/rddl_psim/newpickup_v1',
+                           None,
+                           '../maps/Saturn/rddl_clpsd_neighbors.csv', generate_victims)

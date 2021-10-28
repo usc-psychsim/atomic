@@ -10,6 +10,7 @@ except ImportError:
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 from atomic.parsing.map_parser import extract_map
+from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list
 
 class room(object):
     def __init__(self, name, coords):
@@ -376,6 +377,21 @@ class JSONReader(object):
             self.victims.append(newvic)
             victim_list_dicts_out.append(vv)
         return victim_list_dicts_out
+    
+    def write_rddl_file(self, rddl_template):
+        if len(self.vList) == 0:
+            print('ERROR: No victims msg in metadata file')
+            return None
+        rooms = list(set([self.room_name_lookup[rm] for rm in self.rooms.keys()]))
+        vic_str = generate_rddl_victims_from_list(self.vList, rooms)
+            
+        rddl_temp_file = open(rddl_template + '.rddl', "r")    
+        master_rddl_str = rddl_temp_file.read()
+        rddl_str = master_rddl_str.replace('VICSTR', vic_str) 
+        rddl_inst_file = open(rddl_template + '_v.rddl', "w")
+        rddl_inst_file.write(rddl_str)    
+        rddl_inst_file.close()
+        
     
     def one_step_removed(self, rm1, rm2):
         if (rm1, rm2) in self.room_edges:
