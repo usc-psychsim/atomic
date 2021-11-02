@@ -34,6 +34,7 @@ def create_player_models(world, players, victims=None):
     zero_models = {}
     null_actions = {}
     models = {}
+    null_models = {}
     for player_name, param_list in players.items():
         # get the canonical name of the "true" player model
         player = world.agents[player_name]
@@ -65,18 +66,20 @@ def create_player_models(world, players, victims=None):
                     new_model = null_models[player_name]
                 except KeyError:
                     null_models[player_name] = new_model = world.agents[player_name].zero_level(null=null_actions[player_name])
+                new_model = player.models[new_model]
             else:
                 # Build a random 0-level model
                 try:
                     new_model = zero_models[player_name]
                 except KeyError:
-                    models = world.agents[player_name].get_nth_level(0, parent=true_model['name'])
-                    if len(models) == 0:
+                    my_models = world.agents[player_name].get_nth_level(0, parent=true_model['name'])
+                    if len(my_models) == 0:
                         zero_models[player_name] = new_model = world.agents[player_name].zero_level()
-                    elif len(models) > 1:
+                    elif len(my_models) > 1:
                         raise ValueError(f'Multiple zero-level models found for {player_name}')
                     else:
-                        zero_models[player_name] = new_model = next(iter(models))
+                        zero_models[player_name] = new_model = next(iter(my_models))
+                new_model = player.models[new_model]
             for key, value in param_dict.items():
                 if key == 'reward':
                     if value > 0:
