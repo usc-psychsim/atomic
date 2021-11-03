@@ -195,7 +195,7 @@ class Replayer(object):
             if num_steps == 0:
                 last = len(parser.actions)
             else:
-                last = num_steps + 1
+                last = num_steps
             try:
                 self.replay(parser, rddl_converter, last, logger)
                 logger.info(f'Re-simulation successfully processed all {self.times[fname]} messages')
@@ -399,15 +399,16 @@ def parse_replay_config(fname, parser):
         mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
             'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
         for flag, entry in mapping.items():
-            default = parser.get_default(flag)
-            if isinstance(default, bool):
-                args[flag] = config.getboolean(entry[0], entry[1], fallback=default)
-            elif isinstance(default, int):
-                args[flag] = config.getint(entry[0], entry[1], fallback=default)
-            else:
-                args[flag] = config.get(entry[0], entry[1], fallback=None)
-                if flag in {'rddl', 'actions', 'aux'}:
-                    args[flag] = os.path.join(root, args[flag])
+            if config.has_option(entry[0], entry[1]):
+                default = parser.get_default(flag)
+                if isinstance(default, bool):
+                    args[flag] = config.getboolean(entry[0], entry[1])
+                elif isinstance(default, int):
+                    args[flag] = config.getint(entry[0], entry[1])
+                else:
+                    args[flag] = config.get(entry[0], entry[1])
+                    if flag in {'rddl', 'actions', 'aux'}:
+                        args[flag] = os.path.join(root, args[flag])
     elif language == 'none':
         pass
     else:
@@ -463,7 +464,8 @@ def replay_parser():
 def parse_replay_args(parser, arg_list=None):
     args = vars(parser.parse_args(args=arg_list))
     if args['config']:
-        args.update(parse_replay_config(args['config'], parser))
+        parser.set_defaults(**(parse_replay_config(args['config'], parser)))
+    args = vars(parser.parse_args(args=arg_list))
     # Extract logging level from command-line argument
     level = getattr(logging, args['debug'].upper(), None)
     if not isinstance(level, int):
