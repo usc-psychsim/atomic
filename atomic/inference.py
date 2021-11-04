@@ -90,7 +90,7 @@ def create_player_models(world, players, victims=None):
                                 if value == 1:
                                     vector[var] = 1
                                 elif value == 2:
-                                    vector[var] = victims[state2feature(var)[10:-1]].get('regular', 0)+5*victims[state2feature(var)[10:-1]].get('critical', 0)
+                                    vector[var] = victims.get(state2feature(var)[10:-1], {}).get('regular', 0)+5*victims.get(state2feature(var)[10:-1], {}).get('critical', 0)
                         player.setAttribute('R', R, new_model['name'])
                 elif key != 'selection':
                     new_model[key] = value
