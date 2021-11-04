@@ -49,13 +49,18 @@ class Analyzer(FeatureReplayer):
         if result is None:
             # Failed
             return result
+        victim_counts = {}
         if self.models and 2 in self.models.get('reward', []):
             # Add visitation reward
-            victims = self.victim_counts
+            victims = parser.jsonParser.victims
+            for victim in victims:
+                if victim.room not in victim_counts:
+                    victim_counts[victim.room] = {}
+                victim_counts[victim.room][victim.color] = victim_counts[victim.room].get(victim.color, 0)+1
         else:
             victims = None
         try:
-            player_models = create_player_models(result.world, {player_name: self.model_list[:] for player_name in parser.agentToPlayer}, victims)
+            player_models = create_player_models(result.world, {player_name: self.model_list[:] for player_name in parser.agentToPlayer}, victim_counts)
             self.beliefs[parser.jsonFile] = {name: Distribution({model['name']: 1/len(models) for model in models}) 
                 for name, models in player_models.items()}
             self.decisions[parser.jsonFile] = {name: {} for name in player_models}
@@ -94,7 +99,7 @@ class Analyzer(FeatureReplayer):
                     prob[model] = decision['action'].epsilon
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
             self.beliefs[parser.jsonFile][name].normalize()
-            logger.debug(self.beliefs[parser.jsonFile][name])
+            logger.info(self.beliefs[parser.jsonFile][name])
             for model in models:
                 record = filename_to_condition(parser.jsonFile)
                 record['Message'] = t
@@ -132,49 +137,6 @@ class Analyzer(FeatureReplayer):
         if self.prediction_data:
             fig = plot_data(self.prediction_data, 'Color', 'Prediction {}'.format(name))
             fig.show()
-
-    def next_victim(self, world):
-        """
-        Generate an expectation about what room the player will enter next
-        """
-        player = world.agents[self.parser.player_name()]
-        action = world.getAction(player.name, unique=True)
-        if action['verb'] == 'triage_Green':
-            # Triaging green as we speak
-            return Distribution({'Green': 1})
-        elif action['verb'] == 'triage_Gold':
-            # Triaging yellow as we speak
-            return Distribution({'Yellow': 1})
-        # Not so obvious who will be next
-        agent = world.agents['ATOMIC']
-        beliefs = agent.getBelief()
-        if len(beliefs) == 1:
-            agent_model, agent_beliefs = next(iter(beliefs.items()))
-        else:
-            raise NotImplementedError('Unable to generate predictions unless agent has unique model')
-        location = world.getState(player.name, 'loc', unique=True)
-        prediction = None
-        for player_model, player_model_prob in world.getModel(player.name, agent_beliefs).items():
-            player_beliefs = player.models[player_model]['beliefs']
-            fov = world.getState(player.name, 'vicInFOV', player_beliefs, unique=True)
-            if fov in {'Yellow', 'Green'}:
-                # The next victim found is the one the player is looking at now
-                next_seen = Distribution({fov: 1})
-            else:
-                # The next victim found is one in the player's current location
-                next_seen = {'Yellow': world.getState(WORLD, 'ctr_{}_Gold'.format(location), player_beliefs).expectation(),
-                    'Green': world.getState(WORLD, 'ctr_{}_Green'.format(location), player_beliefs).expectation()}
-                if sum(next_seen.values()) == 0:
-                    # No victim in the current room
-                    next_seen = {'Yellow': 1, 'Green': 1}
-                next_seen = Distribution(next_seen)
-                next_seen.normalize()
-            if prediction is None:
-                prediction = next_seen.scale_prob(player_model_prob)
-            else:
-                prediction = prediction.__class__({color: prob+next_seen[color]*player_model_prob
-                    for color, prob in prediction.items()})
-        return prediction
 
 def load_clusters(fname):
     ignore = {'Cluster', 'Player name', 'Filename'}
