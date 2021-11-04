@@ -71,7 +71,7 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
     result = [files[-1] for files in trials.values()]
     return result
 
-def make_augmented_world(fname, visitation=False, victims=None, conditions={}):
+def make_augmented_world(fname, visitation=True, victims=None, conditions={}):
     # Team mission
     rddl_converter = Converter()
     if 'MAP' in fname:
