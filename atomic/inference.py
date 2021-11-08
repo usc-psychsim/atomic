@@ -60,13 +60,6 @@ def create_player_models(world, players, victims=None):
                 # Nonzero Theory of Mind
                 new_model = player.n_level(tom_level, parent_models={player_name: {true_model['name']}}, null=null_actions, 
                     prefix=model_name, selection=param_dict.get('selection', 'distribution'))[true_model['name']]
-            elif param_dict.get('null_zero', 0) == 0:
-                # Build a null model
-                try:
-                    new_model = null_models[player_name]
-                except KeyError:
-                    null_models[player_name] = new_model = world.agents[player_name].zero_level(null=null_actions[player_name])
-                new_model = player.models[new_model]
             else:
                 # Build a random 0-level model
                 try:
