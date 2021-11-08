@@ -81,10 +81,10 @@ def make_augmented_world(fname, visitation=True, victims=None, conditions={}):
         # Add visitation flags for each player/room
         for player_name in rddl_converter.world.agents:
             for loc in rddl_converter.world.variables[stateKey(player_name, 'pLoc')]['elements']:
-                var = rddl_converter.world.defineState(player_name, f'(visited, {loc})', bool)
-                rddl_converter.world.setFeature(var, rddl_converter.world.getState(player_name, 'pLoc', unique=True) == loc)
-                tree = makeTree({'if': falseRow(var) & equalRow(stateKey(player_name, 'pLoc', True), loc),
-                    True: setTrueMatrix(var), False: noChangeMatrix(var)})
+                var = rddl_converter.world.defineState(player_name, f'(visited, {loc})', float)
+                rddl_converter.world.setFeature(var, 1 if rddl_converter.world.getState(player_name, 'pLoc', unique=True) == loc else 0)
+                tree = makeTree({'if': equalRow(stateKey(player_name, 'pLoc', True), loc),
+                    True: setToConstantMatrix(var, 1), False: scaleMatrix(var, 0.99)})
                 rddl_converter.world.setDynamics(var, True, tree)
     if victims:
         victim_counts = {}
@@ -260,7 +260,7 @@ class Replayer(object):
         for i, msgs in enumerate(parser.actions):
             if self.pbar: self.pbar.update()
             self.times[parser.jsonFile] = i
-            if i > duration:
+            if i == duration:
                 break
             assert len(world.state) == 1
             old_rooms.clear()
