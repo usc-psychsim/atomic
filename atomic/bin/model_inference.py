@@ -85,7 +85,7 @@ class Analyzer(FeatureReplayer):
             self.decisions[parser.jsonFile][name].clear()
             for model in models.domain():
                 logger.debug(f'Generating decision for {name} under {model}')
-                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(model=model)
+                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(model=model, debug={'preserve_states': True})
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
         super().post_step(world, actions, t, parser, debug, logger)
@@ -100,7 +100,7 @@ class Analyzer(FeatureReplayer):
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
             self.beliefs[parser.jsonFile][name].normalize()
             logger.info(self.beliefs[parser.jsonFile][name])
-            for model in models:
+            for model, decision in models.items():
                 record = filename_to_condition(parser.jsonFile)
                 record['Message'] = t
                 participant = parser.agentToPlayer[name]
@@ -115,8 +115,7 @@ class Analyzer(FeatureReplayer):
                 if self.model_columns is None:
                     self.model_columns = list(record.keys())
                 self.model_data = self.model_data.append(record, ignore_index=True)
-
-            self.debug_data[parser.jsonFile].append({"WORLD": world,
+            self.debug_data[parser.jsonFile].append({"WORLD": copy.deepcopy(world.state),
                 "AGENT_DEBUG": self.decisions[parser.jsonFile],
                 "AGENT_ACTIONS": actions})
 
