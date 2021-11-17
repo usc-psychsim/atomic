@@ -61,6 +61,10 @@ class Analyzer(FeatureReplayer):
             victims = None
         try:
             player_models = create_player_models(result.world, {player_name: self.model_list[:] for player_name in parser.agentToPlayer}, victim_counts)
+            for name, models in player_models.items():
+                for model in models:
+                    if model['level'] > 0:
+                        model['selection'] = 'random'
             self.beliefs[parser.jsonFile] = {name: Distribution({model['name']: 1/len(models) for model in models}) 
                 for name, models in player_models.items()}
             self.decisions[parser.jsonFile] = {name: {} for name in player_models}
@@ -85,7 +89,7 @@ class Analyzer(FeatureReplayer):
             self.decisions[parser.jsonFile][name].clear()
             for model in models.domain():
                 logger.debug(f'Generating decision for {name} under {model}')
-                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(model=model, debug={'preserve_states': True})
+                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(selection='distribution', model=model)
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
         super().post_step(world, actions, t, parser, debug, logger)
@@ -115,7 +119,8 @@ class Analyzer(FeatureReplayer):
                 if self.model_columns is None:
                     self.model_columns = list(record.keys())
                 self.model_data = self.model_data.append(record, ignore_index=True)
-            self.debug_data[parser.jsonFile].append({"WORLD": copy.deepcopy(world.state),
+        logger.warning(f'|Model data|={len(self.model_data)}')
+        self.debug_data[parser.jsonFile].append({"WORLD": copy.deepcopy(world.state),
                 "AGENT_DEBUG": self.decisions[parser.jsonFile],
                 "AGENT_ACTIONS": actions})
 
