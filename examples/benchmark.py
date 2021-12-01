@@ -6,7 +6,8 @@ import multiprocessing as mp
 from collections import OrderedDict
 from timeit import default_timer as timer
 from psychsim.pwl import stateKey
-from atomic.parsing.replayer import Replayer, COND_MAP_TAG, TEAM_ID_TAG, replay_parser, parse_replay_args
+from atomic.parsing.replayer import Replayer, COND_MAP_TAG, TEAM_ID_TAG, replay_parser, parse_replay_args, \
+    filename_to_condition
 from atomic.util.io import create_clear_dir, change_log_handler
 from atomic.util.plot import plot_bar
 from rddl2psychsim.conversion.converter import Converter
@@ -66,17 +67,17 @@ class BenchmarkReplayer(Replayer):
         self.prev_world = None
         self.start = -1.
 
-    def pre_step(self, logger=logging):
-        self.prev_world = copy_world(self.world)  # todo change agent world cloning
+    def pre_step(self, world, parser, logger=logging):
+        self.prev_world = copy_world(world)  # todo change agent world cloning
         self.start = timer()
 
-    def post_step(self, actions, debug, logger=logging):
+    def post_step(self, world, actions, t, parser, debug, logger=logging):
         elapsed = timer() - self.start
         self.logger.info(f'Step {len(self.trajectory)}: {elapsed:.3f}s')
         self.step_times.append(elapsed)
         self.trajectory.append((self.prev_world, actions))
 
-    def replay(self, duration, logger):
+    def replay(self, parser, rddl_converter, duration, logger):
         # reset
         self.trajectory = []
         self.step_times = []
@@ -85,20 +86,21 @@ class BenchmarkReplayer(Replayer):
         start = timer()
         try:
             exception = None
-            super(BenchmarkReplayer, self).replay(duration, logger)
+            super(BenchmarkReplayer, self).replay(parser, rddl_converter, duration, logger)
         except Exception as e:
             exception = e
 
         # process results
         elapsed = timer() - start
-        self.logger.info(f'Parsed {self.parser.filename} in {elapsed:.3f}s')
-        self.ids[self.parser.filename] = \
-            '{}-{}'.format(self.conditions[TEAM_ID_TAG], self.conditions[COND_MAP_TAG][0]) \
-                if TEAM_ID_TAG in self.conditions and COND_MAP_TAG in self.conditions else \
-                os.path.basename(self.parser.filename)
-        self.timings[self.parser.filename] = elapsed
-        self.trajectories[self.parser.filename] = self.trajectory
-        self.total_lengths[self.parser.filename] = len(self.parser.actions)
+        self.logger.info(f'Parsed {parser.filename} in {elapsed:.3f}s')
+        conditions = filename_to_condition(parser.filename)
+        self.ids[parser.filename] = \
+            '{}-{}'.format(conditions[TEAM_ID_TAG], conditions[COND_MAP_TAG][0]) \
+                if TEAM_ID_TAG in conditions and COND_MAP_TAG in conditions else \
+                os.path.basename(parser.filename)
+        self.timings[parser.filename] = elapsed
+        self.trajectories[parser.filename] = self.trajectory
+        self.total_lengths[parser.filename] = len(parser.actions)
 
         if exception is not None:
             raise exception
@@ -176,7 +178,7 @@ if __name__ == '__main__':
     parser.description = __desc__
 
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_DIR, help='Directory in which to save results.')
-    parser.add_argument('-t', '--trajectories', type=int, default=NUM_TRAJECTORIES,
+    parser.add_argument('-tr', '--trajectories', type=int, default=NUM_TRAJECTORIES,
                         help='Number of trajectories to generate in benchmarking.')
     parser.add_argument('-l', '--length', type=int, default=TRAJ_LENGTH,
                         help='Length of trajectories used to generate in benchmarking.')
