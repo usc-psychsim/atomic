@@ -26,10 +26,15 @@ class MsgQCreator(GameLogParser):
             print('Reading json with these input files', filename)
             self.jsonParser = JSONReader(filename, verbose=verbose, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
             self.jsonParser.read_semantic_map()
-            
+
+    def startProcessing_simple(self): 
+        self.jsonParser.registerFeatures([])
+        self.jsonParser.process_json_file(self.jsonFile)
+
     def startProcessing(self, featuresToExtract, msg_types): 
         self.jsonParser.registerFeatures(featuresToExtract)
         self.jsonParser.process_json_file(self.jsonFile)
+        
         self.allPlayersMs = [m for m in self.jsonParser.messages if msg_types is None or m['sub_type'] in msg_types]
         
         self.players = set([m['playername'] for m in self.allPlayersMs if m['playername'] is not None])

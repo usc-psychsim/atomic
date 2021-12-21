@@ -3,6 +3,7 @@
 import os
 import functools
 import json
+from collections import Counter
 try:
     from tqdm import tqdm
 except ImportError:
@@ -47,32 +48,48 @@ class JSONReader(object):
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
         self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
-                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
-                          'Event:VictimPlaced', 'Event:VictimPickedUp',
-                          'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event',
+#                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
+                          'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
+                          'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
+                          'Event:Signal', 
+                          'Event:MarkerPlaced', 'Event:MarkerRemoved', 'Event:MarkerDestroyed',
+#                          'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
-                          'Event:Scoreboard', 'Event:MarkerPlaced', 'asr:transcription', 'start'
+#                          'Event:Scoreboard', 'asr:transcription', 
+                          'start'
                           }
 
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
                             # dp added:
-                            'scoreboard', 'participant_id', 'marker_type', 'victim_type', 
-                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions', 'client_info'
+#                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions', 'client_info'
+#                            'scoreboard', 'participant_id', 
+                            'marker_type', 'victim_type', 
                             ]
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
+                        'Event:VictimEvacuated': ['victim_x', 'victim_z'],
+                        'Event:RubbleDestroyed': ['rubble_x', 'rubble_z'],
+                        'Event:RubblePlaced': ['rubble_x', 'rubble_z'],
+                        'Event:RubbleCollapse': ['triggerLocation_x', 'triggerLocation_z'],
+                        'Event:Signal': ['x', 'z'],
+                        'Event:MarkerPlaced': ['marker_x', 'marker_z'], 
+                        'Event:MarkerRemoved': ['marker_x', 'marker_z'], 
+                        'Event:MarkerDestroyed': ['marker_x', 'marker_z'],
                         'Event:Triage': ['victim_x', 'victim_z']}
         self.typeToFields = {
-                        'Event:Triage':['triage_state', 'type'], 
-                        'Event:RoleSelected': ['new_role', 'prev_role'], 
-                        'Event:ToolDepleted': ['tool_type'], 
-                        'Event:VictimPlaced': ['type'], 
-                        'Event:VictimPickedUp': ['type', 'state'], 
+                        'Event:Triage':['triage_state', 'type', 'victim_id'], 
+                        'Event:VictimPlaced': ['type', 'victim_id'], 
+                        'Event:VictimPickedUp': ['type', 'state', 'victim_id'], 
+                        'Event:VictimEvacuated': ['type', 'correct_area', 'victim_id'], 
+                        'Event:Signal': ['message'],
                         'Event:ToolUsed': [],
                         'Event:location': [],
+                        'Event:MarkerPlaced': ['type'], 
+                        'Event:MarkerRemoved': ['type'], 
+                        'Event:MarkerDestroyed': ['type'],
                         'Event:RubbleDestroyed': [],
-                        'Event:ItemEquipped': ['equippeditemname']}
+                        'Event:RubblePlaced': []}
         self.verbose = verbose
         self.rooms = {}
         self.fname = fname
@@ -218,7 +235,7 @@ class JSONReader(object):
         
         ## If the picked up victim is saved/unsaved, inject the corresponding field in the msg
         if mtype == 'Event:VictimPickedUp':
-            if m['victim_id'] in self.saved_victim_ids:
+            if 'saved' in m['type'] :
                 m['state'] = 'saved'
             else:
                 m['state'] = 'unsaved'        
@@ -291,24 +308,24 @@ class JSONReader(object):
             m['sub_type'] = 'Event:location'
             is_location_event = True
             
-        elif mtype == 'Event:MarkerPlaced':
-            m['room_name'] = self.getRoom(m['marker_x'], m['marker_z'])
-            m['marker_type'] = m['type']
-            m['victim_type'] = 'none'
-            if player and player in self.player_marker:
-                m['marker_legend'] = self.player_marker[player]
-            m['closest_room'] = self.getClosestRoom(m['marker_x'], m['marker_z'])[0].name
-            victims = [v['block_type'] for v in self.vList if v['room_name'] == m['room_name']]
-            victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
-            m['mark_regular'] = victims.count('regular')
-            m['mark_critical'] = victims.count('critical')
-        elif mtype == 'asr:transcription':
-            if jmsg['msg']['trial_id'] in {'5b748391-9277-4737-8286-6b385ea1d6ce', 'bd035ce8-ac2c-43eb-9f36-5974a08c02ed'}:
-                # Trial 523 or 524 has participant transcripts from Trials 443 and 444
-                if jmsg['data']['participant_id'] in {'E000484', 'E000485', 'E000486'}:
-                    return
-            m['extractions'] = jmsg['data'].get('extractions', [])
-            m['text'] = jmsg['data']['text']
+#        elif mtype == 'Event:MarkerPlaced':
+#            m['room_name'] = self.getRoom(m['marker_x'], m['marker_z'])
+#            m['marker_type'] = m['type']
+#            m['victim_type'] = 'none'
+#            if player and player in self.player_marker:
+#                m['marker_legend'] = self.player_marker[player]
+#            m['closest_room'] = self.getClosestRoom(m['marker_x'], m['marker_z'])[0].name
+#            victims = [v['block_type'] for v in self.vList if v['room_name'] == m['room_name']]
+#            victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
+#            m['mark_regular'] = victims.count('regular')
+#            m['mark_critical'] = victims.count('critical')
+#        elif mtype == 'asr:transcription':
+#            if jmsg['msg']['trial_id'] in {'5b748391-9277-4737-8286-6b385ea1d6ce', 'bd035ce8-ac2c-43eb-9f36-5974a08c02ed'}:
+#                # Trial 523 or 524 has participant transcripts from Trials 443 and 444
+#                if jmsg['data']['participant_id'] in {'E000484', 'E000485', 'E000486'}:
+#                    return
+#            m['extractions'] = jmsg['data'].get('extractions', [])
+#            m['text'] = jmsg['data']['text']
             
 #        if is_location_event:     
         
@@ -347,13 +364,56 @@ class JSONReader(object):
         if 'mission_timer' in m and m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
         
-        smallMsg = m # {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
+        smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
         self.messages.append(smallMsg)
 
         ## For every derived feature, ask it to process this message
         for derived in self.derivedFeatures:
             derived.processMsg(smallMsg)
+            
+    def stats(self):        
+        print('==Msg count by type', self.filter_and_tally([],[], 'sub_type'))        
+        print('\n==VictimPickedUp by player', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'playername'))
+        print('\n==VictimPickedUp by state', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'state'))
+        print('\n==Triage by type', self.filter_and_tally(['sub_type', 'triage_state'],['Event:Triage', 'SUCCESSFUL'], 'type'))
+        print('\n==MarkerPlaced by player', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'playername'))
+        print('\n==MarkerPlaced by type', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'type'))
+        print('\n==MarkerRemoved by player', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'playername'))
+        print('\n==MarkerRemoved by type', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'type'))
+        print('\n==VictimEvacuated by player', self.filter_and_tally(['sub_type'],['Event:VictimEvacuated'], 'playername'))
         
+        
+    def collapse_messages(self, remove_types=[]):
+        collapsed_msgs = []
+        last_player = ''
+        last_mtype = ''
+        for msg in self.messages:
+            if msg['sub_type'] in remove_types:
+                continue
+            if (msg['sub_type'] != last_mtype) or (msg.get('playername', '') != last_player):
+                last_mtype = msg['sub_type']  
+                last_player = msg.get('playername', '')
+                collapsed_msgs.append(msg)
+                
+        return collapsed_msgs
+    
+    def filter(self, keys, values, keep_keys=None):
+        filts = []
+        for msg in self.messages:
+            msg_vals = [msg.get(k, '') for k in keys]
+            if msg_vals == values:
+                if keep_keys is None:
+                    m = msg
+                else:
+                    m = {k:msg[k] for k in keep_keys}
+                filts.append(m)
+        
+        return filts
+    
+    def filter_and_tally(self, keys, values, talley_key):
+        filts = self.filter(keys, values)
+        talley_vals = [msg[talley_key] for msg in filts]
+        return Counter(talley_vals)
 
     def make_victims_list(self,victim_list_dicts_in):
         victim_list_dicts_out = []
