@@ -51,7 +51,7 @@ class JSONReader(object):
 #                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
                           'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
                           'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
-                          'Event:Signal', 
+                          'Event:Signal', 'Event:ProximityBlockInteraction',
                           'Event:MarkerPlaced', 'Event:MarkerRemoved', 'Event:MarkerDestroyed',
 #                          'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
@@ -61,7 +61,7 @@ class JSONReader(object):
 
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
                             # dp added:
-#                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions', 'client_info'
+#                            'marker_legend', 'extractions', 'client_info'
 #                            'scoreboard', 'participant_id', 
                             'marker_type', 'victim_type', 
                             ]
@@ -76,6 +76,7 @@ class JSONReader(object):
                         'Event:MarkerPlaced': ['marker_x', 'marker_z'], 
                         'Event:MarkerRemoved': ['marker_x', 'marker_z'], 
                         'Event:MarkerDestroyed': ['marker_x', 'marker_z'],
+                        'Event:ProximityBlockInteraction': ['victim_x', 'victim_z'],
                         'Event:Triage': ['victim_x', 'victim_z']}
         self.typeToFields = {
                         'Event:Triage':['triage_state', 'type', 'victim_id'], 
@@ -88,6 +89,7 @@ class JSONReader(object):
                         'Event:MarkerPlaced': ['type'], 
                         'Event:MarkerRemoved': ['type'], 
                         'Event:MarkerDestroyed': ['type'],
+                        'Event:ProximityBlockInteraction': ['action_type', 'players_in_range', 'victim_id'],
                         'Event:RubbleDestroyed': [],
                         'Event:RubblePlaced': []}
         self.verbose = verbose
@@ -128,7 +130,9 @@ class JSONReader(object):
         for ji, jmsg in enumerate(self.jsonMsgs):
             self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
-            
+#            if ji>3500:
+#                break
+#            
     def read_semantic_map(self):        
         jsonfile = open(self.fname, 'rt')
         
@@ -381,6 +385,7 @@ class JSONReader(object):
         print('\n==MarkerRemoved by player', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'playername'))
         print('\n==MarkerRemoved by type', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'type'))
         print('\n==VictimEvacuated by player', self.filter_and_tally(['sub_type'],['Event:VictimEvacuated'], 'playername'))
+        print('\n==ProximityBlockInteraction by action', self.filter_and_tally(['sub_type'],['Event:ProximityBlockInteraction'], 'action_type'))
         
         
     def collapse_messages(self, remove_types=[]):
@@ -396,6 +401,19 @@ class JSONReader(object):
                 collapsed_msgs.append(msg)
                 
         return collapsed_msgs
+    
+    def filter_out(self, keys, values, keep_keys=None):
+        filts = []
+        for msg in self.messages:
+            msg_vals = [msg.get(k, '') for k in keys]
+            if msg_vals != values:
+                if keep_keys is None:
+                    m = msg
+                else:
+                    m = {k:msg[k] for k in keep_keys}
+                filts.append(m)
+        
+        return filts
     
     def filter(self, keys, values, keep_keys=None):
         filts = []

@@ -1,0 +1,110 @@
+domain know1 {	
+	requirements = { 
+		constrained-state,
+		reward-deterministic,
+		multivalued,
+		concurrent
+	};
+	types {
+ 	  	loc    : object;
+		victim: object;
+		agent      : { @Med, @Eng, @Tran};
+		observable : {@AVic, @BVic, @CVic, @RVic, @Rubble};
+	}; 	
+
+	pvariables { 	
+		/// Victim fluents
+		vloc(victim) : { state-fluent, loc, default = null };
+		evacuated(victim): { state-fluent, bool, default = false };
+		triaged(victim, loc): { state-fluent, bool, default = false };		
+		saved(victim): { state-fluent, bool, default = false };
+		/// Victim non-fluents
+		regular(victim) : { non-fluent, bool, default = true };
+		station(victim) : { non-fluent, loc, default = null };
+
+		/// Locatoin fluents
+		accessible(loc) : { state-fluent, bool, default = true };
+		marker(observable, loc) : { non-fluent, bool, default = false };
+		threat(loc) : { non-fluent, bool, default = false };
+
+		/// Player fluents
+		ploc(agent) : { state-fluent, loc, default = null };
+		can_move(agent) : { state-fluent, loc, default = null };
+		
+		/// Actions
+		role_Med_triages(victim, loc) : {action-fluent, bool,  default = false };
+		role_Eng_clears :  {action-fluent, bool,  default = false };
+		transports(agent, victim, loc) :  {action-fluent, bool,  default = false };
+		//tells(agent, agent, observable, loc) :  {action-fluent, bool,  default = false };
+	};
+	cpfs {	
+		ploc'(?a) = ploc(?a);
+		vloc'(?v) = vloc(?v);
+	
+		saved'(?v) = 
+			if ( evacuated(?v) ^ (exists_{?lc : loc} triaged(?v, ?lc) ) )
+				then KronDelta(true)
+			else  saved(?v);
+
+		triaged'(?v, ?lc) = 
+			if (regular(?v) ^ accessible(?lc) ^ can_move(@Med) ^ (ploc(@Med) == ?lc) ^ role_Med_triages(?v, ?lc) )
+				then KronDelta(true)
+			else triaged(?v, ?lc);
+		
+
+		accessible'(?lc) = 
+			if ( (ploc(@Eng) == ?lc)  ^ role_Eng_clears)
+				then KronDelta(true)
+			else  accessible(?lc);
+
+		evacuated'(?v) = 
+			if (  exists_{?p : agent} [  transports(?p, ?v, station(?v))   ] ) then KronDelta(true)
+			else  evacuated(?v);
+
+		can_move'(@Eng) = KronDelta(true);
+		can_move'(@Med) = 
+			if (exists_{?lc : loc} [( ploc(@Med) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ role_Eng_clears]) then KronDelta(true)
+			else if (exists_{?lc : loc} [( ploc(@Med) == ?lc) ^ threat(?lc)] ) then KronDelta(false)
+			else can_move(@Med);
+
+		can_move'(@Tran) = 
+			if (exists_{?lc : loc} [( ploc(@Tran) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ role_Eng_clears]) then KronDelta(true)
+			else if (exists_{?lc : loc} [( ploc(@Tran) == ?lc) ^ threat(?lc) ] ) then KronDelta(false)
+			else can_move(@Tran);
+
+	};
+
+	reward = 	
+		[sum_{?v : victim}
+			[saved(?v)  ]
+		];
+}
+non-fluents know1_inst1{
+	domain = know1; 
+	objects { 
+		loc :{loc1, loc2};
+		victim: {v1, v2};
+	}; 
+	non-fluents {
+		station(v1) = loc2;
+		station(v2) = loc1;
+		threat(loc1) = true;
+		threat(loc2) = false;
+		marker(@RVic, loc1) = true;
+		marker(@CVic, loc2) = true;		
+	};
+}
+instance know1_inst1 { 
+	domain = know1; 
+ 	non-fluents = know1_inst1;
+	init-state { 
+		vloc(v1) = loc1;
+		vloc(v2) = loc2;
+		ploc(@Eng) = loc1;
+		ploc(@Med) = loc1;
+		ploc(@Tran) = loc2;
+	};
+	max-nondef-actions = 2;
+	horizon = 20;
+	discount = 1.0;
+} 
