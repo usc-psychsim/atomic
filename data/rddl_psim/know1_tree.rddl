@@ -29,11 +29,11 @@ domain know1 {
 
 		/// Player fluents
 		ploc(agent) : { state-fluent, loc, default = null };
-		can_move(agent) : { state-fluent, loc, default = null };
+		can_move(agent) : { state-fluent, bool, default = true };
 		
 		/// Actions
-		role_Med_triages(victim, loc) : {action-fluent, bool,  default = false };
-		role_Eng_clears :  {action-fluent, bool,  default = false };
+		Med_triages(victim, loc) : {action-fluent, bool,  default = false };
+		Eng_clears :  {action-fluent, bool,  default = false };
 		transports(agent, victim, loc) :  {action-fluent, bool,  default = false };
 		//tells(agent, agent, observable, loc) :  {action-fluent, bool,  default = false };
 	};
@@ -47,13 +47,13 @@ domain know1 {
 			else  saved(?v);
 
 		triaged'(?v, ?lc) = 
-			if (regular(?v) ^ accessible(?lc) ^ can_move(@Med) ^ (ploc(@Med) == ?lc) ^ role_Med_triages(?v, ?lc) )
+			if (regular(?v) ^ accessible(?lc) ^ can_move(@Med) ^ (ploc(@Med) == ?lc) ^ Med_triages(?v, ?lc) )
 				then KronDelta(true)
 			else triaged(?v, ?lc);
 		
 
 		accessible'(?lc) = 
-			if ( (ploc(@Eng) == ?lc)  ^ role_Eng_clears)
+			if ( (ploc(@Eng) == ?lc)  ^ Eng_clears)
 				then KronDelta(true)
 			else  accessible(?lc);
 
@@ -63,12 +63,12 @@ domain know1 {
 
 		can_move'(@Eng) = KronDelta(true);
 		can_move'(@Med) = 
-			if (exists_{?lc : loc} [( ploc(@Med) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ role_Eng_clears]) then KronDelta(true)
+			if (exists_{?lc : loc} [( ploc(@Med) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ Eng_clears]) then KronDelta(true)
 			else if (exists_{?lc : loc} [( ploc(@Med) == ?lc) ^ threat(?lc)] ) then KronDelta(false)
 			else can_move(@Med);
 
 		can_move'(@Tran) = 
-			if (exists_{?lc : loc} [( ploc(@Tran) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ role_Eng_clears]) then KronDelta(true)
+			if (exists_{?lc : loc} [( ploc(@Tran) == ?lc) ^ threat(?lc) ^ (ploc(@Eng) == ?lc) ^ Eng_clears]) then KronDelta(true)
 			else if (exists_{?lc : loc} [( ploc(@Tran) == ?lc) ^ threat(?lc) ] ) then KronDelta(false)
 			else can_move(@Tran);
 
