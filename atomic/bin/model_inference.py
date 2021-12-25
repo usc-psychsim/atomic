@@ -98,6 +98,9 @@ class Analyzer(FeatureReplayer):
             for model, decision in models.items():
                 try:
                     prob[model] = decision['action'][actions[name]]
+                except ValueError:
+                    # Zero probability, probably because of illegal action
+                    prob[model] = decision['action'].epsilon
                 except KeyError:
                     # Zero probability, probably because of illegal action
                     prob[model] = decision['action'].epsilon
@@ -120,7 +123,7 @@ class Analyzer(FeatureReplayer):
                     self.model_columns = list(record.keys())
                 self.model_data = self.model_data.append(record, ignore_index=True)
         logger.warning(f'|Model data|={len(self.model_data)}')
-        self.debug_data[parser.jsonFile].append({"WORLD": copy.deepcopy(world.state),
+        self.debug_data[parser.jsonFile].append({"WORLD": world,
                 "AGENT_DEBUG": self.decisions[parser.jsonFile],
                 "AGENT_ACTIONS": actions})
 
