@@ -52,7 +52,7 @@ class JSONReader(object):
                           'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
                           'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
                           'Event:Signal', 'Event:ProximityBlockInteraction',
-                          'Event:MarkerPlaced', 'Event:MarkerRemoved', 'Event:MarkerDestroyed',
+                          'Event:MarkerPlaced', 'Event:MarkerRemoved', 
 #                          'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
 #                          'Event:Scoreboard', 'asr:transcription', 
@@ -75,14 +75,13 @@ class JSONReader(object):
                         'Event:Signal': ['x', 'z'],
                         'Event:MarkerPlaced': ['marker_x', 'marker_z'], 
                         'Event:MarkerRemoved': ['marker_x', 'marker_z'], 
-                        'Event:MarkerDestroyed': ['marker_x', 'marker_z'],
                         'Event:ProximityBlockInteraction': ['victim_x', 'victim_z'],
                         'Event:Triage': ['victim_x', 'victim_z']}
         self.typeToFields = {
                         'Event:Triage':['triage_state', 'type', 'victim_id'], 
                         'Event:VictimPlaced': ['type', 'victim_id'], 
                         'Event:VictimPickedUp': ['type', 'state', 'victim_id'], 
-                        'Event:VictimEvacuated': ['type', 'correct_area', 'victim_id'], 
+                        'Event:VictimEvacuated': ['type', 'correct_area', 'victim_id', 'success'], 
                         'Event:Signal': ['message'],
                         'Event:ToolUsed': [],
                         'Event:location': [],
@@ -197,17 +196,19 @@ class JSONReader(object):
     
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
+        if mtype == 'Event:VictimEvacuated':
+            print('hi')
         if mtype == 'start':
             if 'client_info' in jmsg['data']:
                 # Initial message about experimental setup
                 if self.subjects is None:
-                    self.subjects = {entry.get('playername', entry['callsign']): entry['participant_id'] for entry in jmsg['data']['client_info']}
+                    self.subjects = {entry['participant_id']:entry.get('playername', entry['callsign']) for entry in jmsg['data']['client_info']}
                 self.player_maps = {entry.get('playername', entry['participant_id']): entry['staticmapversion'] 
                     for entry in jmsg['data']['client_info'] if 'staticmapversion' in entry}
                 self.player_marker = {entry.get('playername', entry['participant_id']): entry['markerblocklegend'] 
                     for entry in jmsg['data']['client_info'] if 'markerblocklegend' in entry}
-            else:
-                return
+            
+            return
         elif mtype not in self.msg_types:
             return
         m = jmsg['data']
@@ -244,17 +245,14 @@ class JSONReader(object):
             else:
                 m['state'] = 'unsaved'        
 
-        player = m.get('playername', m.get('participant_id', None))
+        is_location_event = False
+        player = self.subjects[m['participant_id']]
         m['playername'] = player
 
         if player not in self.player_to_curr_room:
             self.player_to_curr_room[player] = ''
         prev_rm = self.player_to_curr_room[player]
 
-        if 'participant_id' not in m:
-            m['participant_id'] = self.subjects.get(m['playername'], None)
-
-        is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
                 return
@@ -357,7 +355,8 @@ class JSONReader(object):
                     self.player_to_curr_room[player] = event_room
                     if self.verbose: print('Injected', injected_msg, 'to reconcile', m)
                 else:
-                    if self.verbose: print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
+                    if self.verbose: 
+                        print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
                           %(player, prev_rm, mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
         
         if self.verbose and (not is_location_event) and ('room_name' in m.keys()):
@@ -379,12 +378,13 @@ class JSONReader(object):
         print('==Msg count by type', self.filter_and_tally([],[], 'sub_type'))        
         print('\n==VictimPickedUp by player', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'playername'))
         print('\n==VictimPickedUp by state', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'state'))
+        print('\n==VictimEvacuated by player (successful)', self.filter_and_tally(['sub_type', 'success'],['Event:VictimEvacuated', 'True'], 'playername'))
+        print('\n==VictimEvacuated by player (failed)', self.filter_and_tally(['sub_type', 'success'],['Event:VictimEvacuated', 'False'], 'playername'))
         print('\n==Triage by type', self.filter_and_tally(['sub_type', 'triage_state'],['Event:Triage', 'SUCCESSFUL'], 'type'))
         print('\n==MarkerPlaced by player', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'playername'))
         print('\n==MarkerPlaced by type', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'type'))
         print('\n==MarkerRemoved by player', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'playername'))
         print('\n==MarkerRemoved by type', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'type'))
-        print('\n==VictimEvacuated by player', self.filter_and_tally(['sub_type'],['Event:VictimEvacuated'], 'playername'))
         print('\n==ProximityBlockInteraction by action', self.filter_and_tally(['sub_type'],['Event:ProximityBlockInteraction'], 'action_type'))
         
         
@@ -405,7 +405,8 @@ class JSONReader(object):
     def filter_out(self, keys, values, keep_keys=None):
         filts = []
         for msg in self.messages:
-            msg_vals = [msg.get(k, '') for k in keys]
+            msg_vals = [str(msg.get(k, '')).lower() for k in keys]
+            values = [str(v).lower() for v in values]
             if msg_vals != values:
                 if keep_keys is None:
                     m = msg
@@ -418,7 +419,8 @@ class JSONReader(object):
     def filter(self, keys, values, keep_keys=None):
         filts = []
         for msg in self.messages:
-            msg_vals = [msg.get(k, '') for k in keys]
+            msg_vals = [str(msg.get(k, '')).lower() for k in keys]
+            values = [str(v).lower() for v in values]
             if msg_vals == values:
                 if keep_keys is None:
                     m = msg
