@@ -3,7 +3,8 @@
 import os
 import functools
 import json
-from collections import Counter
+import sys
+
 try:
     from tqdm import tqdm
 except ImportError:
@@ -43,54 +44,36 @@ class JSONReader(object):
         self.USE_COLLAPSED_MAP = use_collapsed_map
         if self.USE_COLLAPSED_MAP and not use_ihmc_locations:
             raise ValueError('Cannot use collapsed map without using IHMC locations')
-            
         self.victims = []
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
         self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
-#                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
-                          'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
-                          'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
-                          'Event:Signal', 'Event:ProximityBlockInteraction',
-                          'Event:MarkerPlaced', 'Event:MarkerRemoved', 
-#                          'Event:ItemEquipped', 'Event:dialogue_event',
+                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
+                          'Event:VictimPlaced', 'Event:VictimPickedUp',
+                          'Event:RubbleDestroyed', 'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
-#                          'Event:Scoreboard', 'asr:transcription', 
-                          'start'
+                          'Event:Scoreboard', 'Event:MarkerPlaced', 'asr:transcription', 'start'
                           }
 
         self.generalFields = ['sub_type', 'playername', 'room_name', 'mission_timer', 'old_room_name', 'timestamp',
                             # dp added:
-#                            'marker_legend', 'extractions', 'client_info'
-#                            'scoreboard', 'participant_id', 
-                            'marker_type', 'victim_type', 
+                            'scoreboard', 'participant_id', 'marker_type', 'victim_type', 
+                            'marker_legend', 'mark_regular', 'mark_critical', 'extractions', 'client_info'
                             ]
         self.typeToLocationFields = {
                         'Event:VictimPickedUp': ['victim_x', 'victim_z'],
                         'Event:VictimPlaced': ['victim_x', 'victim_z'],
-                        'Event:VictimEvacuated': ['victim_x', 'victim_z'],
-                        'Event:RubbleDestroyed': ['rubble_x', 'rubble_z'],
-                        'Event:RubblePlaced': ['rubble_x', 'rubble_z'],
-                        'Event:RubbleCollapse': ['triggerLocation_x', 'triggerLocation_z'],
-                        'Event:Signal': ['x', 'z'],
-                        'Event:MarkerPlaced': ['marker_x', 'marker_z'], 
-                        'Event:MarkerRemoved': ['marker_x', 'marker_z'], 
-                        'Event:ProximityBlockInteraction': ['victim_x', 'victim_z'],
                         'Event:Triage': ['victim_x', 'victim_z']}
         self.typeToFields = {
-                        'Event:Triage':['triage_state', 'type', 'victim_id'], 
-                        'Event:VictimPlaced': ['type', 'victim_id'], 
-                        'Event:VictimPickedUp': ['type', 'state', 'victim_id'], 
-                        'Event:VictimEvacuated': ['type', 'correct_area', 'victim_id', 'success'], 
-                        'Event:Signal': ['message'],
+                        'Event:Triage':['triage_state', 'type'], 
+                        'Event:RoleSelected': ['new_role', 'prev_role'], 
+                        'Event:ToolDepleted': ['tool_type'], 
+                        'Event:VictimPlaced': ['type'], 
+                        'Event:VictimPickedUp': ['type', 'state'], 
                         'Event:ToolUsed': [],
                         'Event:location': [],
-                        'Event:MarkerPlaced': ['type'], 
-                        'Event:MarkerRemoved': ['type'], 
-                        'Event:MarkerDestroyed': ['type'],
-                        'Event:ProximityBlockInteraction': ['action_type', 'players_in_range', 'victim_id'],
                         'Event:RubbleDestroyed': [],
-                        'Event:RubblePlaced': []}
+                        'Event:ItemEquipped': ['equippeditemname']}
         self.verbose = verbose
         self.rooms = {}
         self.fname = fname
@@ -103,6 +86,7 @@ class JSONReader(object):
         self.player_maps = {}
         self.player_marker = {}
         self.saved_victim_ids = []
+        self.chat_msg = {} # use for chat (testing)
             
     def registerFeatures(self, feats):
         for f in feats:
@@ -127,11 +111,10 @@ class JSONReader(object):
 #        else:
 #            iterable = self.jsonMsgs
         for ji, jmsg in enumerate(self.jsonMsgs):
-            self.process_message(jmsg)
+
+            res_type = self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
-#            if ji>3500:
-#                break
-#            
+            
     def read_semantic_map(self):        
         jsonfile = open(self.fname, 'rt')
         
@@ -168,10 +151,32 @@ class JSONReader(object):
             z1 = coords[1]['z']
             rm = room(rid, [x0, z0, x1, z1])
             self.rooms[rid] = rm
-            
+
+    def add_rooms_map_live(self,mmsg):        
+        room_dict, room_connections = extract_map(self.semantic_map)     
+        if self.USE_COLLAPSED_MAP:
+            ## Overwrite room_edges and store name lookup and new room names
+            from atomic.parsing.remap_connections import transformed_connections
+            self.room_edges = []
+            edges, self.room_name_lookup, new_map, orig_map = transformed_connections(self.semantic_map)
+            for a,b in edges:
+                self.room_edges.append((a,b))
+                self.room_edges.append((b,a))     
+            self.new_room_names = new_map['new_locations']
+        else:
+            self.room_edges = room_connections
+        ## Whether we're using the collapsed map or not, we keep track of the coordinates of the ORIGINAL rooms            
+        for rid, coords in room_dict.items():
+            x0 = coords[0]['x']
+            z0 = coords[0]['z']
+            x1 = coords[1]['x']
+            z1 = coords[1]['z']
+            rm = room(rid, [x0, z0, x1, z1])
+            self.rooms[rid] = rm
+
+        # NOT USED EXCEPT IN PKL    
     def get_victims(self):
         self.read_semantic_map()
-        
         jsonfile = open(self.fname, 'rt')
         jsonMsgs = [json.loads(line) for line in jsonfile.readlines()]
         jsonfile.close()
@@ -194,21 +199,20 @@ class JSONReader(object):
         return True, common_nbrs.pop()
         
     
-    def process_message(self, jmsg):        
+    def process_message(self, jmsg): 
+        do_move = ''
         mtype = jmsg['msg']['sub_type']
-        if mtype == 'Event:VictimEvacuated':
-            print('hi')
         if mtype == 'start':
             if 'client_info' in jmsg['data']:
                 # Initial message about experimental setup
                 if self.subjects is None:
-                    self.subjects = {entry['participant_id']:entry.get('playername', entry['callsign']) for entry in jmsg['data']['client_info']}
+                    self.subjects = {entry.get('playername', entry['callsign']): entry['participant_id'] for entry in jmsg['data']['client_info']}
                 self.player_maps = {entry.get('playername', entry['participant_id']): entry['staticmapversion'] 
                     for entry in jmsg['data']['client_info'] if 'staticmapversion' in entry}
                 self.player_marker = {entry.get('playername', entry['participant_id']): entry['markerblocklegend'] 
                     for entry in jmsg['data']['client_info'] if 'markerblocklegend' in entry}
-            
-            return
+            else:
+                return
         elif mtype not in self.msg_types:
             return
         m = jmsg['data']
@@ -240,19 +244,22 @@ class JSONReader(object):
         
         ## If the picked up victim is saved/unsaved, inject the corresponding field in the msg
         if mtype == 'Event:VictimPickedUp':
-            if 'saved' in m['type'] :
+            if m['victim_id'] in self.saved_victim_ids:
                 m['state'] = 'saved'
             else:
                 m['state'] = 'unsaved'        
 
-        is_location_event = False
-        player = self.subjects[m['participant_id']]
+        player = m.get('playername', m.get('participant_id', None))
         m['playername'] = player
 
         if player not in self.player_to_curr_room:
             self.player_to_curr_room[player] = ''
         prev_rm = self.player_to_curr_room[player]
 
+        if 'participant_id' not in m:
+            m['participant_id'] = self.subjects.get(m['playername'], None)
+
+        is_location_event = False
         if mtype == "state":
             if self.locations_from == LOCATION_MONITOR:
                 return
@@ -298,36 +305,44 @@ class JSONReader(object):
                 injected_msg = {'sub_type':'Event:location', 'playername':player, 
                                  'old_room_name': prev_rm, 'room_name':common_nbr, 'mission_timer':m['mission_timer']}
                 self.messages.append(injected_msg)
-                if self.verbose: print('Injected', injected_msg, 'to reconcile', m)
+                do_move = injected_msg
+                # set chat msg here (so maybe don't need to return?)
+                self.chat_msg = injected_msg
+                if self.verbose: 
+                    # eventually chat here?
+                    print('Injected', injected_msg, 'to reconcile', m)
+                return do_move
+
                 # Pretend that the msg is about moving from the common nbr to the new room
                 m['old_room_name'] = common_nbr
-            
+                return do_move
+
             self.player_to_curr_room[player] = room_name
-            if self.verbose:
-                print('%s moved to %s' %(player, room_name))   
+            #if self.verbose:
+                #print('%s moved to %s' %(player, room_name))   
                 
             m['room_name'] = room_name 
             m['sub_type'] = 'Event:location'
             is_location_event = True
             
-#        elif mtype == 'Event:MarkerPlaced':
-#            m['room_name'] = self.getRoom(m['marker_x'], m['marker_z'])
-#            m['marker_type'] = m['type']
-#            m['victim_type'] = 'none'
-#            if player and player in self.player_marker:
-#                m['marker_legend'] = self.player_marker[player]
-#            m['closest_room'] = self.getClosestRoom(m['marker_x'], m['marker_z'])[0].name
-#            victims = [v['block_type'] for v in self.vList if v['room_name'] == m['room_name']]
-#            victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
-#            m['mark_regular'] = victims.count('regular')
-#            m['mark_critical'] = victims.count('critical')
-#        elif mtype == 'asr:transcription':
-#            if jmsg['msg']['trial_id'] in {'5b748391-9277-4737-8286-6b385ea1d6ce', 'bd035ce8-ac2c-43eb-9f36-5974a08c02ed'}:
-#                # Trial 523 or 524 has participant transcripts from Trials 443 and 444
-#                if jmsg['data']['participant_id'] in {'E000484', 'E000485', 'E000486'}:
-#                    return
-#            m['extractions'] = jmsg['data'].get('extractions', [])
-#            m['text'] = jmsg['data']['text']
+        elif mtype == 'Event:MarkerPlaced':
+            m['room_name'] = self.getRoom(m['marker_x'], m['marker_z'])
+            m['marker_type'] = m['type']
+            m['victim_type'] = 'none'
+            if player and player in self.player_marker:
+                m['marker_legend'] = self.player_marker[player]
+            m['closest_room'] = self.getClosestRoom(m['marker_x'], m['marker_z'])[0].name
+            victims = [v['block_type'] for v in self.vList if v['room_name'] == m['room_name']]
+            victims_nearby = [v['block_type'] for v in self.vList if v['room_name'] == m['closest_room']]
+            m['mark_regular'] = victims.count('regular')
+            m['mark_critical'] = victims.count('critical')
+        elif mtype == 'asr:transcription':
+            if jmsg['msg']['trial_id'] in {'5b748391-9277-4737-8286-6b385ea1d6ce', 'bd035ce8-ac2c-43eb-9f36-5974a08c02ed'}:
+                # Trial 523 or 524 has participant transcripts from Trials 443 and 444
+                if jmsg['data']['participant_id'] in {'E000484', 'E000485', 'E000486'}:
+                    return
+            m['extractions'] = jmsg['data'].get('extractions', [])
+            m['text'] = jmsg['data']['text']
             
 #        if is_location_event:     
         
@@ -355,8 +370,7 @@ class JSONReader(object):
                     self.player_to_curr_room[player] = event_room
                     if self.verbose: print('Injected', injected_msg, 'to reconcile', m)
                 else:
-                    if self.verbose: 
-                        print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
+                    if self.verbose: print('Error: Player %s last moved to %s but event %s is in %s. 1-away %s' 
                           %(player, prev_rm, mtype, event_room, self.one_step_removed(self.player_to_curr_room[player], event_room)))
         
         if self.verbose and (not is_location_event) and ('room_name' in m.keys()):
@@ -367,75 +381,16 @@ class JSONReader(object):
         if 'mission_timer' in m and m['mission_timer'] == 'Mission Timer not initialized.':
             m['mission_timer'] = '15 : 0'
         
-        smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
+        smallMsg = m # {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
         self.messages.append(smallMsg)
 
         ## For every derived feature, ask it to process this message
         for derived in self.derivedFeatures:
             derived.processMsg(smallMsg)
-            
-    def stats(self):        
-        print('==Msg count by type', self.filter_and_tally([],[], 'sub_type'))        
-        print('\n==VictimPickedUp by player', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'playername'))
-        print('\n==VictimPickedUp by state', self.filter_and_tally(['sub_type'],['Event:VictimPickedUp'], 'state'))
-        print('\n==VictimEvacuated by player (successful)', self.filter_and_tally(['sub_type', 'success'],['Event:VictimEvacuated', 'True'], 'playername'))
-        print('\n==VictimEvacuated by player (failed)', self.filter_and_tally(['sub_type', 'success'],['Event:VictimEvacuated', 'False'], 'playername'))
-        print('\n==Triage by type', self.filter_and_tally(['sub_type', 'triage_state'],['Event:Triage', 'SUCCESSFUL'], 'type'))
-        print('\n==MarkerPlaced by player', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'playername'))
-        print('\n==MarkerPlaced by type', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'type'))
-        print('\n==MarkerRemoved by player', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'playername'))
-        print('\n==MarkerRemoved by type', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'type'))
-        print('\n==ProximityBlockInteraction by action', self.filter_and_tally(['sub_type'],['Event:ProximityBlockInteraction'], 'action_type'))
         
-        
-    def collapse_messages(self, remove_types=[]):
-        collapsed_msgs = []
-        last_player = ''
-        last_mtype = ''
-        for msg in self.messages:
-            if msg['sub_type'] in remove_types:
-                continue
-            if (msg['sub_type'] != last_mtype) or (msg.get('playername', '') != last_player):
-                last_mtype = msg['sub_type']  
-                last_player = msg.get('playername', '')
-                collapsed_msgs.append(msg)
-                
-        return collapsed_msgs
-    
-    def filter_out(self, keys, values, keep_keys=None):
-        filts = []
-        for msg in self.messages:
-            msg_vals = [str(msg.get(k, '')).lower() for k in keys]
-            values = [str(v).lower() for v in values]
-            if msg_vals != values:
-                if keep_keys is None:
-                    m = msg
-                else:
-                    m = {k:msg[k] for k in keep_keys}
-                filts.append(m)
-        
-        return filts
-    
-    def filter(self, keys, values, keep_keys=None):
-        filts = []
-        for msg in self.messages:
-            msg_vals = [str(msg.get(k, '')).lower() for k in keys]
-            values = [str(v).lower() for v in values]
-            if msg_vals == values:
-                if keep_keys is None:
-                    m = msg
-                else:
-                    m = {k:msg[k] for k in keep_keys}
-                filts.append(m)
-        
-        return filts
-    
-    def filter_and_tally(self, keys, values, talley_key):
-        filts = self.filter(keys, values)
-        talley_vals = [msg[talley_key] for msg in filts]
-        return Counter(talley_vals)
 
     def make_victims_list(self,victim_list_dicts_in):
+        self.verbose = False
         victim_list_dicts_out = []
         for vv_in in victim_list_dicts_in:
             vv = dict(vv_in)

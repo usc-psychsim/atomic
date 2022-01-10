@@ -7,7 +7,7 @@ Created on Thu Apr  2 20:35:23 2020
 """
 import logging
 from atomic.parsing import GameLogParser
-from atomic.parsing.json_parser import JSONReader
+from atomic.parsing.live_json_parser import JSONReader
 from atomic.definitions import MISSION_DURATION
 import numpy as np
 
@@ -15,7 +15,7 @@ import numpy as np
 class MsgQCreator(GameLogParser):
 
     def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True, verbose=True):
-        self.verbose = verbose
+        self.verbose = False
         super().__init__(filename, processor, logger)
         self.playerToAgent = {}
         self.agentToPlayer = {}
@@ -26,15 +26,13 @@ class MsgQCreator(GameLogParser):
             print('Reading json with these input files', filename)
             self.jsonParser = JSONReader(filename, verbose=verbose, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
             self.jsonParser.read_semantic_map()
-
-    def startProcessing_simple(self): 
-        self.jsonParser.registerFeatures([])
-        self.jsonParser.process_json_file(self.jsonFile)
+        else: # doing online will need to hardcode map
+            self.jsonParser = JSONReader(filename, verbose=verbose, use_collapsed_map=use_collapsed_map, use_ihmc_locations=use_ihmc_locations)
+        self.jsonParser.chat_msg = {} # for testing will set single messge to go to chat
 
     def startProcessing(self, featuresToExtract, msg_types): 
         self.jsonParser.registerFeatures(featuresToExtract)
-        self.jsonParser.process_json_file(self.jsonFile)
-        
+        #self.jsonParser.process_json_file(self.jsonFile)
         self.allPlayersMs = [m for m in self.jsonParser.messages if msg_types is None or m['sub_type'] in msg_types]
         
         self.players = set([m['playername'] for m in self.allPlayersMs if m['playername'] is not None])
