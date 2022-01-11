@@ -34,6 +34,23 @@ def generate_rddl_map_portals(neighbors):
     loc_str = ','.join(neighbors.keys())
     return loc_str, nbr_str
 
+def generate_rddl_victims_from_list_named_vics(vList, rooms):
+    vic_str = ''
+    for vic in vList:
+        rm = vic['room_name']
+            
+        if rm == '':
+            print('WARNING: victim in empty room', vic)
+            continue
+                    
+        if rm not in rooms:
+            print('WARNING: victim in unknown room', rm)
+            continue
+        
+        vic_str = vic_str + 'vloc(v' + str(vic['unique_id']) + ', ' + rm + ') = true;\n'
+        
+    return vic_str
+
 def generate_rddl_victims_from_list(vList, rooms):
     reg_dict = {}
     crit_dict = {}

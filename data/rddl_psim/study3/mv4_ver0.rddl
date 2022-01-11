@@ -9,7 +9,6 @@ domain know1 {
  	  	loc    : object;
 		victim: object;
 		agent : object;
-		observable : {@AVic, @BVic, @CVic, @RVic, @Rubble};
 	}; 	
 
 	pvariables { 	
@@ -93,24 +92,17 @@ domain know1 {
 		];
 
 	action-preconditions {
-	    forall_{?p : agent} [
-		    forall_{?v : victim} [
-		        pickup_victim(?p, ?v) => exists_{?lc : loc} [ploc(?p, ?lc) ^ vloc(?v, ?lc) ] ] 
-        ];
-	    forall_{?p : agent} [
-		    forall_{?v : victim} [
-			    forall_{?lc : loc} [
-			        drop_victim(?p, ?v, ?lc) =>  ( has_victim(?p, ?v) ^ ploc(?p, ?lc) ) ] ]
-        ];
+	    forall_{?p : agent, ?v : victim} [
+	        pickup_victim(?p, ?v) => exists_{?lc : loc} [ploc(?p, ?lc) ^ vloc(?v, ?lc) ]    ];
+
+	    forall_{?p : agent, ?v : victim, ?lc : loc} [
+	        drop_victim(?p, ?v, ?lc) =>  ( has_victim(?p, ?v) ^ ploc(?p, ?lc) ) ];
+
+	    forall_{?p : agent, ?v : victim} [
+		Med_triages(?p, ?v) => (?p == med) ];
 
 	    forall_{?p : agent} [
-		    forall_{?v : victim} [
-			Med_triages(?p, ?v) => (?p == med) ]
-	];
-
-	    forall_{?p : agent} [
-		Eng_clears(?p) => (?p == eng) 
-	];
+		Eng_clears(?p) => (?p == eng) ];
     };
 
 }

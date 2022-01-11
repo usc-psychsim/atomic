@@ -17,8 +17,7 @@ class MsgQCreator(GameLogParser):
     def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True, verbose=True):
         self.verbose = verbose
         super().__init__(filename, processor, logger)
-        self.playerToAgent = {}
-        self.agentToPlayer = {}
+        self.call_sign_2_role = {'BLUE_ASIST1':'eng', 'GREEN_ASIST1':'tran', 'RED_ASIST1':'med'}
         self.locations = set()
         self.jsonFile = filename
         self.grouping_res = 10
@@ -42,12 +41,6 @@ class MsgQCreator(GameLogParser):
         
         ## Initialize player-specific data structures
         self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}
-
-        # Establish a player name to RDDL agent name mapping. Arbitrary.
-        for i,p in enumerate(self.players):
-            self.playerToAgent[p] = 'p' + str(i+1)
-            self.agentToPlayer['p' + str(i+1)] = p      
-#        self.player_maps = {self.playerToAgent[p]: map_version for p, map_version in self.jsonParser.player_maps.items()}
         self.createActionQs()
         
 
@@ -126,8 +119,7 @@ class MsgQCreator(GameLogParser):
                             logging.error(f'Player "{player}" has {len(self.playerToMsgs[player])} messages, '\
                                 f'so index {msgIdx} (during {timeNow}-{timeNow+self.grouping_res}) is too high.')
                             msg = {'sub_type':'noop'}
-                    msg['realname'] = player
-                    msg['playername'] = self.playerToAgent[player]
-                    step_actions[self.playerToAgent[player]] = msg
+                    msg['playername'] = self.call_sign_2_role[player]
+                    step_actions[self.call_sign_2_role[player]] = msg
                 self.actions.append(step_actions)
                         

@@ -11,7 +11,7 @@ except ImportError:
 print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR
 from atomic.parsing.map_parser import extract_map
-from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list
+from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list_named_vics
 
 class room(object):
     def __init__(self, name, coords):
@@ -48,7 +48,6 @@ class JSONReader(object):
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
         self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
-#                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
                           'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
                           'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
                           'Event:Signal', 'Event:ProximityBlockInteraction',
@@ -91,6 +90,9 @@ class JSONReader(object):
                         'Event:ProximityBlockInteraction': ['action_type', 'players_in_range', 'victim_id'],
                         'Event:RubbleDestroyed': [],
                         'Event:RubblePlaced': []}
+        def make_victime_name(x):
+            return 'v' + str(x)
+        self.field_transformations = {'victim_id': make_victime_name}
         self.verbose = verbose
         self.rooms = {}
         self.fname = fname
@@ -196,8 +198,6 @@ class JSONReader(object):
     
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
-        if mtype == 'Event:VictimEvacuated':
-            print('hi')
         if mtype == 'start':
             if 'client_info' in jmsg['data']:
                 # Initial message about experimental setup
@@ -368,6 +368,9 @@ class JSONReader(object):
             m['mission_timer'] = '15 : 0'
         
         smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
+        for k,v in smallMsg.items():
+            if k in self.field_transformations.keys():
+                smallMsg[k] = self.field_transformations[k](v)
         self.messages.append(smallMsg)
 
         ## For every derived feature, ask it to process this message
@@ -462,13 +465,16 @@ class JSONReader(object):
         if len(self.vList) == 0:
             print('ERROR: No victims msg in metadata file')
             return None
-        rooms = list(set([self.room_name_lookup[rm] for rm in self.rooms.keys()]))
-        vic_str = generate_rddl_victims_from_list(self.vList, rooms)
+        if self.USE_COLLAPSED_MAP:
+            rooms = list(set([self.room_name_lookup[rm] for rm in self.rooms.keys()]))
+        else:
+            rooms = list(self.rooms.keys())
+        vic_str = generate_rddl_victims_from_list_named_vics(self.vList, rooms)
             
         rddl_temp_file = open(rddl_template + '.rddl', "r")    
         master_rddl_str = rddl_temp_file.read()
         rddl_str = master_rddl_str.replace('VICSTR', vic_str) 
-        rddl_inst_file = open(rddl_template + '_v.rddl', "w")
+        rddl_inst_file = open(rddl_template + '_inst.rddl', "w")
         rddl_inst_file.write(rddl_str)    
         rddl_inst_file.close()
         
