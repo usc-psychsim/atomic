@@ -6,7 +6,7 @@ import sys
 from rddl2psychsim.conversion.converter import Converter
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
-from rddl2psychsim.conversion.task_tree import AllTrees, PROP
+from rddl2psychsim.conversion.task_tree_2 import AllTrees, PROP
 
 THRESHOLD = 0
 def exec_step(msgs, conv):
@@ -61,17 +61,20 @@ logging.basicConfig(
 
 ##################  M S G S
 derived_features = []
-RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'study3', 'other.rddl')
+RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'study3', 'mv4_ver1.rddl')
 
 all_msgs = []
 all_msgs.append({'med': {'room_name':'tkt_1', 'playername':'med', 'old_room_name':'', 'sub_type':'Event:location'}, 
-                 'eng': {'room_name':'tkt_1', 'playername':'eng', 'old_room_name':'', 'sub_type':'Event:location'}, 
-                 'tran': {'room_name':'sga_7', 'playername':'tran', 'old_room_name':'', 'sub_type':'Event:location'}})
+                 'eng': {'room_name':'tkt_1', 'playername':'eng', 'old_room_name':'', 'sub_type':'Event:location'}})
+#                 'tran': {'room_name':'sga_7', 'playername':'tran', 'old_room_name':'', 'sub_type':'Event:location'}
     
 all_msgs.append({'med': {'mission_timer': '14 : 23', 'triage_state': 'SUCCESSFUL', 'type': 'REGULAR', 'sub_type': 'Event:Triage',
                         'playername': 'med', 'room_name': 'tkt_1', 'victim_id': 'v1'},
-                 'tran': {'sub_type': 'noop', 'playername': 'tran'},
                  'eng': {'sub_type': 'noop', 'playername': 'eng'}} )
+#                 'tran': {'sub_type': 'noop', 'playername': 'tran'}
+
+all_msgs.append({'med': {'room_name':'sga_7', 'playername':'med', 'old_room_name':'tkt_1', 'sub_type':'Event:location'}, 
+                 'eng': {'sub_type': 'Event:VictimPickedUp', 'playername': 'eng', 'victim_id': 'v1', 'room_name':'tkt_1', 'type':'REGULAR'}} )
                  
 
 conv = Converter()
@@ -83,6 +86,9 @@ for feat_name, psim_name in conv.features.items():
     val = conv.world.getFeature(psim_name)    
     allTrees.create_node(psim_name, PROP, psim_name, val)
 allTrees.build(conv.world.dynamics, {player.name:player.legal for player in conv.world.agents.values()})
+## hack for now
+allTrees.add_toplevel_names('saved')
+allTrees.final_stitch()
 
 ##################  S T E P    T H R O U G H
 num = len(all_msgs)
@@ -110,10 +116,12 @@ for i, msgs in enumerate(all_msgs):
     seen_locations = seen_locations.union(locs)
     actions = exec_step(msgs, conv)
     allTrees.copy_world_values(conv.world, actions.values())
-    allTrees.print()
+    allTrees.print(reward_trees_only=True)
+    print(allTrees.who_did_what(actions.values()))
+    allTrees.get_blockers()
 #    break
 
-#
-##print(seen_victims, seen_locations)
-#
-#   
+
+#print(seen_victims, seen_locations)
+
+   

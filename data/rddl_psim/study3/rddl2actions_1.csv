@@ -1,0 +1,7 @@
+psysim,args,msg_type,conditions
+move,room_name,Event:location,
+Med_triages,victim_id,Event:Triage,"triage_state=SUCCESSFUL, type=REGULAR"
+Eng_clears,,Event:RubbleDestroyed,
+pickup_victim,victim_id,Event:VictimPickedUp,type=REGULAR
+dropVictim,"victim_id, room_name",Event:VictimPlaced,
+noop,,noop,

@@ -1,0 +1,537 @@
+
+runfile('/home/mostafh/Documents/psim/new_atomic/atomic/examples/study3_rddl_psim_fake_msgs.py', wdir='/home/mostafh/Documents/psim/new_atomic/atomic/examples')
+INFO:root:==================================================
+INFO:root:Converting RDDL domain "know1" using instance "know1_inst1" to PsychSim...
+INFO:root:__________________________________________________
+INFO:root:Created agent "eng" with properties:
+INFO:root:      horizon: 2
+INFO:root:      discount: 1.0
+INFO:root:Created agent "med" with properties:
+INFO:root:      horizon: 2
+INFO:root:      discount: 1.0
+INFO:root:__________________________________________________
+INFO:root:Added 2 constant values for object type "loc"
+INFO:root:Added 2 constant values for object type "victim"
+INFO:root:Added 2 constant values for object type "agent"
+INFO:root:Total 12 constants initialized
+INFO:root:__________________________________________________
+INFO:root:Total 18 features created
+INFO:root:__________________________________________________
+INFO:root:Total 26 actions created
+INFO:root:______ Start initializing variables
+INFO:root:Done initializing variables
+INFO:root:________Start convert reward function
+INFO:root:________Done convert reward function
+INFO:root:______ Start convert dynamics
+INFO:root:______ Done convert dynamics
+INFO:root:______ Start state action constraints
+INFO:root:State or action constraint "(Med_triages(?p, ?v) => (?p == med))" is always satisfied for parameters: {'?p': 'med', '?v': 'v1'}
+INFO:root:State or action constraint "(Med_triages(?p, ?v) => (?p == med))" is always satisfied for parameters: {'?p': 'med', '?v': 'v2'}
+INFO:root:State or action constraint "(Eng_clears(?p, ?lc) => (?p == eng))" is always satisfied for parameters: {'?p': 'eng', '?lc': 'tkt_1'}
+INFO:root:State or action constraint "(Eng_clears(?p, ?lc) => (?p == eng))" is always satisfied for parameters: {'?p': 'eng', '?lc': 'sga_7'}
+INFO:root:Total 0 dynamic state constraints created
+INFO:root:__________________________________________________
+INFO:root:Parsing requirements...
+INFO:root:==================================================
+INFO:root:Done processing /home/mostafh/Documents/psim/new_atomic/atomic/examples/../data/rddl_psim/study3/other.rddl!
+INFO:root:__WORLD__'s (accessible, tkt_1): 100% True
+INFO:root:__WORLD__'s (accessible, sga_7): 100% True
+INFO:root:eng's (ploc, tkt_1): 100%     True
+INFO:root:med's (ploc, tkt_1): 100%     True
+INFO:root:eng's can_move: 100%  True
+INFO:root:med's can_move: 100%  True
+INFO:root:eng's __ACTION__: 100%        eng-noop
+INFO:root:med's __ACTION__: 100%        med-noop
+INFO:root:__WORLD__'s (triaged, v1): 100%       True
+INFO:root:__WORLD__'s (accessible, tkt_1): 100% True
+INFO:root:__WORLD__'s (accessible, sga_7): 100% True
+INFO:root:eng's (ploc, tkt_1): 100%     True
+INFO:root:med's (ploc, tkt_1): 100%     True
+INFO:root:eng's can_move: 100%  True
+INFO:root:med's can_move: 100%  True
+INFO:root:eng's __ACTION__: 100%        eng-noop
+INFO:root:med's __ACTION__: 100%        med-(Med_triages, v1)
+INFO:root:__WORLD__'s (triaged, v1): 100%       True
+INFO:root:__WORLD__'s (accessible, tkt_1): 100% True
+INFO:root:__WORLD__'s (accessible, sga_7): 100% True
+INFO:root:eng's (ploc, tkt_1): 100%     True
+INFO:root:med's (ploc, tkt_1): 100%     True
+INFO:root:med's (ploc, sga_7): 100%     True
+INFO:root:eng's can_move: 100%  True
+INFO:root:med's can_move: 100%  True
+INFO:root:eng's (has_victim, v1): 100%  True
+INFO:root:eng's __ACTION__: 100%        eng-(pickup_victim, v1)
+INFO:root:med's __ACTION__: 100%        med-(move, sga_7)
+Reloaded modules: rddl2psychsim, rddl2psychsim.conversion, pyrddl, pyrddl.pvariable, pyrddl.rddl, pyrddl.domain, pyrddl.utils, pyrddl.cpf, pyrddl.expr, pyrddl.instance, pyrddl.nonfluents, psychsim, psychsim.action, psychsim.agent, psychsim.pwl, psychsim.pwl.keys, psychsim.pwl.vector, psychsim.probability, psychsim.pwl.matrix, psychsim.pwl.plane, psychsim.pwl.tree, psychsim.pwl.state, psychsim.world, psychsim.graph, psychsim.ui, psychsim.ui.diagram, rddl2psychsim.conversion.converter, rddl2psychsim.conversion.constraints, rddl2psychsim.conversion.dynamics, rddl2psychsim.conversion.expression, rddl2psychsim.rddl, pyrddl.parser, atomic, atomic.parsing, atomic.definitions, atomic.definitions.victims, atomic.definitions.world_map, atomic.definitions.world, atomic.util, atomic.util.psychsim, atomic.parsing.get_psychsim_action_name, atomic.parsing.parse_into_msg_qs, atomic.parsing.json_parser, atomic.parsing.map_parser, atomic.definitions.map_utils, atomic.parsing.make_rddl_instance, atomic.parsing.remap_connections, rddl2psychsim.conversion.task_tree_2, pyrddl.parsetab
+Dyn: med:(Med_triages, v1) affects __WORLD__'s (triaged, v1)
+New tree: __WORLD__'s (triaged, v1) med:(Med_triages, v1) id 0
+Dyn: med:(Med_triages, v2) affects __WORLD__'s (triaged, v2)
+New tree: __WORLD__'s (triaged, v2) med:(Med_triages, v2) id 1
+Dyn: eng:(Eng_clears, tkt_1) affects __WORLD__'s (accessible, tkt_1)
+New tree: __WORLD__'s (accessible, tkt_1) eng:(Eng_clears, tkt_1) id 2
+Dyn: eng:(Eng_clears, sga_7) affects __WORLD__'s (accessible, sga_7)
+New tree: __WORLD__'s (accessible, sga_7) eng:(Eng_clears, sga_7) id 3
+Legality: eng:(pickup_victim, v1) affected by eng's (ploc, tkt_1)
+New tree: eng:(pickup_victim, v1) eng's (ploc, tkt_1) id 4
+Dyn: eng:(pickup_victim, v1) affects eng's (has_victim, v1)
+Attaching to existing eng:(pickup_victim, v1)
+Legality: eng:(pickup_victim, v2) affected by eng's (ploc, sga_7)
+New tree: eng:(pickup_victim, v2) eng's (ploc, sga_7) id 5
+Dyn: eng:(pickup_victim, v2) affects eng's (has_victim, v2)
+Attaching to existing eng:(pickup_victim, v2)
+Legality: med:(pickup_victim, v1) affected by med's (ploc, tkt_1)
+New tree: med:(pickup_victim, v1) med's (ploc, tkt_1) id 6
+Dyn: med:(pickup_victim, v1) affects med's (has_victim, v1)
+Attaching to existing med:(pickup_victim, v1)
+Legality: med:(pickup_victim, v2) affected by med's (ploc, sga_7)
+New tree: med:(pickup_victim, v2) med's (ploc, sga_7) id 7
+Dyn: med:(pickup_victim, v2) affects med's (has_victim, v2)
+Attaching to existing med:(pickup_victim, v2)
+Legality: eng:(drop_victim, v1, tkt_1) affected by eng's (ploc, tkt_1)
+New tree: eng:(drop_victim, v1, tkt_1) eng's (ploc, tkt_1) id 8
+Legality: eng:(drop_victim, v1, tkt_1) affected by eng's (has_victim, v1)
+Legality: eng:(drop_victim, v1, sga_7) affected by eng's (ploc, sga_7)
+New tree: eng:(drop_victim, v1, sga_7) eng's (ploc, sga_7) id 9
+Legality: eng:(drop_victim, v1, sga_7) affected by eng's (has_victim, v1)
+Dyn: eng:(drop_victim, v1, sga_7) affects __WORLD__'s (evacuated, v1)
+Attaching to existing eng:(drop_victim, v1, sga_7)
+Legality: eng:(drop_victim, v2, tkt_1) affected by eng's (ploc, tkt_1)
+New tree: eng:(drop_victim, v2, tkt_1) eng's (ploc, tkt_1) id 10
+Legality: eng:(drop_victim, v2, tkt_1) affected by eng's (has_victim, v2)
+Dyn: eng:(drop_victim, v2, tkt_1) affects __WORLD__'s (evacuated, v2)
+Attaching to existing eng:(drop_victim, v2, tkt_1)
+Legality: eng:(drop_victim, v2, sga_7) affected by eng's (ploc, sga_7)
+New tree: eng:(drop_victim, v2, sga_7) eng's (ploc, sga_7) id 11
+Legality: eng:(drop_victim, v2, sga_7) affected by eng's (has_victim, v2)
+Legality: med:(drop_victim, v1, tkt_1) affected by med's (ploc, tkt_1)
+New tree: med:(drop_victim, v1, tkt_1) med's (ploc, tkt_1) id 12
+Legality: med:(drop_victim, v1, tkt_1) affected by med's (has_victim, v1)
+Legality: med:(drop_victim, v1, sga_7) affected by med's (ploc, sga_7)
+New tree: med:(drop_victim, v1, sga_7) med's (ploc, sga_7) id 13
+Legality: med:(drop_victim, v1, sga_7) affected by med's (has_victim, v1)
+Dyn: med:(drop_victim, v1, sga_7) affects __WORLD__'s (evacuated, v1)
+Collapsing 9 subsumes 13
+Legality: med:(drop_victim, v2, tkt_1) affected by med's (has_victim, v2)
+New tree: med:(drop_victim, v2, tkt_1) med's (has_victim, v2) id 13
+Legality: med:(drop_victim, v2, tkt_1) affected by med's (ploc, tkt_1)
+Dyn: med:(drop_victim, v2, tkt_1) affects __WORLD__'s (evacuated, v2)
+Collapsing 10 subsumes 13
+Legality: med:(drop_victim, v2, sga_7) affected by med's (ploc, sga_7)
+New tree: med:(drop_victim, v2, sga_7) med's (ploc, sga_7) id 13
+Legality: med:(drop_victim, v2, sga_7) affected by med's (has_victim, v2)
+Dyn: eng:(move, tkt_1) affects eng's (ploc, tkt_1)
+Attaching to existing eng's (ploc, tkt_1)
+hi
+Dyn: eng:(move, sga_7) affects eng's (ploc, sga_7)
+Attaching to existing eng's (ploc, sga_7)
+hi
+Dyn: med:(move, tkt_1) affects med's (ploc, tkt_1)
+Attaching to existing med's (ploc, tkt_1)
+hi
+Dyn: med:(move, sga_7) affects med's (ploc, sga_7)
+Attaching to existing med's (ploc, sga_7)
+hi
+Fluent: eng's (ploc, tkt_1) affected by dict_keys([ActionSet({{'verb': '(move, tkt_1)', 'subject': 'eng'}}), True])
+Fluent: eng's (ploc, tkt_1) affected by __WORLD__'s (accessible, tkt_1)
+Collapsing 4 subsumes 2
+Fluent: eng's (ploc, sga_7) affected by dict_keys([ActionSet({{'verb': '(move, sga_7)', 'subject': 'eng'}}), True])
+Fluent: eng's (ploc, sga_7) affected by __WORLD__'s (accessible, sga_7)
+Collapsing 5 subsumes 3
+Fluent: med's (ploc, tkt_1) affected by dict_keys([ActionSet({{'verb': '(move, tkt_1)', 'subject': 'med'}}), True])
+Fluent: med's (ploc, tkt_1) affected by __WORLD__'s (accessible, tkt_1)
+Collapsing 6 subsumes 4
+Fluent: med's (ploc, sga_7) affected by dict_keys([ActionSet({{'verb': '(move, sga_7)', 'subject': 'med'}}), True])
+Fluent: med's (ploc, sga_7) affected by __WORLD__'s (accessible, sga_7)
+Collapsing 7 subsumes 5
+Fluent: __WORLD__'s (saved, v1) affected by dict_keys([True])
+Fluent: __WORLD__'s (saved, v1) affected by __WORLD__'s (triaged, v1)
+Attaching to existing __WORLD__'s (triaged, v1)
+Fluent: __WORLD__'s (saved, v1) affected by __WORLD__'s (evacuated, v1)
+Collapsing 0 subsumes 9
+Fluent: __WORLD__'s (saved, v2) affected by dict_keys([True])
+Fluent: __WORLD__'s (saved, v2) affected by __WORLD__'s (evacuated, v2)
+Attaching to existing __WORLD__'s (evacuated, v2)
+Fluent: __WORLD__'s (saved, v2) affected by __WORLD__'s (triaged, v2)
+Collapsing 10 subsumes 1
+Fluent: __WORLD__'s (triaged, v1) affected by dict_keys([ActionSet({{'verb': '(Med_triages, v1)', 'subject': 'med'}})])
+Fluent: __WORLD__'s (triaged, v1) affected by med's (ploc, tkt_1)
+Collapsing 0 subsumes 6
+Fluent: __WORLD__'s (triaged, v2) affected by dict_keys([ActionSet({{'verb': '(Med_triages, v2)', 'subject': 'med'}})])
+Fluent: __WORLD__'s (triaged, v2) affected by med's (ploc, sga_7)
+Collapsing 10 subsumes 0
+Fluent: __WORLD__'s (accessible, tkt_1) affected by dict_keys([ActionSet({{'verb': '(Eng_clears, tkt_1)', 'subject': 'eng'}})])
+Fluent: __WORLD__'s (accessible, sga_7) affected by dict_keys([ActionSet({{'verb': '(Eng_clears, sga_7)', 'subject': 'eng'}})])
+Fluent: __WORLD__'s (evacuated, v1) affected by dict_keys([ActionSet({{'verb': '(drop_victim, v1, sga_7)', 'subject': 'eng'}}), ActionSet({{'verb': '(drop_victim, v1, sga_7)', 'subject': 'med'}})])
+Fluent: __WORLD__'s (evacuated, v2) affected by dict_keys([ActionSet({{'verb': '(drop_victim, v2, tkt_1)', 'subject': 'eng'}}), ActionSet({{'verb': '(drop_victim, v2, tkt_1)', 'subject': 'med'}})])
+Fluent: eng's (has_victim, v1) affected by dict_keys([ActionSet({{'verb': '(pickup_victim, v1)', 'subject': 'eng'}}), True])
+Fluent: eng's (has_victim, v2) affected by dict_keys([ActionSet({{'verb': '(pickup_victim, v2)', 'subject': 'eng'}}), True])
+Fluent: med's (has_victim, v1) affected by dict_keys([ActionSet({{'verb': '(pickup_victim, v1)', 'subject': 'med'}}), True])
+Fluent: med's (has_victim, v2) affected by dict_keys([ActionSet({{'verb': '(pickup_victim, v2)', 'subject': 'med'}}), True])
+Fluent: eng's can_move affected by dict_keys([True])
+7 
+eng's (has_victim, v2)=False
+        eng:(pickup_victim, v2)=False
+                eng's (ploc, sga_7)=False
+                        eng:(move, sga_7)=False
+                        __WORLD__'s (accessible, sga_7)=True
+                                eng:(Eng_clears, sga_7)=False
+med's (has_victim, v2)=False
+        med:(pickup_victim, v2)=False
+                med's (ploc, sga_7)=False
+                        med:(move, sga_7)=False
+                        __WORLD__'s (accessible, sga_7)=True
+                                eng:(Eng_clears, sga_7)=False
+8 
+eng:(drop_victim, v1, tkt_1)=False
+        eng's (ploc, tkt_1)=True
+                eng:(move, tkt_1)=False
+        eng's (has_victim, v1)=False
+10 
+__WORLD__'s (saved, v1)=False
+        __WORLD__'s (triaged, v1)=False
+                med:(Med_triages, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (evacuated, v1)=False
+                eng:(drop_victim, v1, sga_7)=False
+                        eng's (ploc, sga_7)=False
+                                eng:(move, sga_7)=False
+                        eng's (has_victim, v1)=False
+                                eng:(pickup_victim, v1)=False
+                                        eng's (ploc, tkt_1)=True
+                                                eng:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+                med:(drop_victim, v1, sga_7)=False
+                        med's (ploc, sga_7)=False
+                                med:(move, sga_7)=False
+                        med's (has_victim, v1)=False
+                                med:(pickup_victim, v1)=False
+                                        med's (ploc, tkt_1)=True
+                                                med:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+med's (has_victim, v1)=False
+        med:(pickup_victim, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+__WORLD__'s (saved, v2)=False
+        __WORLD__'s (evacuated, v2)=False
+                eng:(drop_victim, v2, tkt_1)=False
+                        eng's (ploc, tkt_1)=True
+                                eng:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+                        eng's (has_victim, v2)=False
+                med:(drop_victim, v2, tkt_1)=False
+                        med's (has_victim, v2)=False
+                        med's (ploc, tkt_1)=True
+                                med:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (triaged, v2)=False
+                med:(Med_triages, v2)=False
+                med's (ploc, sga_7)=False
+                        med:(move, sga_7)=False
+eng's (has_victim, v1)=False
+        eng:(pickup_victim, v1)=False
+                eng's (ploc, tkt_1)=True
+                        eng:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+11 
+eng:(drop_victim, v2, sga_7)=False
+        eng's (ploc, sga_7)=False
+                eng:(move, sga_7)=False
+        eng's (has_victim, v2)=False
+12 
+med:(drop_victim, v1, tkt_1)=False
+        med's (ploc, tkt_1)=True
+                med:(move, tkt_1)=False
+        med's (has_victim, v1)=False
+13 
+med:(drop_victim, v2, sga_7)=False
+        med's (ploc, sga_7)=False
+                med:(move, sga_7)=False
+        med's (has_victim, v2)=False
+
+__________________________________________________0 out of 3
+Teleporting med to tkt_1
+Teleporting eng to tkt_1
+Player med does (noop, med) at 
+Player eng does (noop, eng) at 
+10 
+__WORLD__'s (saved, v1)=False
+        __WORLD__'s (triaged, v1)=False
+                med:(Med_triages, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (evacuated, v1)=False
+                eng:(drop_victim, v1, sga_7)=False
+                        eng's (ploc, sga_7)=False
+                                eng:(move, sga_7)=False
+                        eng's (has_victim, v1)=False
+                                eng:(pickup_victim, v1)=False
+                                        eng's (ploc, tkt_1)=True
+                                                eng:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+                med:(drop_victim, v1, sga_7)=False
+                        med's (ploc, sga_7)=False
+                                med:(move, sga_7)=False
+                        med's (has_victim, v1)=False
+                                med:(pickup_victim, v1)=False
+                                        med's (ploc, tkt_1)=True
+                                                med:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+med's (has_victim, v1)=False
+        med:(pickup_victim, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+__WORLD__'s (saved, v2)=False
+        __WORLD__'s (evacuated, v2)=False
+                eng:(drop_victim, v2, tkt_1)=False
+                        eng's (ploc, tkt_1)=True
+                                eng:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+                        eng's (has_victim, v2)=False
+                med:(drop_victim, v2, tkt_1)=False
+                        med's (has_victim, v2)=False
+                        med's (ploc, tkt_1)=True
+                                med:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (triaged, v2)=False
+                med:(Med_triages, v2)=False
+                med's (ploc, sga_7)=False
+                        med:(move, sga_7)=False
+eng's (has_victim, v1)=False
+        eng:(pickup_victim, v1)=False
+                eng's (ploc, tkt_1)=True
+                        eng:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+{'med': [], 'eng': []}
+tttttt 7
+tttttt 8
+tttttt 10
+        rrrrrr __WORLD__'s (saved, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (triaged, v1)"), (2, 'med:(Med_triages, v1)')]
+                        ddddd med:(Med_triages, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')]
+                        ddddd eng:(move, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (has_victim, v1)"), (4, 'eng:(pickup_victim, v1)')]
+                        ddddd eng:(pickup_victim, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (ploc, sga_7)"), (4, 'med:(move, sga_7)')]
+                        ddddd med:(move, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]
+                        ddddd med:(pickup_victim, v1)
+        fffff [[(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (triaged, v1)"), (2, 'med:(Med_triages, v1)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (has_victim, v1)"), (4, 'eng:(pickup_victim, v1)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (ploc, sga_7)"), (4, 'med:(move, sga_7)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]]
+        rrrrrr __WORLD__'s (saved, v2)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)')]
+                        ddddd eng:(drop_victim, v2, tkt_1)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)")]
+                        ddddd eng's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)")]
+                        ddddd med's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)'), (5, "med's (ploc, sga_7)"), (6, 'med:(move, sga_7)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')]
+                        ddddd med:(Med_triages, v2)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, "med's (ploc, sga_7)"), (3, 'med:(move, sga_7)')]
+                        ddddd med:(move, sga_7)
+        fffff [[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)'), (5, "med's (ploc, sga_7)"), (6, 'med:(move, sga_7)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, "med's (ploc, sga_7)"), (3, 'med:(move, sga_7)')]]
+tttttt 11
+tttttt 12
+tttttt 13
+
+__________________________________________________1 out of 3
+Player med does (Med_triages, med, v1) at 14 : 23
+Player eng does (noop, eng) at 
+10 
+__WORLD__'s (saved, v1)=False
+        __WORLD__'s (triaged, v1)=True
+                med:(Med_triages, v1)=True
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (evacuated, v1)=False
+                eng:(drop_victim, v1, sga_7)=False
+                        eng's (ploc, sga_7)=False
+                                eng:(move, sga_7)=False
+                        eng's (has_victim, v1)=False
+                                eng:(pickup_victim, v1)=False
+                                        eng's (ploc, tkt_1)=True
+                                                eng:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+                med:(drop_victim, v1, sga_7)=False
+                        med's (ploc, sga_7)=False
+                                med:(move, sga_7)=False
+                        med's (has_victim, v1)=False
+                                med:(pickup_victim, v1)=False
+                                        med's (ploc, tkt_1)=True
+                                                med:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+med's (has_victim, v1)=False
+        med:(pickup_victim, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+__WORLD__'s (saved, v2)=False
+        __WORLD__'s (evacuated, v2)=False
+                eng:(drop_victim, v2, tkt_1)=False
+                        eng's (ploc, tkt_1)=True
+                                eng:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+                        eng's (has_victim, v2)=False
+                med:(drop_victim, v2, tkt_1)=False
+                        med's (has_victim, v2)=False
+                        med's (ploc, tkt_1)=True
+                                med:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (triaged, v2)=False
+                med:(Med_triages, v2)=False
+                med's (ploc, sga_7)=False
+                        med:(move, sga_7)=False
+eng's (has_victim, v1)=False
+        eng:(pickup_victim, v1)=False
+                eng's (ploc, tkt_1)=True
+                        eng:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+{'med': [10], 'eng': []}
+tttttt 7
+tttttt 8
+tttttt 10
+        rrrrrr __WORLD__'s (saved, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')]
+                        ddddd eng:(move, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (has_victim, v1)"), (4, 'eng:(pickup_victim, v1)')]
+                        ddddd eng:(pickup_victim, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (ploc, sga_7)"), (4, 'med:(move, sga_7)')]
+                        ddddd med:(move, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]
+                        ddddd med:(pickup_victim, v1)
+        fffff [[(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (has_victim, v1)"), (4, 'eng:(pickup_victim, v1)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (ploc, sga_7)"), (4, 'med:(move, sga_7)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]]
+        rrrrrr __WORLD__'s (saved, v2)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)')]
+                        ddddd eng:(drop_victim, v2, tkt_1)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)")]
+                        ddddd eng's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)")]
+                        ddddd med's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)'), (5, "med's (ploc, sga_7)"), (6, 'med:(move, sga_7)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')]
+                        ddddd med:(Med_triages, v2)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, "med's (ploc, sga_7)"), (3, 'med:(move, sga_7)')]
+                        ddddd med:(move, sga_7)
+        fffff [[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)'), (5, "med's (ploc, sga_7)"), (6, 'med:(move, sga_7)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, "med's (ploc, sga_7)"), (3, 'med:(move, sga_7)')]]
+tttttt 11
+tttttt 12
+tttttt 13
+
+__________________________________________________2 out of 3
+Player med does (move, med, sga_7) at 
+Player eng does (pickup_victim, eng, v1) at 
+10 
+__WORLD__'s (saved, v1)=False
+        __WORLD__'s (triaged, v1)=True
+                med:(Med_triages, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (evacuated, v1)=False
+                eng:(drop_victim, v1, sga_7)=False
+                        eng's (ploc, sga_7)=False
+                                eng:(move, sga_7)=False
+                        eng's (has_victim, v1)=True
+                                eng:(pickup_victim, v1)=True
+                                        eng's (ploc, tkt_1)=True
+                                                eng:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+                med:(drop_victim, v1, sga_7)=False
+                        med's (ploc, sga_7)=True
+                                med:(move, sga_7)=True
+                        med's (has_victim, v1)=False
+                                med:(pickup_victim, v1)=False
+                                        med's (ploc, tkt_1)=True
+                                                med:(move, tkt_1)=False
+                                                __WORLD__'s (accessible, tkt_1)=True
+                                                        eng:(Eng_clears, tkt_1)=False
+med's (has_victim, v1)=False
+        med:(pickup_victim, v1)=False
+                med's (ploc, tkt_1)=True
+                        med:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+__WORLD__'s (saved, v2)=False
+        __WORLD__'s (evacuated, v2)=False
+                eng:(drop_victim, v2, tkt_1)=False
+                        eng's (ploc, tkt_1)=True
+                                eng:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+                        eng's (has_victim, v2)=False
+                med:(drop_victim, v2, tkt_1)=False
+                        med's (has_victim, v2)=False
+                        med's (ploc, tkt_1)=True
+                                med:(move, tkt_1)=False
+                                __WORLD__'s (accessible, tkt_1)=True
+                                        eng:(Eng_clears, tkt_1)=False
+        __WORLD__'s (triaged, v2)=False
+                med:(Med_triages, v2)=False
+                med's (ploc, sga_7)=True
+                        med:(move, sga_7)=True
+eng's (has_victim, v1)=True
+        eng:(pickup_victim, v1)=True
+                eng's (ploc, tkt_1)=True
+                        eng:(move, tkt_1)=False
+                        __WORLD__'s (accessible, tkt_1)=True
+                                eng:(Eng_clears, tkt_1)=False
+{'med': [10], 'eng': [10]}
+tttttt 7
+tttttt 8
+tttttt 10
+        rrrrrr __WORLD__'s (saved, v1)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')]
+                        ddddd eng:(move, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)')]
+                        ddddd med:(drop_victim, v1, sga_7)
+                ccccccc [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]
+                        ddddd med:(pickup_victim, v1)
+        fffff [[(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'eng:(drop_victim, v1, sga_7)'), (3, "eng's (ploc, sga_7)"), (4, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v1)"), (1, "__WORLD__'s (evacuated, v1)"), (2, 'med:(drop_victim, v1, sga_7)'), (3, "med's (has_victim, v1)"), (4, 'med:(pickup_victim, v1)')]]
+        rrrrrr __WORLD__'s (saved, v2)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)')]
+                        ddddd eng:(drop_victim, v2, tkt_1)
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)")]
+                        ddddd eng's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)")]
+                        ddddd med's (has_victim, v2)
+[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)')]
+                ccccccc [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')]
+                        ddddd med:(Med_triages, v2)
+        fffff [[(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'eng:(drop_victim, v2, tkt_1)'), (3, "eng's (has_victim, v2)"), (4, 'eng:(pickup_victim, v2)'), (5, "eng's (ploc, sga_7)"), (6, 'eng:(move, sga_7)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (evacuated, v2)"), (2, 'med:(drop_victim, v2, tkt_1)'), (3, "med's (has_victim, v2)"), (4, 'med:(pickup_victim, v2)')], [(0, "__WORLD__'s (saved, v2)"), (1, "__WORLD__'s (triaged, v2)"), (2, 'med:(Med_triages, v2)')]]
+tttttt 11
+tttttt 12
+tttttt 13
+
