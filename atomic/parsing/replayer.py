@@ -379,12 +379,12 @@ class Replayer(object):
         pass
 
     def parameterized_replay(self, args, simulate=False):
-        if args['profile']:
+        if args.get('profile', False):
             return cProfile.runctx('self.process_files(args["number"])', {'self': self, 'args': args}, {}, sort=1)
-        elif args['1']:
-            return self.process_files(args['number'], replayer.files[0])
+        elif args.get('1', False):
+            return self.process_files(args.get('number', None), replayer.files[0])
         else:
-            return self.process_files(args['number'])
+            return self.process_files(args.get('number', None))
 
 def parse_replay_config(fname, parser):
     """
