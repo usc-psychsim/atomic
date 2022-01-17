@@ -89,7 +89,7 @@ class Analyzer(FeatureReplayer):
             self.decisions[parser.jsonFile][name].clear()
             for model in models.domain():
                 logger.debug(f'Generating decision for {name} under {model}')
-                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(selection='distribution', model=model)
+                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(selection='distribution', model=model, debug={'preserve_states': True})
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
         super().post_step(world, actions, t, parser, debug, logger)
