@@ -387,6 +387,15 @@ class DialogueLabels(Feature):
                 field = f'Utterance {label["label"]}'
                 self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
                 add_flag = True
+        elif self.msg_type == 'Event:dialogue_event':
+            player = msg['participant_id']
+            if player not in self.utterances:
+                self.utterances[player] = {}
+            for extraction in msg.get('extractions', []):
+                for label in extraction['labels']:
+                    field = f'Utterance {label}'
+                    self.utterances[player][field] = self.utterances[player].get(field, 0) + 1
+                    add_flag = True
         if add_flag:
             for player, utterances in self.utterances.items():
                 row = {'Participant': player, 'Utterance Total': sum(self.utterances[player].values())}
