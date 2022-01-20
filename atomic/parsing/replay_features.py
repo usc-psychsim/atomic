@@ -36,7 +36,7 @@ class FeatureReplayer(Replayer):
         self.feature_data = pandas.DataFrame()
 
         trial_fields = list(filename_to_condition(os.path.splitext(os.path.basename(files[0]))[0]))
-        self.fields = trial_fields + ['Participant', 'time', 'Team Score', 'Individual Score']
+        self.fields = trial_fields + ['Participant', 'time']
 
         self.prediction_models = {}
 
@@ -121,10 +121,11 @@ class FeatureReplayer(Replayer):
             self.fields = list(trial_fields.keys())
             self.fields.append('Participant')
             self.fields.append('time')
-            self.fields.append('Team Score')
-            self.fields.append('Individual Score')
         # processes data to extract features depending on type of count
         for feature in self.derived_features[parser.jsonFile]:
+            if isinstance(feature, RecordScore):
+                self.fields.insert(self.fields.index('time')+1, 'Individual Score')
+                self.fields.insert(self.fields.index('time')+1, 'Team Score')
             for field, value in trial_fields.items():
                 feature.dataframe[field] = value
         subjects = dict(parser.jsonParser.subjects)
