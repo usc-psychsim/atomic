@@ -429,6 +429,8 @@ def filename_to_condition(fname):
             result[key] = term[index + 1:].split('-')
             if len(result[key]) == 1:
                 result[key] = result[key][0]
+            if isinstance(result[key], list):
+                result[key] = '-'.join(result[key])
         except ValueError:
             continue
     return result
