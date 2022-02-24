@@ -128,7 +128,10 @@ class Replayer(object):
 
     def __init__(self, files=[], trials=None, config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging):
         # Extract files to process
-        self.files = accumulate_files(files, trials)
+        if files is None:
+            self.files = []
+        else:
+            self.files = accumulate_files(files, trials)
         # Extract maps
 #        self.maps = get_default_maps(logger) if maps is None else maps
 
@@ -446,10 +449,10 @@ def find_trial(trial, log_dir):
     else:
         raise ValueError('Unable to find a file for log {} in {}'.format(trial, log_dir))
 
-def replay_parser():
+def replay_parser(log_optional=False):
     parser = ArgumentParser()
     parser.add_argument('--config', help='Config file specifying execution parameters')
-    parser.add_argument('fname', nargs='+',
+    parser.add_argument('fname', nargs='?' if log_optional else '+',
                         help='Log file(s) (or directory of log files) to process')
     parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
     parser.add_argument('-n', '--number', type=int, default=0,
