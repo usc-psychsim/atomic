@@ -22,6 +22,8 @@ from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.replay_features import *
 from atomic.inference import *
 
+from appraisal.appraisal_dimensions import AppraisalDimensions
+
 
 def plot_data(data, color_field, title):
     return px.line(data, x='Timestep', y='Belief', color=color_field, range_y=[0, 1], title=title)
@@ -43,6 +45,7 @@ class Analyzer(FeatureReplayer):
         self.decisions = {}
         self.debug_data = {}
         self.model_columns = None
+        self.appraisals = AppraisalDimensions()
 
     def pre_replay(self, parser, logger=logging):
         result = super().pre_replay(parser, logger)
@@ -85,11 +88,14 @@ class Analyzer(FeatureReplayer):
 #        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
 #        world.step(real=False, debug=debug_s) # This is where the script hangs
         #</SIMULATE>
+        actions = {}
         for name, models in self.beliefs[parser.jsonFile].items():
             self.decisions[parser.jsonFile][name].clear()
-            for model in models.domain():
+            actions[name] = {}
+            for model, model_prob in models.items():
                 logger.debug(f'Generating decision for {name} under {model}')
-                self.decisions[parser.jsonFile][name][model] = world.agents[name].decide(selection='distribution', model=model, debug={'preserve_states': True})
+                decision = world.agents[name].decide(selection='distribution', model=model, debug={'preserve_states': True})
+                self.decisions[parser.jsonFile][name][model] = decision
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
         super().post_step(world, actions, t, parser, debug, logger)
@@ -105,6 +111,11 @@ class Analyzer(FeatureReplayer):
                     # Zero probability, probably because of illegal action
                     prob[model] = decision['action'].epsilon
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
+                appraisal_params = self.appraisals.get_appraisal_params_psychsim_model_inference(name, actions[name], 'p2' if name != 'p2' else 'p1', world, self.decisions[parser.jsonFile])
+                for key, value in appraisal_params.items():
+                    print(key, value)
+                appraisal = self.appraisals.get_appraisals_for_step(appraisal_params)
+                print(appraisal)
             self.beliefs[parser.jsonFile][name].normalize()
             logger.info(self.beliefs[parser.jsonFile][name])
             for model, decision in models.items():
