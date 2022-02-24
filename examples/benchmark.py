@@ -174,7 +174,7 @@ def _process_files():
 
 if __name__ == '__main__':
     # parse command-line arguments
-    parser = replay_parser()
+    parser = replay_parser(log_optional=True)
     parser.description = __desc__
 
     parser.add_argument('-o', '--output', type=str, default=OUTPUT_DIR, help='Directory in which to save results.')
