@@ -62,21 +62,21 @@ logging.basicConfig(
 
 ##################  M S G S
 derived_features = []
-RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'study3', 'other.rddl')
+RDDL_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'study3', 'mv4_ver2__novics.rddl')
 
-msg_qs = MsgQCreator(metadata_file, logger=logging, use_collapsed_map=False)
+msg_qs = MsgQCreator(metadata_file, logger=logging, use_collapsed_map=True)
 msg_qs.startProcessing(derived_features, usable_msg_types)
 #msg_qs.jsonParser.write_rddl_file(RDDL_FILE_TEMPLATE)
 
 conv = Converter()
 conv.convert_file(RDDL_FILE, verbose=False)
 
-allTrees = AllTrees(True)
-## Create fluent nodes
-for feat_name, psim_name in conv.features.items():
-    val = conv.world.getFeature(psim_name)    
-    allTrees.create_node(psim_name, PROP, psim_name, val)
-allTrees.build(conv.world.dynamics, {player.name:player.legal for player in conv.world.agents.values()})
+#allTrees = AllTrees(True)
+### Create fluent nodes
+#for feat_name, psim_name in conv.features.items():
+#    val = conv.world.getFeature(psim_name)    
+#    allTrees.create_node(psim_name, PROP, psim_name, val)
+#allTrees.build(conv.world.dynamics, {player.name:player.legal for player in conv.world.agents.values()})
 
 ##################  S T E P    T H R O U G H
 num = len(msg_qs.actions)
@@ -100,7 +100,11 @@ for i, msgs in enumerate(msg_qs.actions):
     new_vics = [v for v in vics.keys() if v not in seen_victims.keys()]
     seen_victims.update(vics)
     seen_locations = seen_locations.union(locs)
+#    exec_step(msgs, conv)
+    if i>20:
+        break
+
 print(seen_victims, seen_locations)
 
-#    exec_step(msgs, conv)
-   
+RDDL_FILE_TEMPLATE = ''
+msg_qs.jsonParser.write_rddl_file(RDDL_FILE_TEMPLATE)

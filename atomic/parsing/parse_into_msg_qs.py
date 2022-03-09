@@ -8,7 +8,7 @@ Created on Thu Apr  2 20:35:23 2020
 import logging
 from atomic.parsing import GameLogParser
 from atomic.parsing.json_parser import JSONReader
-from atomic.definitions import MISSION_DURATION
+from atomic.definitions import MISSION_DURATION, extract_time
 import numpy as np
 
 
@@ -55,14 +55,10 @@ class MsgQCreator(GameLogParser):
                 continue
             
             ## If malformed time, skip
-            nums = msg['mission_timer'].split(':')
-            if any(not n.strip().isdigit() for n in nums):
+            timeInSec = extract_time(msg)
+            if timeInSec is None:
                 nextMsg = nextMsg + 1
                 continue
-            
-            ## Extract time
-            ts = [int(n) for n in nums]
-            timeInSec = MISSION_DURATION - (ts[0] * 60) - ts[1]
             
             ## If message is later than our cutoff time, break
             if timeInSec > maxTime:
@@ -119,7 +115,9 @@ class MsgQCreator(GameLogParser):
                             logging.error(f'Player "{player}" has {len(self.playerToMsgs[player])} messages, '\
                                 f'so index {msgIdx} (during {timeNow}-{timeNow+self.grouping_res}) is too high.')
                             msg = {'sub_type':'noop'}
-                    msg['playername'] = self.call_sign_2_role[player]
-                    step_actions[self.call_sign_2_role[player]] = msg
+#                    msg['playername'] = self.call_sign_2_role[player]
+#                    step_actions[self.call_sign_2_role[player]] = msg
+#                    msg['playername'] = self.call_sign_2_role[player]
+                    step_actions[player] = msg
                 self.actions.append(step_actions)
                         

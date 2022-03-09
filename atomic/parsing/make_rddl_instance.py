@@ -134,10 +134,10 @@ def generate_rddl_move_actions(neighbors):
     nbr_consts += '\n\t'.join(f'HAS-NBR-{i}(loc) : {{ non-fluent, bool, default = false }};' for i in range(max_nbr))
     move_vars = '\n\t'.join(f'move-{i}(agent) : {{ action-fluent, bool, default = false}};' for i in range(max_nbr))
 
-    move_dyn = '\n\t'.join(f'if ( move-{i}(?p) ) then\n\t\tNBR-{i}(pLoc(?p))\nelse ' for i in range(max_nbr))
-    move_dyn += '\n\tpLoc(?p);'
+    move_dyn = '\n\t'.join(f'if ( move-{i}(?p) ) then\n\t\tNBR-{i}(ploc(?p))\nelse ' for i in range(max_nbr))
+    move_dyn += '\n\tploc(?p);'
 
-    move_pre_cond = '\n\t'.join(f'forall_{{?p: agent}} [ move-{i}(?p) => HAS-NBR-{i}(pLoc(?p)) ];'
+    move_pre_cond = '\n\t'.join(f'forall_{{?p: agent}} [ move-{i}(?p) => HAS-NBR-{i}(ploc(?p)) ];'
                                 for i in range(max_nbr))
 
     return nbr_consts, move_vars, move_dyn, move_pre_cond
@@ -169,8 +169,7 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
                        rddl_template,
                        rddl_out,
                        victim_pickles,
-                       map_out_csv,
-                       generate_victims):
+                       map_out_csv):
     ''' Create a RDDL instance from a RDDL template containing everything but the locations and adjacency info
         which are obtained from a semantic map.    '''
 
@@ -214,7 +213,7 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
                 replace('NBR_CONSTS_STR', nbr_consts).replace('MOVE_VARS_STR', move_vars).replace('MOVE_DYN_STR', move_dyn). \
                 replace('MOVE_PRE_COND', move_pre_cond).replace('LOC0', init_loc)
     
-    if generate_victims:
+    if len(victim_pickles) > 0:
         for tag, victim_pickle in victim_pickles.items():
             vic_str = generate_rddl_victims(victim_pickle, set(neighbors.keys()), room_name_lookup, collapse_method)
             rddl_str = rddl_str.replace('VICSTR', vic_str)   
@@ -229,41 +228,54 @@ def make_rddl_inst_fol(edges, room_name_lookup, collapse_method,
 
     rddl_temp_file.close()
 
+def get_map_from_metadata(fname):
+    jsonfile = open(fname, 'rt')
+    
+    semantic_map = None
+    for line in jsonfile.readlines():
+        jmsg = json.loads(line)
+        if 'semantic_map' in jmsg['data'].keys():
+            semantic_map = jmsg['data']['semantic_map']
+            jsonfile.close()  
+            break
+    return semantic_map
 
+    
 if __name__ == '__main__':
     collapse_method = MAX_NBR_COLLAPSE
     map_file = '../maps/Saturn/Saturn_1.5_3D_sm_v1.0.json'
-    MAX_NBRS = 14
+    MAX_NBRS = 8
     edges = []
     
     if collapse_method == SIMPLE_COLLAPSE:
         rooms, edges = read_semantic_map(map_file)
         room_name_lookup = {rm:rm for rm in rooms.keys()}
     elif collapse_method == MAX_NBR_COLLAPSE:
-        orig_map = json.load(open(map_file,'r'))
+#        orig_map = json.load(open(map_file,'r'))
+        ## load from semantic map pickle containing semantic map from an actual metadata file
+        ddir = os.path.join('..', '..', 'data', 'ASU_DATA')
+        jsonFile = 'study-3_spiral-3_pilot_NotHSRData_TrialMessages_Trial-T000448_Team-TM000074_Member-na_CondBtwn-ASI-UAZ-TA1_CondWin-na_Vers-1.metadata'
+        metadata_file = os.path.join(ddir, jsonFile)
+        orig_map = get_map_from_metadata(metadata_file)
         one_way_edges, room_name_lookup, new_map, orig_map = transformed_connections(orig_map)
         has_edge = set( [a for a,b in one_way_edges] + [b for a,b in one_way_edges] )
-        isolated_rooms = [rm for rm in room_name_lookup.values() if rm not in has_edge]
-        
+        isolated_rooms = [rm for rm in room_name_lookup.values() if rm not in has_edge]        
         
         for a,b in one_way_edges:
             edges.append((a,b))
             edges.append((b,a))
             
     generate_victims = False
+    rddl_template = '../../data/rddl_psim/study3/mv4_ver2_tmplt.rddl'
+    rddl_out ='../../data/rddl_psim/study3/mv4_ver2_'
+    map_out_csv = '../../maps/Saturn/SatA_2.3clpsed_nbrs.csv'
+    victim_pickles = {}
     
     if generate_victims:
-        victim_pickles = {}
         for tag in ['A', 'B']:
             victim_pickles[tag] = os.path.join(os.path.dirname(__file__), '..', 'data', 'rddl_psim', 'victims'+tag+'.pickle')
-        make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
-                           '../data/rddl_psim/newpickup_template.rddl',
-                           '../data/rddl_psim/newpickup_v1',
-                           victim_pickles,
-                           '../maps/Saturn/rddl_clpsd_neighbors.csv', generate_victims)
-    else:
-        make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
-                           '../data/rddl_psim/newpickup_template.rddl',
-                           '../data/rddl_psim/newpickup_v1',
-                           None,
-                           '../maps/Saturn/rddl_clpsd_neighbors.csv', generate_victims)
+
+    make_rddl_inst_fol(edges, room_name_lookup, collapse_method, 
+                       rddl_template,
+                       rddl_out,
+                       victim_pickles, map_out_csv)
