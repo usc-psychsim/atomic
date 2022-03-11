@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 import configparser
 import cProfile
+import logging
 import os.path
 import sys
 import glob
@@ -341,8 +342,7 @@ class Replayer(object):
             if len(actions) < len(parser.agentToPlayer):
                 logger.error(f'Missing action in msg {i} for {sorted(parser.agentToPlayer.keys()-actions.keys())}')
                 break
-            player = world.agents['p3']
-            logger.info(f'Completed step for message {i} (R={player.reward(model=player.get_true_model())})')
+            logger.info(f'Completed step for message {i}')
             self.post_step(world, actions, i, parser, debug, logger)
             for name, models in world.get_current_models().items():
                 if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
