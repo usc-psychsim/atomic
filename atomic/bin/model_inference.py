@@ -111,11 +111,12 @@ class Analyzer(FeatureReplayer):
                     # Zero probability, probably because of illegal action
                     prob[model] = decision['action'].epsilon
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
-                appraisal_params = self.appraisals.get_appraisal_params_psychsim_model_inference(name, actions[name], 'p2' if name != 'p2' else 'p1', world, self.decisions[parser.jsonFile])
-                for key, value in appraisal_params.items():
-                    print(key, value)
-                appraisal = self.appraisals.get_appraisals_for_step(appraisal_params)
-                print(appraisal)
+                for other in self.decisions[parser.jsonFile]:
+                    if other != name:
+                        appraisal_params = self.appraisals.get_appraisal_params_psychsim_model_inference(name, actions[name], 
+                            other, world, self.decisions[parser.jsonFile])
+                        appraisal = self.appraisals.get_appraisals_for_step(appraisal_params)
+                        logger.info(f'Appraisal by {name} of {other} is {appraisal}')
             self.beliefs[parser.jsonFile][name].normalize()
             logger.info(self.beliefs[parser.jsonFile][name])
             for model, decision in models.items():
