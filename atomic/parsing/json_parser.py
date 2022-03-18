@@ -14,6 +14,9 @@ print = functools.partial(print, flush=True)
 from atomic.definitions import GOLD_STR, GREEN_STR, extract_time
 from atomic.parsing.map_parser import extract_map
 from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list_named_vics
+from atomic.analytic.ihmc_wrapper import JAGWrapper
+from atomic.analytic.gallup_wrapper import GelpWrapper
+from atomic.analytic.corenll_wrapper import ComplianceWrapper
 
 class room(object):
     def __init__(self, name, coords):
@@ -96,9 +99,10 @@ class JSONReader(object):
                         'Event:RubblePlaced': []}
         self.participant_2_role = dict()
         self.ac_msgs = {'ihmc':[], 'cornell':[], 'gallup':[]}
-        self.ac_filters = {'ihmc':['sub_type', 'Event:discovered'], 
-                           'cornell':['sub_type','AC:player_compliance'],
-                           'gallup':['sub_type','agent:gallup_agent_gelp']}
+        self.ac_filters = {'ihmc':['sub_type', {'Event:Discovered', 'Event:Awareness', 'Event:Addressing', 'Event:Completion'}], 
+                           'cornell':['sub_type',{'AC:Player_compliance'}],
+                           'gallup':['sub_type', {'agent:gallup_agent_gelp'}]}
+        self.ac_wrappers = [ComplianceWrapper('cornell', 'compliance'), GelpWrapper('gallup', 'gelp'), JAGWrapper('ihmc', 'jag')]
         
         def make_victime_name(x):
             return 'v' + str(x)
@@ -153,8 +157,18 @@ class JSONReader(object):
 #        else:
 #            iterable = self.jsonMsgs
         for ji, jmsg in enumerate(self.jsonMsgs):
-            self.process_message(jmsg)
             self.allMTypes.add(jmsg['msg']['sub_type'])
+#            self.process_message(jmsg)
+            for ac_name, [k,vals] in self.ac_filters.items():
+                if jmsg['msg'].get(k, '') in vals:
+                    self.ac_msgs[ac_name].append(jmsg)
+
+            if 'topic' in jmsg:
+                for ac in self.ac_wrappers:
+                    ac.handle_message(jmsg['topic'], jmsg['msg'], jmsg['data'])
+#                    
+#            if len(self.ac_wrappers[0].messages) > 700:
+#                break
             
         ## Add time in seconds and a serial number to each message
         for i, msg in enumerate(self.messages):
@@ -226,12 +240,6 @@ class JSONReader(object):
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
         
-        ## Watch for AC messages
-        for ac_name, [k,v] in self.ac_filters.items():
-            if jmsg['msg'].get(k, '') == v:
-                self.ac_msgs[ac_name].append(jmsg['data'])
-                return
-            
         if mtype == 'start':
             if 'client_info' in jmsg['data']:
                 # Initial message about experimental setup
