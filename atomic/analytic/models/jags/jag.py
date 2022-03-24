@@ -29,7 +29,8 @@ def update_knowledge(player_id, category, confidence_value, elapsed_ms):
             if confidence_value > 0.0:  # only start tracking if confidence greater than zero
                 category[player_id].append(ActivityTracker(player_id, confidence_value, TimePeriod(elapsed_ms, -1)))
 
-    category[player_id] = get_non_overlapping_activity_tracker_set(category[player_id])
+    if player_id in category:
+        category[player_id] = get_non_overlapping_activity_tracker_set(category[player_id])
 
 from ..events import JagEvent
 

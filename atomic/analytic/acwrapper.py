@@ -6,7 +6,7 @@ Created on Fri Mar 11 15:40:39 2022
 @author: mostafh
 """
 from dateutil import parser
-
+import pandas as pd
 
 class ACWrapper:
     def __init__(self, team_name, ac_name):
@@ -14,13 +14,21 @@ class ACWrapper:
         self.name = ac_name
         self.messages = []
         self.start_time = 0
+        self.score_names = []
+        self.callsigns = ['green', 'red', 'blue']
+        
+    def make_dfs(self):
+        self.data = [pd.DataFrame(columns=['millis'] + self.callsigns) for i in range(len(self.score_names))]
+        
+    def n_scores(self):
+        return len(self.score_names)
         
     def handle_message(self, topic, message, data):
         if topic not in self.topic_handlers:
             return
 
         self.topic_handlers[topic](message, data) 
-        self.messages.append(data)
+        self.messages.append([message, data])
         
         
     def handle_trial(self, message, data):

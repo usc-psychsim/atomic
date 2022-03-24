@@ -32,6 +32,8 @@ class JAGWrapper(ACWrapper):
         self.process_later = []
 
     def handle_trial(self, message, data):
+        if len(self.players) > 0:
+            return
         players = {}
         for client in data['client_info']:
             players[client['participant_id']] = Player(client)
@@ -106,7 +108,7 @@ class JAGWrapper(ACWrapper):
             instance_update = data['jag']
             uid = instance_update['id']
             elapsed_ms = instance_update['elapsed_milliseconds'] 
-            self.__elapsed_milliseconds = elapsed_ms       
+            self.elapsed_milliseconds = elapsed_ms       
             jag_instance = player.joint_activity_model.get_by_id(uid)
             if jag_instance is None:
                 self.process_later.append([uid, message, data])
@@ -148,9 +150,85 @@ class JAGWrapper(ACWrapper):
                 completion_status = instance_update['is_complete']
                 jag_instance.update_completion_status(observer_callsign, completion_status, elapsed_ms)
                 asi_jag_instance.update_completion_status(observer_callsign, completion_status, elapsed_ms)
-                print(jag_instance.short_string() + " completion_status " + str(completion_status) + ": " + str(elapsed_ms), observer_player_id)
+                if jag_instance.urn != 'urn:ihmc:asist:search-area':
+                    print(jag_instance.short_string(), str(completion_status), observer_player_id)
+                    print('asi jag', asi_jag_instance.to_string())
+            elif message['sub_type'] == 'Event:Summary':
+                print(message, data)                
+                
             else:
                 print('je ne sais pas quoi', data)
             
         except Exception:
             print(traceback.format_exc())
+            
+#        if (len(self.messages) % 500) == 0:
+#            self.team_summary()
+
+    def __get_player_by_callsign(self, callsign):
+        for player in self.players.values():
+            if player.callsign.lower() == callsign.lower():
+                return player
+        return None
+
+    def team_summary(self):
+        print("Team summary...")
+        # medic
+        red_set = self.player_summary('red')
+        # transport
+        green_set = self.player_summary('green')
+        # engineer
+        blue_set = self.player_summary('blue')
+
+        intersection_set = red_set.intersection(green_set).intersection(blue_set)
+        self.print_summary("intersection", intersection_set)
+
+        union_set = set()
+        union_set = union_set.union(red_set)
+        union_set = union_set.union(green_set)
+        union_set = union_set.union(blue_set)
+        self.print_summary("union", union_set)
+        elapsed_minutes = self.elapsed_milliseconds / 1000 / 60
+        victims_per_minute = len(union_set) / elapsed_minutes
+        print("find rate = " + str(victims_per_minute) + " victims per minute")
+        remaining_minutes = 15 - elapsed_minutes
+        estimated_found = len(union_set) + (victims_per_minute * remaining_minutes)
+        print("estimated total found = " + str(estimated_found))
+        print("minutes remaining = " + str(remaining_minutes))
+
+    def player_summary(self, callsign):
+        player = self.__get_player_by_callsign(callsign)
+        jags = player.joint_activity_model.get_known_victims()
+        player_set = set()
+        player_set.update(jags)
+        set_label = str(player.callsign + " " + player.role)
+        self.print_summary(set_label, player_set)
+        return player_set
+
+    @staticmethod
+    def print_summary(set_label, jag_set):
+        victim_set = set()
+        critical_count = 0
+        complete_count = 0
+        active_count = 0
+        for jag in jag_set:
+            victim_set.add(jag.inputs['victim-id'])
+            if jag.inputs['victim-type'] == 'critical':
+                critical_count += 1
+            if jag.is_complete():
+                complete_count += 1
+            if jag.is_active():
+                active_count += 1
+
+        print(str(set_label) + ": " + str(victim_set) + "   " +
+              str(len(jag_set)) + " victims" +
+              " (" + str(critical_count) + " critical/" + str(len(jag_set) - critical_count) + " regular)" +
+              " (" + str(complete_count) + " complete/" + str(len(jag_set) - complete_count) + " incomplete)" +
+              " (" + str(active_count) + " active/" + str(len(jag_set) - active_count) + " inactive)")
+
+
+
+
+
+
+

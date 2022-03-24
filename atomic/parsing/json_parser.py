@@ -99,10 +99,14 @@ class JSONReader(object):
                         'Event:RubblePlaced': []}
         self.participant_2_role = dict()
         self.ac_msgs = {'ihmc':[], 'cornell':[], 'gallup':[]}
-        self.ac_filters = {'ihmc':['sub_type', {'Event:Discovered', 'Event:Awareness', 'Event:Addressing', 'Event:Completion'}], 
-                           'cornell':['sub_type',{'AC:Player_compliance'}],
-                           'gallup':['sub_type', {'agent:gallup_agent_gelp'}]}
-        self.ac_wrappers = [ComplianceWrapper('cornell', 'compliance'), GelpWrapper('gallup', 'gelp'), JAGWrapper('ihmc', 'jag')]
+        self.ac_filters = {'ihmc':{'trial', 'observations/events/player/jag', 'observations/events/mission',
+                                   'observations/events/player/role_selected'}, 
+                           'cornell':{'trial', 'agent/ac/player_compliance'},
+                           'gallup':{'trial', 'agent/gelp'}}
+        self.ac_wrappers = {'cornell': ComplianceWrapper('cornell', 'compliance'), 
+                            'gallup': GelpWrapper('gallup', 'gelp'), 
+                            'ihmc':JAGWrapper('ihmc', 'jag')}
+        self.all_topics = set()
         
         def make_victime_name(x):
             return 'v' + str(x)
@@ -157,18 +161,17 @@ class JSONReader(object):
 #        else:
 #            iterable = self.jsonMsgs
         for ji, jmsg in enumerate(self.jsonMsgs):
+            msg_topic = jmsg.get('topic', '')
             self.allMTypes.add(jmsg['msg']['sub_type'])
 #            self.process_message(jmsg)
-            for ac_name, [k,vals] in self.ac_filters.items():
-                if jmsg['msg'].get(k, '') in vals:
+            self.all_topics.add(msg_topic)
+            for ac_name, topics in self.ac_filters.items():
+                if msg_topic in topics:
                     self.ac_msgs[ac_name].append(jmsg)
-
-            if 'topic' in jmsg:
-                for ac in self.ac_wrappers:
-                    ac.handle_message(jmsg['topic'], jmsg['msg'], jmsg['data'])
-#                    
-#            if len(self.ac_wrappers[0].messages) > 700:
-#                break
+                    self.ac_wrappers[ac_name].handle_message(msg_topic, jmsg['msg'], jmsg['data'])
+                    
+            if len(self.ac_wrappers['ihmc'].messages) > 1000:
+                break
             
         ## Add time in seconds and a serial number to each message
         for i, msg in enumerate(self.messages):
