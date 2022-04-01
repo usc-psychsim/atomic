@@ -225,19 +225,21 @@ class Player:
                     jag_instance.update_preparing(observer_player_id, player_id, 1.0, elapsed_ms)
                     jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
                 else:
-                    if self.last_activity_completed is None:
-                        jag_instance.update_preparing(observer_player_id, player_id, 1.0,
-                                                      jag_instance.awareness_time(self.id))
-                        jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
-                    else:
-                        jag_instance.update_preparing(observer_player_id, player_id, 1.0, self.last_activity_completion_time)
-                        jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+                    jag_instance.update_preparing(observer_player_id, player_id, 1.0, self.last_activity_completion_time)
+                    jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+                    self.set_last_activity_completed(jag_instance)
+                    self.set_last_activity_completion_time(elapsed_ms)
+                    # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
+            else:
+                self.set_last_activity_completed(jag_instance)
+                self.set_last_activity_completion_time(elapsed_ms)
+                # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
         elif event_type == JagEvent.COMPLETION:
             jag_instance = data
             if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
                 self.set_last_activity_completed(jag_instance)
                 self.set_last_activity_completion_time(elapsed_ms)
-                # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.urn) + ": " + str(self.last_activity_completion_time))
+                # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
             if jag_instance.urn == aj.DIAGNOSE['urn']:
                 # do something to estimate move time
                 victim_id = jag_instance.inputs['victim-id']

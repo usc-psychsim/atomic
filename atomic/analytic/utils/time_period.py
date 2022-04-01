@@ -2,9 +2,9 @@ class TimePeriod:
 
     def __init__(self, start, end):
         if start < 0:
-            raise Exception("Start time must not be negative (negative means unknown).")
+            raise Exception(f"Start time must not be negative (negative means unknown). {start}")
         if 0 <= end < start:
-            raise Exception("End time must not be earlier than start time for a time period.")
+            raise Exception(f"End time must not be earlier than start time for a time period. {end}")
         self.__start = start
         self.__end = end
 

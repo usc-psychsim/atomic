@@ -12,7 +12,7 @@ __HANDLERS__ = {
     'urn:ihmc:asist:diagnose': {
         'Event:Triage': diagnose.handle_triage,
     },
-    'urn:ihmc:asist:unlock': {
+    'urn:ihmc:asist:unlock-victim': {
         'Event:ProximityBlockInteraction': unlock.handle_proximity,
     },
     'urn:ihmc:asist:pick-up-victim': {

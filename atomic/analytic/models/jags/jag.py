@@ -11,6 +11,7 @@ def update_knowledge(player_id, category, confidence_value, elapsed_ms):
     if player_id not in category:
         if confidence_value > 0.0:  # only start tracking if confidence greater than zero
             category[player_id] = [ActivityTracker(player_id, confidence_value, TimePeriod(elapsed_ms, -1))]
+            category[player_id] = get_non_overlapping_activity_tracker_set(category[player_id])
     else:
         player_preparing = category[player_id]
         last_tracker = player_preparing.pop()
@@ -28,8 +29,6 @@ def update_knowledge(player_id, category, confidence_value, elapsed_ms):
             category[player_id].append(last_tracker)
             if confidence_value > 0.0:  # only start tracking if confidence greater than zero
                 category[player_id].append(ActivityTracker(player_id, confidence_value, TimePeriod(elapsed_ms, -1)))
-
-    if player_id in category:
         category[player_id] = get_non_overlapping_activity_tracker_set(category[player_id])
 
 from ..events import JagEvent
@@ -191,6 +190,14 @@ class Jag:
     def update_addressing(self, observer_player_id, addressing_player_id, confidence_value, elapsed_ms):
         if self.is_leaf:
             update_knowledge(addressing_player_id, self.__addressing, confidence_value, elapsed_ms)
+            # drop off completion can be reset to false if picked up again
+            if self.urn == aj.DROP_OFF_VICTIM['urn']:
+                if confidence_value > 0.0:
+                    self.update_completion_status(observer_player_id, False, elapsed_ms)
+        if self.urn != aj.SEARCH_AREA['urn'] and self.urn != aj.GET_IN_RANGE['urn']:
+            if self.inputs['victim-id'] == 66 or self.inputs['victim-id'] == 66:
+                if self.is_leaf:
+                    print(f"updating addressing: {self.to_string()}")
         data = {'addressing_player_id': addressing_player_id, 'confidence_value': confidence_value, 'jag': self}
         self.notify(observer_player_id, JagEvent.ADDRESSING, data, elapsed_ms)
 
@@ -240,10 +247,18 @@ class Jag:
 
     # COMPLETION
     def update_completion_status(self, observer_player_id, completion_status, elapsed_ms):
+        if self.urn != aj.SEARCH_AREA['urn'] and self.urn != aj.GET_IN_RANGE['urn']:
+            if self.inputs['victim-id'] == 66 or self.inputs['victim-id'] == 66:
+                if self.is_leaf:
+                    print(f"updating completion: {completion_status}")
         self.__is_complete = completion_status
         if self.__is_complete:
             if self.__completion_time == -1:
                 self.__completion_time = elapsed_ms
+                if self.urn != aj.SEARCH_AREA['urn'] and self.urn != aj.GET_IN_RANGE['urn']:
+                    if self.inputs['victim-id'] == 66 or self.inputs['victim-id'] == 66:
+                        if self.is_leaf:
+                            print(f"updating completion: {self.to_string()}")
                 self.notify(observer_player_id, JagEvent.COMPLETION, self, elapsed_ms)
         else:
             self.__completion_time = -1
@@ -375,10 +390,10 @@ class Jag:
         if event_type != JagEvent.COMPLETION:
             return
 
-        if self.__do_children_satisfy_completion():
+        if self.do_children_satisfy_completion():
             self.update_completion_status(observer_player_id, data.is_complete(), elapsed_ms)
 
-    def __do_children_satisfy_completion(self):
+    def do_children_satisfy_completion(self):
         if len(self.__children) == 0:
             return True
 

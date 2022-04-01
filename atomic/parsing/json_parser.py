@@ -17,6 +17,7 @@ from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list_na
 from atomic.analytic.ihmc_wrapper import JAGWrapper
 from atomic.analytic.gallup_wrapper import GelpWrapper
 from atomic.analytic.corenll_wrapper import ComplianceWrapper
+from atomic.analytic.cmu_wrapper import TEDWrapper
 
 class room(object):
     def __init__(self, name, coords):
@@ -97,15 +98,18 @@ class JSONReader(object):
                         'Event:ProximityBlockInteraction': ['action_type', 'players_in_range', 'victim_id'],
                         'Event:RubbleDestroyed': [],
                         'Event:RubblePlaced': []}
-        self.participant_2_role = dict()
-        self.ac_msgs = {'ihmc':[], 'cornell':[], 'gallup':[]}
-        self.ac_filters = {'ihmc':{'trial', 'observations/events/player/jag', 'observations/events/mission',
+        self.participant_2_role = dict()        
+        self.ac_filters = {'ihmc':{'observations/events/player/jag', 'observations/events/mission',
                                    'observations/events/player/role_selected'}, 
-                           'cornell':{'trial', 'agent/ac/player_compliance'},
-                           'gallup':{'trial', 'agent/gelp'}}
-        self.ac_wrappers = {'cornell': ComplianceWrapper('cornell', 'compliance'), 
-                            'gallup': GelpWrapper('gallup', 'gelp'), 
-                            'ihmc':JAGWrapper('ihmc', 'jag')}
+#                           'cornell':{'agent/ac/player_compliance'},
+#                           'cmu_ted':{'agent/ac/cmuta2-ted-ac/ted'},
+#                           'gallup':{'agent/gelp'}
+                           }
+        self.ac_wrappers = {'ihmc':JAGWrapper('ihmc', 'jag'),
+#                            'cornell': ComplianceWrapper('cornell', 'compliance'),
+#                            'cmu_ted': TEDWrapper('cmu', 'ted'), 
+#                            'gallup': GelpWrapper('gallup', 'gelp')
+                            }
         self.all_topics = set()
         
         def make_victime_name(x):
@@ -166,11 +170,10 @@ class JSONReader(object):
 #            self.process_message(jmsg)
             self.all_topics.add(msg_topic)
             for ac_name, topics in self.ac_filters.items():
-                if msg_topic in topics:
-                    self.ac_msgs[ac_name].append(jmsg)
+                if (msg_topic == 'trial') or (msg_topic in topics):
                     self.ac_wrappers[ac_name].handle_message(msg_topic, jmsg['msg'], jmsg['data'])
                     
-            if len(self.ac_wrappers['ihmc'].messages) > 1000:
+            if len(self.ac_wrappers['ihmc'].messages) > 40000:
                 break
             
         ## Add time in seconds and a serial number to each message

@@ -22,10 +22,13 @@ class GelpWrapper(ACWrapper):
         self.make_dfs()
         
     def handle_msg(self, message, data):
+        if message['timestamp'] is None:
+            return
+        elapsed = [self.elapsed_millis(message)]
         comp_results = {r['callsign']:r['gelp_components'] for r in data['gelp_results']}
         for gcomponent in range(len(self.score_names)-1):
             row = [comp_results.get(callsign, np.zeros(self.n_scores()))[gcomponent] for callsign in self.callsigns]
-            self.data[gcomponent].loc[len(self.data[gcomponent])] = [self.elapsed_millis(message)] + row
+            self.data[gcomponent].loc[len(self.data[gcomponent])] = elapsed + row
             
         
         overall_results = {r['callsign']:r['gelp_overall'] for r in data['gelp_results']}
@@ -33,24 +36,20 @@ class GelpWrapper(ACWrapper):
                                         [overall_results.get(callsign, 0) for callsign in self.callsigns]
                                         
         
+        print(len(self.messages))
         if (len(self.messages) % 10) == 1:
-            print(self.compare(10))
+            print(self.name, self.compare(10))
     
-    def compare(self, history_sec):
-        start_ms = self.elapsed_millis(self.messages[-1][0]) - history_sec*1000
-        extremes = {score:['', ''] for score in self.score_names}
-        for si, score in enumerate(self.score_names):
-            df = self.data[si]
-            relevant_df = df.loc[df['millis'] >= start_ms, :]
-            means = relevant_df.mean()
-            stds = relevant_df.std()
-            for callsign in self.callsigns:
-                thiscall_ub = means[callsign] + stds[callsign]
-                thiscall_lb = means[callsign] - stds[callsign]
-                if np.all([thiscall_ub <= means[other]-stds[other] for other in self.callsigns]):
-                    extremes[score][0] = callsign
-                if np.all([thiscall_lb >= means[other]+stds[other] for other in self.callsigns]):
-                    extremes[score][1] = callsign
-                    
-        return extremes
+    '''
+“Overall” leadership score: mean = 6.1, SD = 1.6. 
+Attribute leadership scores: 
+IDEAS: mean = 4.0, SD = 1.6. 
+FOCUS: mean = 4.2, SD = 1.3. 
+COORDINATE: mean = 4.6, SD = 1.1. 
+MONITOR: mean = 3.9, SD = 1.4. 
+SHARE: mean = 4.3, SD = 1.3. 
+PLAN: mean = 4.1, SD = 1.3. 
+AGREE: mean = 4.6, SD = 1.2. 
+HELP: mean = 4.8, SD = 1.2.
+'''
                     

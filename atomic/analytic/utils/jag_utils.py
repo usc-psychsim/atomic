@@ -1,8 +1,6 @@
 from uuid import uuid4
 
-from src.models.jags.jag import Jag
-from src.models.joint_activity_model import JointActivityModel
-from src.models.jags import asist_jags as aj
+from ..models.jags.jag import Jag
 
 
 def merge_jags(jag1, jag2):

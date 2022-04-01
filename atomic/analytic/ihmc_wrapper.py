@@ -6,6 +6,7 @@ Created on Thu Mar 17 10:30:43 2022
 @author: mostafh
 """
 import traceback
+import pandas as pd
 
 from atomic.analytic.models.joint_activity_model import JointActivityModel
 from atomic.analytic.models.jags import asist_jags as aj
@@ -16,8 +17,7 @@ from atomic.analytic.acwrapper import ACWrapper
 class JAGWrapper(ACWrapper):
     def __init__(self, team_name, ac_name):
         super().__init__(team_name, ac_name)
-        
-
+        self.score_names = ["active_duration","joint_activity_efficiency","redundancy_ratio"]
         self.topic_handlers = {
             'trial': self.handle_trial,
             'observations/events/player/jag': self.handle_jag,
@@ -30,6 +30,7 @@ class JAGWrapper(ACWrapper):
         self.started = False
         self.asi_jam = JointActivityModel(aj.ASIST_JAGS)
         self.process_later = []
+        self.data = pd.DataFrame(columns=['millis'] + self.score_names)
 
     def handle_trial(self, message, data):
         if len(self.players) > 0:
@@ -80,8 +81,6 @@ class JAGWrapper(ACWrapper):
         for i in indices:
             self.handle_jag(self.process_later[i][1], self.process_later[i][2])
             
-        if len(indices) > 0:
-            print('==handled arears', len(indices))
         self.process_later = [self.process_later[i] for i in range(len(self.process_later)) if i not in indices]
 
     def handle_jag(self, message, data):
@@ -98,10 +97,16 @@ class JAGWrapper(ACWrapper):
                 inputs = instance_description['inputs']
                 if self.asi_jam.get(urn, inputs) is None:
                     self.asi_jam.create_from_instance(instance_description)
-    #            print("discovered " + jag.short_string(), jag.id, 'for', player_id)
+                if urn == 'urn:ihmc:asist:rescue-victim':
+                    print("discovered " + jag.short_string(), jag.id, 'for', player_id)
                 self.look_back(jag.id)
                 return
-    
+
+            if message['sub_type'] == 'Event:Summary':
+                elapsed = [self.elapsed_millis(message)]
+                self.data.loc[len(self.data)] = elapsed + [data.get(score, 0) for score in self.score_names]     
+                return
+                
             observer_player_id = data['participant_id']
             observer_callsign = self.players[observer_player_id].callsign.lower()
             player = self.players[observer_player_id]
@@ -116,8 +121,6 @@ class JAGWrapper(ACWrapper):
             asi_jag_instance = self.asi_jam.get_by_urn_recursive(jag_instance.urn, jag_instance.inputs, jag_instance.outputs)
             if asi_jag_instance is None:
                 print('oh no')
-    
-#            print(message['sub_type'], observer_player_id, uid, instance_update.get('urn', ''), elapsed_ms)        
                 
             if message['sub_type'] == 'Event:Awareness':
                 # self.logger.info(jag_instance.short_string() + " awareness " + str(awareness))
@@ -150,11 +153,9 @@ class JAGWrapper(ACWrapper):
                 completion_status = instance_update['is_complete']
                 jag_instance.update_completion_status(observer_callsign, completion_status, elapsed_ms)
                 asi_jag_instance.update_completion_status(observer_callsign, completion_status, elapsed_ms)
-                if jag_instance.urn != 'urn:ihmc:asist:search-area':
-                    print(jag_instance.short_string(), str(completion_status), observer_player_id)
-                    print('asi jag', asi_jag_instance.to_string())
-            elif message['sub_type'] == 'Event:Summary':
-                print(message, data)                
+#                if jag_instance.urn != 'urn:ihmc:asist:search-area':
+#                    print(jag_instance.short_string(), str(completion_status), observer_player_id)
+#                    print('asi jag', asi_jag_instance.to_string())
                 
             else:
                 print('je ne sais pas quoi', data)

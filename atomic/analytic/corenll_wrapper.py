@@ -27,28 +27,7 @@ class ComplianceWrapper(ACWrapper):
             row = elapsed + [data.get(score+'_'+callsign, 0) for callsign in self.callsigns]
             self.data[si].loc[len(self.data[si])] = row
             
-        if (len(self.messages) % 10) == 1:
-            print(self.compare(10))
+#        if (len(self.messages) % 10) == 1:
+#            print(self.name, self.compare(10))            
             
-    ''' Compare players over the last history_sec seconds
-        For each score, return a list of [min, max] of the players that fall well below/above 
-        the others on this score.
-    '''
-    def compare(self, history_sec):
-        start_ms = self.elapsed_millis(self.messages[-1][0]) - history_sec*1000
-        extremes = {score:['', ''] for score in self.score_names}
-        for si, score in enumerate(self.score_names):
-            df = self.data[si]
-            relevant_df = df.loc[df['millis'] >= start_ms, :]
-            means = relevant_df.mean()
-            stds = relevant_df.std()
-            for callsign in self.callsigns:
-                thiscall_ub = means[callsign] + stds[callsign]
-                thiscall_lb = means[callsign] - stds[callsign]
-                if np.all([thiscall_ub <= means[other]-stds[other] for other in self.callsigns]):
-                    extremes[score][0] = callsign
-                if np.all([thiscall_lb >= means[other]+stds[other] for other in self.callsigns]):
-                    extremes[score][1] = callsign
-                    
-        return extremes
                     

@@ -236,8 +236,10 @@ class Map:
     def remove_block(self, x, y, z):
         self.__blocks[x, y, z] = 0
         block_key = self.__block_key(x, y)
-        self.__points_of_interest.pop(block_key)
+        if block_key not in self.__points_of_interest:
+            return
 
+        self.__points_of_interest.pop(block_key)
         self.on_map_update()
 
     def set_block(self, x, y, z, block_type, block_id):

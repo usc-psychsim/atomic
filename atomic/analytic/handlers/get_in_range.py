@@ -17,6 +17,9 @@ def handle_location_update(jag_instance: Jag, data):
 
         player_id = data['participant_id']
         elapsed_ms = data['elapsed_milliseconds']
+        if elapsed_ms < 0.0:  # ignore negative times, they should only happen after the trial has ended
+            return
+
         jag_instance.update_addressing(player_id, player_id, 1.0, elapsed_ms)
         jag_instance.update_addressing(player_id, player_id, 0.0, elapsed_ms)
         jag_instance.update_completion_status(player_id, True, elapsed_ms)
