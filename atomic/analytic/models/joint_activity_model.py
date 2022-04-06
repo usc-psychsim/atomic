@@ -1,8 +1,9 @@
-from uuid import uuid4
-from ..handlers import stabilize, diagnose, unlock, pick_up, drop_off, at_proper_triage_area, get_in_range
-from ..models.jags.registry import JagRegistry
-from ..models.jags import asist_jags as aj
+from typing import Optional
 
+from ..handlers import stabilize, diagnose, unlock, pick_up, drop_off, at_proper_triage_area, get_in_range
+from ..models.jags import asist_jags as aj
+from ..models.jags.jag import Jag
+from ..models.jags.registry import JagRegistry
 
 # @TODO: belongs to some configuration, refactor
 __HANDLERS__ = {
@@ -62,16 +63,20 @@ class JointActivityModel:
     def dispatch(self, event_type, data):
         JointActivityModel.__dispatch(event_type, data, self.__jag_instances)
 
-    def get_by_id(self, uid):
+    def get_by_id(self, uid) -> Optional[Jag]:
         for instance in self.__jag_instances:
+            if instance is None:
+                print('yalhwi')
             value = instance.get_by_id(uid)
             if value is not None:
                 return value
         return None
 
     # only inspect top level jags
-    def get(self, urn, inputs=None, outputs=None):
+    def get(self, urn, inputs=None, outputs=None) -> Optional[Jag]:
         for instance in self.__jag_instances:
+            if instance is None:
+                print('yalhwi')
             if instance.matches(urn, inputs, outputs):
                 return instance
         return None
@@ -81,7 +86,6 @@ class JointActivityModel:
             if instance.get_by_urn(urn, inputs, outputs):
                 return instance
         return None
-
 
     #  @todo id should be a parameter and default to uuid4: uid=uuid4() and set of children
     def create(self, urn, inputs=None, outputs=None):

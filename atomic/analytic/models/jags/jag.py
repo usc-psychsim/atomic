@@ -1,9 +1,10 @@
 import logging
+
+from ..events import JagEvent
 from ...models.jags import asist_jags as aj
 from ...utils.activity_tracker import ActivityTracker, get_non_overlapping_activity_tracker_set, \
     get_sum_of_activity_durations, only_ongoing_activities, get_uniquely_non_overlapping_activity_tracker_set
 from ...utils.time_period import TimePeriod
-from ...utils.time_period import get_non_overlapping_set
 
 
 def update_knowledge(player_id, category, confidence_value, elapsed_ms):
@@ -30,8 +31,6 @@ def update_knowledge(player_id, category, confidence_value, elapsed_ms):
             if confidence_value > 0.0:  # only start tracking if confidence greater than zero
                 category[player_id].append(ActivityTracker(player_id, confidence_value, TimePeriod(elapsed_ms, -1)))
         category[player_id] = get_non_overlapping_activity_tracker_set(category[player_id])
-
-from ..events import JagEvent
 
 
 class Jag:
@@ -93,6 +92,17 @@ class Jag:
     @property
     def is_leaf(self):
         return len(self.__children) == 0
+    
+    def get_leaves(self, leaves=None):
+        if leaves == None:
+            leaves = []
+        if self.is_leaf:
+            ret = leaves
+            ret.append(self)
+            return ret
+        for ch in self.children:
+            leaves = ch.get_leaves(leaves)
+        return leaves
 
     def __get_activity_set(self, category_type):
         activity_tracker_set = []
@@ -166,14 +176,14 @@ class Jag:
         if len(activity_set) == 0 or only_ongoing_activities(activity_set):
             return -1
 
-        return get_sum_of_activity_durations(activity_set) / 1000
+        return get_sum_of_activity_durations(activity_set)
 
     def preparing_non_overlapping_duration(self):
         activity_set = self.__get_non_overlapping_activity_set("preparing")
         if len(activity_set) == 0 or only_ongoing_activities(activity_set):
             return -1
 
-        return get_sum_of_activity_durations(activity_set) / 1000
+        return get_sum_of_activity_durations(activity_set)
 
     @property
     def estimated_preparation_duration(self):
@@ -215,14 +225,14 @@ class Jag:
         if len(activity_set) == 0 or only_ongoing_activities(activity_set):
             return -1
 
-        return get_sum_of_activity_durations(activity_set) / 1000
+        return get_sum_of_activity_durations(activity_set)
 
     def addressing_non_overlapping_duration(self):
         activity_set = self.__get_non_overlapping_activity_set("addressing")
         if len(activity_set) == 0 or only_ongoing_activities(activity_set):
             return -1
 
-        return get_sum_of_activity_durations(activity_set) / 1000
+        return get_sum_of_activity_durations(activity_set)
 
     @property
     def estimated_addressing_duration(self):
@@ -469,9 +479,9 @@ class Jag:
         data = {
             'id': self.id_string,
             'urn': self.__urn,
-            'children': [],
             'inputs': self.__inputs,
-            'outputs': self.__outputs
+            'outputs': self.__outputs,
+            'children': [],
         }
 
         for child in self.__children:
@@ -518,4 +528,3 @@ class Jag:
 
     def set_estimated_preparation_duration(self, estimated_preparation_duration):
         self.__estimated_preparation_duration = estimated_preparation_duration
-
