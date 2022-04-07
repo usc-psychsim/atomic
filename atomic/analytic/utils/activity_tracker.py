@@ -1,4 +1,4 @@
-from ..utils.time_period import does_overlap, contains_overlapping_set, TimePeriod, get_non_overlap_union, \
+from .time_period import does_overlap, contains_overlapping_set, TimePeriod, get_non_overlap_union, \
     get_uniquely_non_overlapping_set
 
 
@@ -37,6 +37,9 @@ class ActivityTracker:
 
     def __repr__(self):
         return self.to_string()
+
+    def __eq__(self, other):
+        return self.who == other.who and self.confidence == other.confidence and self.time_period == other.time_period
 
 
 def does_match(activity_tracker_1, activity_tracker_2):

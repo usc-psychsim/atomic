@@ -38,12 +38,64 @@ class JAGWrapper(ACWrapper):
         self.role_to_urns = {clr:common_tasks for clr in ['red', 'blue', 'green']}
         self.role_to_urns['red'].extend([aj.STABILIZE, aj.DETERMINE_TRIAGE_AREA])
         self.role_to_urns = {k:[j['urn'] for j in v] for k,v in self.role_to_urns.items()}
+        
+        self.debug_discover = []
+
+    def all_players_jag_ids(self):
+        for pid in self.players.keys():
+            self.player_jag_ids(pid)
+            
+                
+    def player_jag_ids(self, player_id, short=True):
+        for jag in self.players[player_id].joint_activity_model.jag_instances:
+            if jag.urn != aj.RESCUE_VICTIM['urn']:
+                continue
+            if short:
+                s = jag.short_string()
+            else:
+                s = jag.to_string()
+            print(player_id, s)
+            
+        
+    def print_asi_jam(self, short=True):
+        for jag in self.asi_completed_jags:
+            if jag.urn != aj.RESCUE_VICTIM['urn']:
+                continue
+            if short:
+                s = jag.short_string()
+            else:
+                s = jag.to_string()
+            print(s)
+
+    ''' Look back at messages that were received prematurely
+        if you find this uid, process them
+    '''
+    def look_back(self, uid):
+        indices = [i for i in range(len(self.process_later)) if self.process_later[i][0] == uid]
+        for i in indices:
+            self.handle_jag(self.process_later[i][1], self.process_later[i][2])
+            
+        self.process_later = [self.process_later[i] for i in range(len(self.process_later)) if i not in indices]
+
+    ########################################
+    ########################################
+    ######### Start of IHMC code copied from src/agents/joint_activity_client.py
+    ######### Code was copied as-is except for lines indicated as such
+    ########################################
+    ########################################
 
     def handle_trial(self, message, data):
         if len(self.players) > 0:
             return
         players = {}
         for client in data['client_info']:
+                
+            ########################################
+            ######### USC addition
+            ########################################
+            if len(client['callsign']) == 0:
+                continue
+            
             players[client['participant_id']] = Player(client)
         self.players.update(players)
         super().handle_trial(message, data)
@@ -62,182 +114,140 @@ class JAGWrapper(ACWrapper):
         player = self.players[player_id]
         player.set_role(role)
         
-    def all_players_jag_ids(self):
-        for pid in self.players.keys():
-            self.player_jag_ids(pid)
-            
-                
-    def player_jag_ids(self, player_id):
-        for jag in self.players[player_id].joint_activity_model.jag_instances:
-            if jag.urn != aj.RESCUE_VICTIM['urn']:
-                continue
-            print(player_id, jag.to_string())
-            
-        
-    def print_asi_jam(self):
-        for jag in self.asi_completed_jags:
-            if jag.urn != aj.RESCUE_VICTIM['urn']:
-                continue
-            print(jag.to_string())
-
-    ''' Look back at messages that were received prematurely
-        if you find this uid, process them
-    '''
-    def look_back(self, uid):
-        indices = [i for i in range(len(self.process_later)) if self.process_later[i][0] == uid]
-        for i in indices:
-            self.handle_jag(self.process_later[i][1], self.process_later[i][2])
-            
-        self.process_later = [self.process_later[i] for i in range(len(self.process_later)) if i not in indices]
-
     def handle_jag(self, message, data):
         try:
             if message['sub_type'] == 'Event:Discovered':
                 player_id = data['participant_id']
                 player = self.players[player_id]
                 instance_description = data['jag']
-                jag = player.joint_activity_model.create_from_instance(instance_description)                
-#                if instance_description['urn'] == aj.RESCUE_VICTIM['urn']:
-#                    print("discovered " + jag.short_string(), jag.id, 'for', player_id)
-                ## In case messages arrived out of order
-                if jag is None:
-                    print('stop')
-                self.look_back(jag.id)
-                return
-
-            if message['sub_type'] == 'Event:Summary':
-                elapsed = [self.elapsed_millis(message)]
-                self.data.loc[len(self.data)] = elapsed + [data.get(score, 0) for score in self.score_names]     
-                return
+                jag = player.joint_activity_model.create_from_instance(instance_description)
+                self.debug_discover.append(jag)
+#                print("discovered " + jag.short_string())
+            elif message['sub_type'] == 'Event:Awareness':
+                observer_player_id = data['participant_id']
+                player = self.players[observer_player_id]
+                instance_update = data['jag']
+                uid = instance_update['id']
+                jag_instance = player.joint_activity_model.get_by_id(uid)
                 
-            observer_player_id = data['participant_id']
-            observer_callsign = self.players[observer_player_id].callsign.lower()
-            player = self.players[observer_player_id]
-            instance_update = data['jag']
-            uid = instance_update['id']
-            elapsed_ms = instance_update['elapsed_milliseconds'] 
-            self.elapsed_milliseconds = elapsed_ms       
-            if player.joint_activity_model is None:
-                print('stop')
-            jag_instance = player.joint_activity_model.get_by_id(uid)
-            
-            ## If messages arrive out of order, keep this one for later processing
-            if jag_instance is None:
-                self.process_later.append([uid, message, data])
-                return
+                ########################################
+                ######### USC addition
+                ########################################
+                if jag_instance is None: 
+                    self.process_later.append([uid, message, data])
+                    return
                 
-            if message['sub_type'] == 'Event:Awareness':
-                # self.logger.info(jag_instance.short_string() + " awareness " + str(awareness))
                 awareness = instance_update['awareness']
+                # print(jag_instance.short_string() + " awareness " + str(awareness))
+                elapsed_ms = instance_update['elapsed_milliseconds']
+                self.elapsed_milliseconds = elapsed_ms
+                observer_callsign = self.players[observer_player_id].callsign.lower()
                 for aware_player_id in awareness.keys():
                     callsign = self.players[aware_player_id].callsign.lower()
                     jag_instance.update_awareness(observer_callsign, callsign, awareness[aware_player_id], elapsed_ms)
-                    
-            elif message['sub_type'] == 'Event:Addressing':                
-                addressing = instance_update['addressing']
-                for addressing_player_id in addressing.keys():
-                    callsign = self.players[addressing_player_id].callsign.lower()
-                    jag_instance.update_addressing(observer_callsign, callsign, addressing[addressing_player_id], elapsed_ms)
-#                    if addressing[addressing_player_id] > 0:
-#                        print('-----------', jag_instance.urn, jag_instance.inputs, addressing_player_id, addressing[addressing_player_id])
-#                        self.print_asi_jam()
-            
-            elif message['sub_type'] == 'Event:Preparing':  
+            elif message['sub_type'] == 'Event:Preparing':
+                # update individual
+                observer_player_id = data['participant_id']
+                player = self.players[observer_player_id]
+                instance_update = data['jag']
+                uid = instance_update['id']
+                jag_instance = player.joint_activity_model.get_by_id(uid)
+                
+                ########################################
+                ######### USC addition
+                ########################################
+                if jag_instance is None: 
+                    self.process_later.append([uid, message, data])
+                    return                
+                
                 preparing = instance_update['preparing']
+                # print(jag_instance.short_string() + " preparing " + str(preparing))
+                elapsed_ms = instance_update['elapsed_milliseconds']
+                self.elapsed_milliseconds = elapsed_ms
+                observer_callsign = self.players[observer_player_id].callsign.lower()
                 for preparing_player_id in preparing.keys():
                     callsign = self.players[preparing_player_id].callsign.lower()
                     # update preparing based on last activity
                     if preparing[preparing_player_id] > 0.0:
                         jag_instance.update_preparing(observer_callsign, callsign, preparing[preparing_player_id], elapsed_ms)
+                        
+            elif message['sub_type'] == 'Event:Addressing':
+                # update individual
+                observer_player_id = data['participant_id']
+                player = self.players[observer_player_id]
+                instance_update = data['jag']
+                uid = instance_update['id']
+                jag_instance = player.joint_activity_model.get_by_id(uid)
                 
+                ########################################
+                ######### USC addition
+                ########################################
+                if jag_instance is None: 
+                    self.process_later.append([uid, message, data])
+                    return
+                
+                addressing = instance_update['addressing']
+                # print(jag_instance.short_string() + " addressing " + str(addressing))
+                elapsed_ms = instance_update['elapsed_milliseconds']
+                self.elapsed_milliseconds = elapsed_ms
+                observer_callsign = self.players[observer_player_id].callsign.lower()
+                for preparing_player_id in addressing.keys():
+                    callsign = self.players[preparing_player_id].callsign.lower()
+                    # update preparing based on last activity
+                    if addressing[preparing_player_id] > 0.0:
+                        if player.last_activity_completed is None:
+                            # print(self.callsign + " last activity = " + str(self.last_activity_completed) + " so use awareness time " + str(jag_instance.awareness_time))
+                            jag_instance.update_preparing(observer_callsign, callsign, 1.0, jag_instance.awareness_time(callsign))
+                            jag_instance.update_preparing(observer_callsign, callsign, 0.0, jag_instance.awareness_time(callsign))
+                        else:
+                            # print(self.callsign + " last activity = " + str(self.last_activity_completed.urn) + " so use last activity time " + str(self.last_activity_completion_time))
+                            jag_instance.update_preparing(observer_player_id, callsign, 1.0, player.last_activity_completion_time)
+                            jag_instance.update_preparing(observer_player_id, callsign, 0.0, player.last_activity_completion_time)
+                    # update addressing
+                    jag_instance.update_addressing(observer_callsign, callsign, addressing[preparing_player_id], elapsed_ms)
+
             elif message['sub_type'] == 'Event:Completion':
+                # update individual
+                observer_player_id = data['participant_id']
+                player = self.players[observer_player_id]
+                instance_update = data['jag']
+                uid = instance_update['id']
+                jag_instance = player.joint_activity_model.get_by_id(uid)
+                
+                ########################################
+                ######### USC addition
+                ########################################
+                if jag_instance is None: 
+                    self.process_later.append([uid, message, data])
+                    return
+                
                 completion_status = instance_update['is_complete']
+                elapsed_ms = instance_update['elapsed_milliseconds']
+                self.elapsed_milliseconds = elapsed_ms
+                # print(jag_instance.short_string() + " completion_status " + str(completion_status) + ": " + str(elapsed_ms))
+                observer_callsign = self.players[observer_player_id].callsign.lower()
                 jag_instance.update_completion_status(observer_callsign, completion_status, elapsed_ms)
-                if jag_instance.urn == aj.MOVE_VICTIM_TO_TRIAGE_AREA['urn'] and jag_instance.is_complete():
-                    self.compute_measure(jag_instance)
-                    print(jag_instance.short_string())
-#                    self.player_stats()
+
+                # update last activity to track prepare time
+                if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
+                    player.set_last_activity_completed(jag_instance)
+                    player.set_last_activity_completion_time(elapsed_ms)
+
+
                 
-            else:
-                print('je ne sais pas quoi', data)
-            
+            ########################################
+            ######### USC addition
+            ########################################
+            elif message['sub_type'] == 'Event:Summary':
+                print('Summary')
+                player2jag = data['jag']['instances']
+                self.compute_measure(player2jag)
+                self.print_asi_jam()
+#                self.player_stats()
+                
         except Exception:
-            print(traceback.format_exc()) 
-            
-#        if (len(self.messages) % 500) == 0:
-#            self.team_summary()
-            
-    def player_stats(self):
-        role_lookup = {'Red': 'medic',
-              'Blue': 'engineer',
-              'Green': 'transporter'}
-        print('individually')
-        self.__player_stats_from_jags(False)
-        print('asi perspective')
-        self.__player_stats_from_jags(True)        
-            
-            
-    def __player_stats_from_jags(self, from_asi_perspective):
-        pmap = {'P000464': 'green', 'P000465': 'blue', 'P000463': 'red'}
-        for player_id in self.players.keys():
-            leaves_dict = dict()
-            color = pmap[player_id]
-            if from_asi_perspective:
-                jags = self.asi_completed_jags
-            else:
-                jags = self.players[player_id].joint_activity_model.jag_instances
-                
-            ## Collect the leaves of all jags, except those this player can't do (consult role_to_urns)
-            for jag in jags:
-                if jag.urn != aj.RESCUE_VICTIM['urn']:
-                    continue
-                iter_leaves = {l.short_string():l for l in jag.get_leaves() if l.urn in self.role_to_urns[color]}
-                leaves_dict.update(iter_leaves)
-                
-            addressing = [l for l in leaves_dict.values() if color in l.get_addressing()]
-            awareness = [l for l in leaves_dict.values() if color in l.get_awareness()]
-            unawareness = [l for l in leaves_dict.values() if color not in l.get_awareness()]
-            
-            ## NOTE: you may be aware of something but not addressing it because you're waiting on a dependency
-            print(color, 'addressing', len(addressing), 'aware', len(awareness), 'total', len(leaves_dict))
-#            if color == 'green':
-#                for l in addressing:
-#                    print(l.short_string())
-            for l in unawareness:
-                print(l.short_string())
+            print(traceback.format_exc())
     
-    def compute_measure(self, jag: Jag):
-        instances: dict[str, str] = {}
-        last_player_id = None
-        new_asi_jag = None
-        for player_id in self.players:
-            last_player_id = player_id
-            player = self.players[player_id]
-            player_victim_jag = player.joint_activity_model.get(aj.RESCUE_VICTIM['urn'], jag.inputs, jag.outputs)
-            if player_victim_jag is not None:
-                instances[player_id] = player_victim_jag.id_string
-                if new_asi_jag is None:
-                    new_asi_jag = player_victim_jag
-                else:
-                    new_asi_jag = merge_jags(new_asi_jag, player_victim_jag)
-
-        self.recheck_completion(new_asi_jag, last_player_id)
-        self.asi_completed_jags.append(new_asi_jag)
-#        estimate = merged_jag.estimated_completion_duration
-#        active_duration = merged_jag.completion_duration()
-#        non_overlapping_duration = merged_jag.completion_non_overlapping_duration()
-#        man_hour_efficiency = non_overlapping_duration / active_duration
-#        joint_activity_efficiency = estimate / active_duration
-
-    # used to update completion status after merging jags
-    def recheck_completion(self, jag: Jag, player_id):
-        if jag.is_leaf:
-            jag.update_completion_status(player_id, jag.is_complete(), jag.completion_time)
-        else:
-            for child in jag.children:
-                self.recheck_completion(child, player_id)
-
-
     def __get_player_by_callsign(self, callsign):
         for player in self.players.values():
             if player.callsign.lower() == callsign.lower():
@@ -299,3 +309,86 @@ class JAGWrapper(ACWrapper):
               " (" + str(complete_count) + " complete/" + str(len(jag_set) - complete_count) + " incomplete)" +
               " (" + str(active_count) + " active/" + str(len(jag_set) - active_count) + " inactive)")
 
+
+    ########################################
+    ######### End of IHMC code copied from src/agents/joint_activity_client.py
+    ########################################
+
+            
+            
+#        if (len(self.messages) % 500) == 0:
+#            self.team_summary()
+            
+    def player_stats(self):
+        role_lookup = {'Red': 'medic',
+              'Blue': 'engineer',
+              'Green': 'transporter'}
+        print('individually')
+        self.__player_stats_from_jags(False)
+        print('asi perspective')
+        self.__player_stats_from_jags(True)        
+            
+            
+    def __player_stats_from_jags(self, from_asi_perspective):
+        pmap = {'P000464': 'green', 'P000465': 'blue', 'P000463': 'red'}
+        for player_id in self.players.keys():
+            leaves_dict = dict()
+            color = pmap[player_id]
+            if from_asi_perspective:
+                jags = self.asi_completed_jags
+            else:
+                jags = self.players[player_id].joint_activity_model.jag_instances
+                
+            ## Collect the leaves of all jags, except those this player can't do (consult role_to_urns)
+            for jag in jags:
+                if jag.urn != aj.RESCUE_VICTIM['urn']:
+                    continue
+                iter_leaves = {l.short_string():l for l in jag.get_leaves() if l.urn in self.role_to_urns[color]}
+                leaves_dict.update(iter_leaves)
+                
+            addressing = [l for l in leaves_dict.values() if color in l.get_addressing()]
+            awareness = [l for l in leaves_dict.values() if color in l.get_awareness()]
+            unawareness = [l for l in leaves_dict.values() if color not in l.get_awareness()]
+            
+            ## NOTE: you may be aware of something but not addressing it because you're waiting on a dependency
+            print(color, 'addressing', len(addressing), 'aware', len(awareness), 'total', len(leaves_dict))
+#            if color == 'green':
+#                for l in addressing:
+#                    print(l.short_string())
+#            for l in unawareness:
+#                print(l.short_string())
+    
+    ########################################
+    ########################################
+    ######### Start of IHMC code copied from src/agents/joint_activity_monitor.pyicated as such
+    ########################################
+    ########################################
+
+    def compute_measure(self, player2jag):
+        new_asi_jag = None
+        for player_id, jag_id in player2jag.items():
+            player = self.players[player_id]
+            player_victim_jag = player.joint_activity_model.get_by_id(jag_id)
+            if new_asi_jag is None:
+                new_asi_jag = player_victim_jag
+            else:
+                new_asi_jag = merge_jags(new_asi_jag, player_victim_jag)
+
+        self.asi_completed_jags.append(new_asi_jag)
+#        estimate = merged_jag.estimated_completion_duration
+#        active_duration = merged_jag.completion_duration()
+#        non_overlapping_duration = merged_jag.completion_non_overlapping_duration()
+#        man_hour_efficiency = non_overlapping_duration / active_duration
+#        joint_activity_efficiency = estimate / active_duration
+
+    # used to update completion status after merging jags
+    def recheck_completion(self, jag: Jag, player_id):
+        if jag.is_leaf:
+            jag.update_completion_status(player_id, jag.is_complete(), jag.completion_time)
+        else:
+            for child in jag.children:
+                self.recheck_completion(child, player_id)
+
+    ########################################
+    ######### End of IHMC code copied from src/agents/joint_activity_monitor.pyicated as such
+    ########################################

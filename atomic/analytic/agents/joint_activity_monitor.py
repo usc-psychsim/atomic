@@ -60,7 +60,8 @@ class JointActivityMonitor(ASISTAgentHelper):
             'observations/events/player/victim_placed': self.__handle_victim_placed,
             'observations/events/player/location': self.__handle_location_change,
             'observations/events/player/proximity_block': self.__handle_proximity_block,
-            'observations/events/player/proximity': self.__handle_proximity
+            'observations/events/player/proximity': self.__handle_proximity,
+            'observations/events/player/rubble_destroyed': self.__handle_rubble_destroyed
         }
 
     @property
@@ -304,6 +305,24 @@ class JointActivityMonitor(ASISTAgentHelper):
             player = self.__players[player_id]
             player.set_proximity_info(player_proximity)
 
+    def __handle_rubble_destroyed(self, header, message, data):
+        # instantiate if needed
+        player_id = data['participant_id']
+        player = self.__players[player_id]
+        elapsed_ms = data['elapsed_milliseconds']
+        instance = player.joint_activity_model.get(aj.CLEAR_PATH['urn'])
+        if instance is None:
+            self.get_logger().debug(f"__handle_rubble_destroyed: no clear path activity instance found, created a new one for {player.callsign}")
+            jag = aj.CLEAR_PATH
+            urn = jag['urn']
+            instance = player.joint_activity_model.create(urn)
+            self.publish_discovery(player.id, instance)
+            instance.add_observer(self.notify)
+            instance.add_observer(player.notify)
+            instance.update_awareness(player.id, player.id, 1.0, elapsed_ms)
+        else:
+            self.get_logger().debug(f"__handle_rubble_destroyed: clear path activity instance already exists for {player.callsign}")
+
     def notify(self, observer_player_id, event_type, data, elapsed_ms):
         self.publish_update(observer_player_id, event_type, data, elapsed_ms)
         if event_type == JagEvent.COMPLETION:
@@ -337,11 +356,12 @@ class JointActivityMonitor(ASISTAgentHelper):
 
     def __publish_jag_event(self, event_sub_type, data):
         event_sub_type_string = JAG_EVENT_SUB_TYPES[event_sub_type]
+        tb = str.join("", traceback.format_stack()[10:])
         event_string = f"\n" \
                        f"topic: {JAG_EVENT_TOPIC}\n" \
                        f"event: {JAG_EVENT_TYPE}:{event_sub_type_string}:{JAG_EVENT_VERSION}\n" \
                        f"data: {data}\n" \
-                       f"traceback: {traceback.format_exc()}\n"
+                       f"traceback: {tb}\n"
         self.__logger.debug(event_string)
         self.send_msg(JAG_EVENT_TOPIC, JAG_EVENT_TYPE, event_sub_type_string, JAG_EVENT_VERSION, data=data)
 

@@ -1,6 +1,8 @@
 class TimePeriod:
 
     def __init__(self, start, end):
+        if start is None:
+            print('no')
         if start < 0:
             raise Exception(f"Start time must not be negative (negative means unknown). {start}")
         if 0 <= end < start:
@@ -42,6 +44,9 @@ class TimePeriod:
 
     def __repr__(self):
         return self.to_string()
+
+    def __eq__(self, other):
+        return self.start == other.start and self.end == other.end
 
 
 def does_overlap(time_period_1, time_period_2):

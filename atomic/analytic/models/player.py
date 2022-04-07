@@ -54,6 +54,7 @@ class Player:
         # stuff to track what was being done previously
         self.__last_activity_completed = None
         self.__last_activity_completion_time = 0
+        self.__last_rubble_activity_time = 0
 
     @staticmethod
     def __get_horizontal_fov(vertical_fov, window_dimensions):
@@ -214,32 +215,53 @@ class Player:
     def set_last_activity_completion_time(self, last_activity_completion_time):
         self.__last_activity_completion_time = last_activity_completion_time
 
+    def set_last_activity(self, last_activity, last_activity_time):
+        self.__last_activity_completed = last_activity
+        self.__last_activity_completion_time = last_activity_time
+        if self.callsign == 'Blue' and (self.__last_activity_completed != last_activity and self.__last_activity_completion_time != last_activity_time):
+            print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
+
+    @property
+    def last_rubble_activity_time(self):
+        return self.__last_rubble_activity_time
+
     # The listener is used to try to infer prepare time from last activity
     def notify(self, observer_player_id, event_type, data, elapsed_ms):
         if event_type == JagEvent.ADDRESSING:
             jag_instance = data['jag']
-            player_id = data['addressing_player_id']
-            confidence_value = data['confidence_value']
-            if confidence_value > 0.0:
-                if jag_instance.urn == aj.AT_PROPER_TRIAGE_AREA['urn']:
-                    jag_instance.update_preparing(observer_player_id, player_id, 1.0, elapsed_ms)
-                    jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+            if jag_instance.is_leaf:
+                player_id = data['addressing_player_id']
+                confidence_value = data['confidence_value']
+                if confidence_value > 0.0:
+                    if jag_instance.urn == aj.AT_PROPER_TRIAGE_AREA['urn']:
+                        jag_instance.update_preparing(observer_player_id, player_id, 1.0, elapsed_ms)
+                        jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+                    else:
+                        if jag_instance.urn == aj.CLEAR_PATH['urn']:
+                            if self.last_activity_completed is None or self.last_activity_completed.urn != aj.CLEAR_PATH['urn']:
+                                jag_instance.update_preparing(observer_player_id, player_id, 1.0, self.last_activity_completion_time)
+                                jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+                                self.set_last_activity(jag_instance, elapsed_ms)
+                            self.__last_rubble_activity_time = elapsed_ms
+                        else:
+                            # deal with previous rubbling if relevant
+                            clear_path_instance = self.joint_activity_model.get(aj.CLEAR_PATH['urn'])
+                            if clear_path_instance is not None:
+                                if clear_path_instance.is_active():
+                                    clear_path_instance.update_addressing(observer_player_id, player_id, 0.0, self.__last_rubble_activity_time)
+                                    if self.__last_rubble_activity_time > self.__last_activity_completion_time:
+                                        self.set_last_activity(clear_path_instance, self.last_rubble_activity_time)
+                            # deal with normal preparing time stuff
+                            jag_instance.update_preparing(observer_player_id, player_id, 1.0, self.last_activity_completion_time)
+                            jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
+                            self.set_last_activity(jag_instance, elapsed_ms)
                 else:
-                    jag_instance.update_preparing(observer_player_id, player_id, 1.0, self.last_activity_completion_time)
-                    jag_instance.update_preparing(observer_player_id, player_id, 0.0, elapsed_ms)
-                    self.set_last_activity_completed(jag_instance)
-                    self.set_last_activity_completion_time(elapsed_ms)
-                    # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
-            else:
-                self.set_last_activity_completed(jag_instance)
-                self.set_last_activity_completion_time(elapsed_ms)
-                # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
+                    self.set_last_activity(jag_instance, elapsed_ms)
         elif event_type == JagEvent.COMPLETION:
             jag_instance = data
-            if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
-                self.set_last_activity_completed(jag_instance)
-                self.set_last_activity_completion_time(elapsed_ms)
-                # print(self.callsign + " setting last activity = " + str(self.last_activity_completed.short_string()) + ": " + str(self.last_activity_completion_time))
+            if jag_instance.is_leaf:
+                if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
+                    self.set_last_activity(jag_instance, elapsed_ms)
             if jag_instance.urn == aj.DIAGNOSE['urn']:
                 # do something to estimate move time
                 victim_id = jag_instance.inputs['victim-id']

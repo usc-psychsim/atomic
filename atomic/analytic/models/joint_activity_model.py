@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ..handlers import stabilize, diagnose, unlock, pick_up, drop_off, at_proper_triage_area, get_in_range
+from ..handlers import clear_path, stabilize, diagnose, unlock, pick_up, drop_off, at_proper_triage_area, get_in_range
 from ..models.jags import asist_jags as aj
 from ..models.jags.jag import Jag
 from ..models.jags.registry import JagRegistry
@@ -28,6 +28,9 @@ __HANDLERS__ = {
     },
     'urn:ihmc:asist:get-in-range': {
         'Event:location': get_in_range.handle_location_update,
+    },
+    'urn:ihmc:asist:clear-path': {
+        'Event:RubbleDestroyed': clear_path.handle_rubble_destroyed,
     }
 }
 
@@ -65,8 +68,6 @@ class JointActivityModel:
 
     def get_by_id(self, uid) -> Optional[Jag]:
         for instance in self.__jag_instances:
-            if instance is None:
-                print('yalhwi')
             value = instance.get_by_id(uid)
             if value is not None:
                 return value
@@ -75,8 +76,6 @@ class JointActivityModel:
     # only inspect top level jags
     def get(self, urn, inputs=None, outputs=None) -> Optional[Jag]:
         for instance in self.__jag_instances:
-            if instance is None:
-                print('yalhwi')
             if instance.matches(urn, inputs, outputs):
                 return instance
         return None

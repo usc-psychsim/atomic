@@ -23,11 +23,10 @@ class ComplianceWrapper(ACWrapper):
         
     def handle_msg(self, message, data):
         elapsed = [self.elapsed_millis(message)]
+        
+        ######### This needs an overhaul to work with pairwise compliance
+        
         for si, score in enumerate(self.score_names):
             row = elapsed + [data.get(score+'_'+callsign, 0) for callsign in self.callsigns]
             self.data[si].loc[len(self.data[si])] = row
             
-#        if (len(self.messages) % 10) == 1:
-#            print(self.name, self.compare(10))            
-            
-                    

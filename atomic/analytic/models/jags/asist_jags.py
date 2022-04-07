@@ -206,11 +206,11 @@ DIAGNOSE = {
 #     'children': []
 # }
 #
-# CLEAR_PATH = {
-#     'urn': 'urn:ihmc:asist:clear-path',
-#     'name': "Clear Path",
-#     'children': []
-# }
+CLEAR_PATH = {
+    'urn': 'urn:ihmc:asist:clear-path',
+    'name': "Clear Path",
+    'children': []
+}
 
 ASIST_JAGS = [
     RESCUE_VICTIM,
@@ -235,5 +235,5 @@ ASIST_JAGS = [
     # FIND_PATH,
     # GO_TO,
     # CHECK_IF_CLEAR,
-    # CLEAR_PATH
+    CLEAR_PATH
 ]
