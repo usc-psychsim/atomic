@@ -1,23 +1,20 @@
 from psychsim.pwl.keys import stateKey
 from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.tree import makeTree
+from psychsim.reward import maximizeFeature
 from psychsim.agent import Agent
-
-import operator
 
 
 class ASI(Agent):
 
-    # Effects that interventions have on AC variables
-    AC_effects = {'cheer': {'CMU_BEARD': {'anger': {'object': operator.lt},
-                                          'anxiety': {'object': operator.lt}}}}
     # Probability assigned to effects outlined in the AC_effects table
     base_probability = {'expected': 0.5, 'null': 0.4, 'unexpected': 0.1}
 
-    def __init__(self, world, config=None, name='ATOMIC'):
+    def __init__(self, world, acs={}, config=None, name='ATOMIC'):
+        self.acs = acs
         super().__init__(name, world)
 
-    def add_interventions(self, players):
+    def add_interventions(self, players, team):
         # Inter-mission AAR prompt
         # Associated state: Descriptors from situation to highlight (implies descriptors of current situation are being maintained)
 
@@ -31,32 +28,36 @@ class ASI(Agent):
         for player in players:
             for other in players:
                 if other != player:
-                    self.addAction({'verb': 'report drop', 'object': player, 'about': other})
+                    action = self.addAction({'verb': 'report drop', 'object': player, 'about': other})
+                    self.add_dynamics(action)
 
         # Recommend phase-sensitive plan
         # Associated state: Game phase
         for player in players:
-            self.addAction({'verb': 'notify phase', 'object': player})
+            action = self.addAction({'verb': 'notify phase', 'object': player})
+            self.add_dynamics(action)
             
         # Prompt for coordination best practices
         # Associated state: Unassigned requests/goals
         for player in players:
-            self.addAction({'verb': 'remind practices', 'object': player})
+            action = self.addAction({'verb': 'remind practices', 'object': player})
+            self.add_dynamics(action)
 
         # Spread workload
         # Associated state: workload of individual players
         for player in players:
-            self.addAction({'verb': 'distribute workload', 'object': player})
+            action = self.addAction({'verb': 'distribute workload', 'object': player})
+            self.add_dynamics(action)
 
     def add_dynamics(self, action):
         """
         Automatically add dynamics of action on AC variables
         """
         obj = action['object'] if action['object'] in self.world.agents else None
-        for AC, effect_table in self.AC_effects.get(action['verb']).items():
-            for feature, effects in effect_table.items():
+        for AC_name, AC in self.acs.items():
+            for feature, effects in AC.get_effects(action).items():
                 if obj:
-                    var = stateKey(obj, f'{AC} {feature}')
+                    var = stateKey(obj, f'{AC_name} {feature}')
                     if var in self.world.variables and 'object' in effects:
                         self.create_tree(var, action, effects['object'])
 
@@ -86,10 +87,13 @@ class ASI(Agent):
         return tree
 
 
-def make_asi(world, team_agent, players, config=None):
-    agent = ASI(world, config)
+def make_asi(world, team_agent, players, acs={}, config=None):
+    agent = ASI(world, acs, config)
     world.addAgent(agent)
-    agent.add_interventions(players)
+    agent.add_interventions(players, team_agent)
+    for AC in acs.values():
+        for var, weight in AC.get_ASI_reward().items():
+            agent.setReward(maximizeFeature(var, agent.name), weight)
     return agent
 
 

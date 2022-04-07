@@ -1,3 +1,6 @@
+from argparse import ArgumentParser
+import configparser
+
 from psychsim.world import World
 
 from atomic.teamwork.ac import make_ac_handlers, add_joint_activity
@@ -152,9 +155,17 @@ messages = [{
   }]
 
 if __name__ == '__main__':
+    # Command-line arguments
+    parser = ArgumentParser()
+    parser.add_argument('--config', help='Config file specifying execution parameters')
+    args = vars(parser.parse_args())
+
+    if args['config']:
+        config = configparser.ConfigParser()
+        config.read(args['config'])
     world = World()
     players = {name: world.addAgent(name) for name in ['p1', 'p2', 'p3']}
-    acs = make_ac_handlers()
+    acs = make_ac_handlers(config)
     team = Team(world)
     team.initialize_variables()
     world.addAgent(team)
@@ -164,7 +175,7 @@ if __name__ == '__main__':
         add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
     for player in players:
         agent = world.agents[player]
-        print(agent.getReward(agent.get_true_model()))
 
-    asi = make_asi(world, team, players)
+    asi = make_asi(world, team, players, acs, config)
     world.save('asi')
+    world.printState()

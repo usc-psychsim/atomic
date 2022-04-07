@@ -1,5 +1,9 @@
-from psychsim.pwl.keys import stateKey
+from psychsim.pwl.plane import equalRow
+from psychsim.pwl.tree import makeTree
+from psychsim.action import Action, ActionSet
 from psychsim.reward import maximizeFeature
+
+import operator
 
 
 class AC_model:
@@ -8,6 +12,20 @@ class AC_model:
         self.variables_team = kwargs.get('team', {})
         self.variables_player = kwargs.get('player', {})
         self.variables_pair = kwargs.get('pair', {})
+        self.variables = {}
+
+    def get_effects(self, intervention):
+        """
+        :return: any effects on this AC's variables by the given intervention
+        """
+        if isinstance(intervention, Action) or isinstance(intervention, ActionSet):
+            intervention = intervention['verb']
+        return {var: table['effects'][intervention] for var, table in self.variables.items() 
+                if 'effects' in table and intervention in table['effects']}
+
+    def get_ASI_reward(self):
+        return {var: table['ASI reward'] for var, table in self.variables.items()
+                if 'ASI reward' in table}        
 
     def augment_world(self, world, team_agent, players):
         """
@@ -16,76 +34,85 @@ class AC_model:
         """
         # Player-specific variables
         for player in players:
-            for var_name, values in self.variables_player.items():
-                if isinstance(values, list):
-                    var = world.defineState(player, f'{self.name} {var_name}', list, lo=values)
-                    world.setFeature(var, values[0])
-                elif values is int:
+            for var_name, table in self.variables_player.items():
+                if isinstance(table['values'], list):
+                    var = world.defineState(player, f'{self.name} {var_name}', list, lo=table['values'])
+                    world.setFeature(var, table['values'][0])
+                elif table['values'] is int:
                     var = world.defineState(player, f'{self.name} {var_name}', int, lo=0)
                     world.setFeature(var, 0)
                 else:
-                    raise TypeError(f'Unable to create variable {self.name} {var_name} of type {values.__class__.__name__}')
+                    raise TypeError(f'Unable to create variable {self.name} '
+                                    f'{var_name} of type {table["values"].__class__.__name__}')
+                self.variables[var] = table
         # Pairwise variables
         for player in players:
             for other in players:
                 if other != player:
-                    for var_name, values in self.variables_pair.items():
-                        if isinstance(values, list):
-                            var = world.defineRelation(player, other, f'{self.name} {var_name}', list, lo=values)
-                            world.setFeature(var, values[0])
-                        elif values is int:
+                    for var_name, table in self.variables_pair.items():
+                        if isinstance(table['values'], list):
+                            var = world.defineRelation(player, other, f'{self.name} {var_name}', list, lo=table['values'])
+                            world.setFeature(var, table['values'][0])
+                        elif table['values'] is int:
                             var = world.defineRelation(player, other, f'{self.name} {var_name}', int, lo=0)
                             world.setFeature(var, 0)
                         else:
-                            raise TypeError(f'Unable to create variable {self.name} {var_name} of type {values.__class__.__name__}')
+                            raise TypeError(f'Unable to create variable {self.name} {var_name} of type {table["values"].__class__.__name__}')
+                        self.variables[var] = table
         # Team-wide variables
-        for var_name, values in self.variables_team.items():
-            if isinstance(values, list):
-                var = world.defineState(team_agent.name, f'{self.name} {var_name}', list, lo=values)
-                world.setFeature(var, values[0])
-            elif values is int:
+        for var_name, table in self.variables_team.items():
+            if isinstance(table['values'], list):
+                var = world.defineState(team_agent.name, f'{self.name} {var_name}', list, lo=table['values'])
+                world.setFeature(var, table['values'][0])
+            elif table['values'] is int:
                 var = world.defineState(team_agent.name, f'{self.name} {var_name}', int, lo=0)
                 world.setFeature(var, 0)
             else:
-                raise TypeError(f'Unable to create variable {self.name} {var_name} of type {values.__class__.__name__}')
+                raise TypeError(f'Unable to create variable {self.name} {var_name} of type {table["values"].__class__.__name__}')
+            self.variables[var] = table
 
 
 AC_specs = {'CMU_TED': 
-            {'team': {'skill use': ['lo', 'mid', 'hi'],
-                      'task strategy': ['lo', 'mid', 'hi'],
-                      'collective effort': ['lo', 'mid', 'hi'],
-                      'communication': ['lo', 'mid', 'hi'],
+            {'team': {'skill use': {'values': ['lo', 'mid', 'hi'],
+                                    'ASI reward': 1},
+                      'task strategy': {'values': ['lo', 'mid', 'hi'],
+                                        'ASI reward': 1},
+                      'collective effort': {'values': ['lo', 'mid', 'hi'],
+                                            'ASI reward': 1},
+                      'communication': {'values': ['lo', 'mid', 'hi'],
+                                        'ASI reward': 1},
                       },
-             'player': {'skill use': ['lo', 'mid', 'hi'],
-                        'task strategy': ['lo', 'mid', 'hi'],
-                        'collective effort': ['lo', 'mid', 'hi'],
-                        'communication': ['lo', 'mid', 'hi'],
+             'player': {'skill use': {'values': ['lo', 'mid', 'hi'],
+                                      'condition': operator.gt},
+                        'task strategy': {'values': ['lo', 'mid', 'hi'],
+                                          'condition': operator.gt},
+                        'collective effort': {'values': ['lo', 'mid', 'hi'],
+                                              'condition': operator.gt},
+                        'communication': {'values': ['lo', 'mid', 'hi']},
                         },
              'pair': {},
              },
             'CMU_BEARD':
-            {'player': {'anger': ['lo', 'mid', 'hi'],
-                        'anxiety': ['lo', 'mid', 'hi'],
-                        'minecraft skill': ['lo', 'mid', 'hi'],
-                        'social perceptiveness': ['lo', 'mid', 'hi']}},
+            {'player': {'anger': {'values': ['lo', 'mid', 'hi'],
+                                  'effects': {'cheer': {'object': operator.lt}}},
+                        'anxiety': {'values': ['lo', 'mid', 'hi'],
+                                    'effects': {'cheer': {'object': operator.lt}}},
+                        'minecraft skill': {'values': ['lo', 'mid', 'hi'],
+                                            'condition': operator.gt},
+                        'social perceptiveness': {'values': ['lo', 'mid', 'hi']}}},
             'Gallup_GELP': 
-            {'player': {'ideas': ['lo', 'hi'],
-                        'focus': ['lo', 'hi'],
-                        'coordinate': ['lo', 'hi'],
-                        'monitor': ['lo', 'hi'],
-                        'share': ['lo', 'hi'],
-                        'plan': ['lo', 'hi'],
-                        'agree': ['lo', 'hi'],
-                        'help': ['lo', 'hi']}},
+            {'player': {'leadership': {'values': ['lo', 'hi']},
+                        }},
             'Cornell_Team_Trust':
-            {'pair': {'open requests': int,
-                      'compliance': int,
-                      'compliance rate': ['lo', 'hi'],
-                      'response start': ['lo', 'hi'],
-                      'response action': ['lo', 'hi']}},
+            {'pair': {'open requests': {'values': int},
+                      'compliance': {'values': int},
+                      'compliance rate': {'values': ['lo', 'hi']},
+                      'response start': {'values': ['lo', 'hi']},
+                      'response action': {'values': ['lo', 'hi']}}},
             'UCF':
-            {'player': {'taskwork potential': ['lo', 'hi'],
-                        'teamwork potential': ['lo', 'hi']}}
+            {'player': {'taskwork potential': {'values': ['lo', 'hi'],
+                                               'condition': operator.gt},
+                        'teamwork potential': {'values': ['lo', 'hi']}}}
             }
 
 
@@ -108,6 +135,11 @@ def add_joint_activity(world, player, team, jag):
     for model in world.get_current_models()[player.name]:
         goal = maximizeFeature(var, player.name)
         player.setReward(goal, 1, model)
+    # Add action for addressing this activity
+    if not player.hasAction({'verb': 'work on', 'object': victim}):
+        tree = makeTree({'if': equalRow(var, 'complete'), 
+                        True: False, False: True})
+        player.addAction({'verb': 'work on', 'object': victim}, tree)
     for child in jag['children']:
         add_joint_activity(world, player, team, child)
 
