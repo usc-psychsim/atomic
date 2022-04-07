@@ -31,7 +31,7 @@ class JAGWrapper(ACWrapper):
         self.elapsed_milliseconds = 0
         self.started = False
         self.asi_completed_jags = []
-        self.process_later = []
+        self.orphan_msgs = []
         self.data = pd.DataFrame(columns=['millis'] + self.score_names)
         common_tasks = [aj.AT_PROPER_TRIAGE_AREA, aj.CHECK_IF_UNLOCKED, aj.DROP_OFF_VICTIM, aj.PICK_UP_VICTIM,
                         aj.GET_IN_RANGE, aj.UNLOCK_VICTIM]
@@ -71,11 +71,11 @@ class JAGWrapper(ACWrapper):
         if you find this uid, process them
     '''
     def look_back(self, uid):
-        indices = [i for i in range(len(self.process_later)) if self.process_later[i][0] == uid]
+        indices = [i for i in range(len(self.orphan_msgs)) if self.orphan_msgs[i][0] == uid]
         for i in indices:
-            self.handle_jag(self.process_later[i][1], self.process_later[i][2])
+            self.handle_jag(self.orphan_msgs[i][1], self.orphan_msgs[i][2])
             
-        self.process_later = [self.process_later[i] for i in range(len(self.process_later)) if i not in indices]
+        self.orphan_msgs = [self.orphan_msgs[i] for i in range(len(self.orphan_msgs)) if i not in indices]
 
     ########################################
     ########################################
@@ -115,6 +115,10 @@ class JAGWrapper(ACWrapper):
         player.set_role(role)
         
     def handle_jag(self, message, data):
+        jid = data['jag'].get('id', '')
+        if jid == 'b35361d2-ee24-4a43-a3e5-c1a43afa9f7a':
+            print('+++++++++', message['sub_type'], data)
+#        
         try:
             if message['sub_type'] == 'Event:Discovered':
                 player_id = data['participant_id']
@@ -123,6 +127,14 @@ class JAGWrapper(ACWrapper):
                 jag = player.joint_activity_model.create_from_instance(instance_description)
                 self.debug_discover.append(jag)
 #                print("discovered " + jag.short_string())
+                
+                ########################################
+                ######### USC addition
+                ########################################
+                if jag.id == 'b35361d2-ee24-4a43-a3e5-c1a43afa9f7a':
+                    print('+++++++++', message['sub_type'], data)
+                self.look_back(jag.id)
+                
             elif message['sub_type'] == 'Event:Awareness':
                 observer_player_id = data['participant_id']
                 player = self.players[observer_player_id]
@@ -134,7 +146,7 @@ class JAGWrapper(ACWrapper):
                 ######### USC addition
                 ########################################
                 if jag_instance is None: 
-                    self.process_later.append([uid, message, data])
+                    self.orphan_msgs.append([uid, message, data])
                     return
                 
                 awareness = instance_update['awareness']
@@ -157,7 +169,7 @@ class JAGWrapper(ACWrapper):
                 ######### USC addition
                 ########################################
                 if jag_instance is None: 
-                    self.process_later.append([uid, message, data])
+                    self.orphan_msgs.append([uid, message, data])
                     return                
                 
                 preparing = instance_update['preparing']
@@ -183,7 +195,7 @@ class JAGWrapper(ACWrapper):
                 ######### USC addition
                 ########################################
                 if jag_instance is None: 
-                    self.process_later.append([uid, message, data])
+                    self.orphan_msgs.append([uid, message, data])
                     return
                 
                 addressing = instance_update['addressing']
@@ -196,6 +208,8 @@ class JAGWrapper(ACWrapper):
                     # update preparing based on last activity
                     if addressing[preparing_player_id] > 0.0:
                         if player.last_activity_completed is None:
+#                            if callsign not in jag_instance.get_awareness():
+#                                print('---', callsign, jag_instance.get_awareness(), data)
                             # print(self.callsign + " last activity = " + str(self.last_activity_completed) + " so use awareness time " + str(jag_instance.awareness_time))
                             jag_instance.update_preparing(observer_callsign, callsign, 1.0, jag_instance.awareness_time(callsign))
                             jag_instance.update_preparing(observer_callsign, callsign, 0.0, jag_instance.awareness_time(callsign))
@@ -218,7 +232,7 @@ class JAGWrapper(ACWrapper):
                 ######### USC addition
                 ########################################
                 if jag_instance is None: 
-                    self.process_later.append([uid, message, data])
+                    self.orphan_msgs.append([uid, message, data])
                     return
                 
                 completion_status = instance_update['is_complete']
@@ -232,17 +246,15 @@ class JAGWrapper(ACWrapper):
                 if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
                     player.set_last_activity_completed(jag_instance)
                     player.set_last_activity_completion_time(elapsed_ms)
-
-
                 
             ########################################
             ######### USC addition
             ########################################
             elif message['sub_type'] == 'Event:Summary':
-                print('Summary')
+#                print('Summary')
                 player2jag = data['jag']['instances']
                 self.compute_measure(player2jag)
-                self.print_asi_jam()
+#                self.print_asi_jam()
 #                self.player_stats()
                 
         except Exception:
@@ -312,10 +324,7 @@ class JAGWrapper(ACWrapper):
 
     ########################################
     ######### End of IHMC code copied from src/agents/joint_activity_client.py
-    ########################################
-
-            
-            
+    ########################################            
 #        if (len(self.messages) % 500) == 0:
 #            self.team_summary()
             
@@ -392,3 +401,19 @@ class JAGWrapper(ACWrapper):
     ########################################
     ######### End of IHMC code copied from src/agents/joint_activity_monitor.pyicated as such
     ########################################
+
+
+    def simple_stats(self):
+        from collections import  Counter
+        print('count of discovery message across all players by jag type\n', Counter([j.urn for j in self.debug_discover]))
+        for player_id, player in self.players.items():
+            player_jags = player.joint_activity_model.jag_instances
+            print('jag types for player', player_id, Counter([j.urn for j in player_jags]))
+            
+    def debug_orphans(self):
+        for uid, msg, data in self.orphan_msgs:
+             mtype = msg['sub_type']
+             player_id = data['participant_id']
+             player = self.players[player_id]
+             jag = player.joint_activity_model.get_by_id(uid)
+             print(mtype, player_id, (jag is None))
