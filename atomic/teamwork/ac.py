@@ -27,6 +27,10 @@ class AC_model:
         return {var: table['ASI reward'] for var, table in self.variables.items()
                 if 'ASI reward' in table}        
 
+    def get_conditions(self):
+        return {var: table['condition'] for var, table in self.variables.items()
+                if 'condition' in table}        
+
     def augment_world(self, world, team_agent, players):
         """
         :type team_agent: Agent
@@ -80,15 +84,18 @@ AC_specs = {'CMU_TED':
                       'collective effort': {'values': ['lo', 'mid', 'hi'],
                                             'ASI reward': 1},
                       'communication': {'values': ['lo', 'mid', 'hi'],
-                                        'ASI reward': 1},
+                                        'ASI reward': 1,
+                                        'effects': {'report drop': {'object': operator.gt}}},
                       },
              'player': {'skill use': {'values': ['lo', 'mid', 'hi'],
                                       'condition': operator.gt},
                         'task strategy': {'values': ['lo', 'mid', 'hi'],
                                           'condition': operator.gt},
                         'collective effort': {'values': ['lo', 'mid', 'hi'],
-                                              'condition': operator.gt},
-                        'communication': {'values': ['lo', 'mid', 'hi']},
+                                              'condition': operator.gt,
+                                              'effects': {'report drop': {'about': operator.gt}}},
+                        'communication': {'values': ['lo', 'mid', 'hi'],
+                                          'effects': {'report drop': {'object': operator.gt}}},
                         },
              'pair': {},
              },

@@ -1,5 +1,6 @@
 from psychsim.pwl.keys import stateKey
 from psychsim.pwl.matrix import setToConstantMatrix
+from psychsim.pwl.plane import equalRow
 from psychsim.pwl.tree import makeTree
 from psychsim.reward import maximizeFeature
 from psychsim.agent import Agent
@@ -13,6 +14,9 @@ class ASI(Agent):
     def __init__(self, world, acs={}, config=None, name='ATOMIC'):
         self.acs = acs
         super().__init__(name, world)
+        self.conditions = {}
+        for AC in self.acs.values():
+            self.conditions.update(AC.get_conditions())
 
     def add_interventions(self, players, team):
         # Inter-mission AAR prompt
@@ -57,11 +61,22 @@ class ASI(Agent):
         for AC_name, AC in self.acs.items():
             for feature, effects in AC.get_effects(action).items():
                 if obj:
-                    var = stateKey(obj, f'{AC_name} {feature}')
+                    var = stateKey(obj, feature)
                     if var in self.world.variables and 'object' in effects:
                         self.create_tree(var, action, effects['object'])
 
     def create_tree(self, var, action, effect):
+        # Create condition branch
+        condition_vars = list(self.conditions.keys())
+        total = sum([len(self.variables[var]['elements']) for var in condition_vars])
+        table = {'if': equalRow(condition_vars, list(range(total+1)))}
+        for condition_count in range(total+1):
+            table[condition_count] = self.create_subtree(var, effect, (condition_count+1)/(total+2))
+        tree = makeTree(table)
+        self.world.setDynamics(var, action, tree, codePtr=True)
+        return tree
+
+    def create_subtree(self, var, effect, scale=1):
         if self.world.variables[var]['domain'] is list:
             domain = self.world.variables[var]['elements']
         else:
@@ -82,9 +97,7 @@ class ASI(Agent):
                     prob = self.base_probability['unexpected']/(len(domain)-i-1)
                 dist.append((setToConstantMatrix(var, val_j), prob))
             table[val_i] = {'distribution': dist}
-        tree = makeTree(table)
-        self.world.setDynamics(var, action, tree, codePtr=True)
-        return tree
+        return table
 
 
 def make_asi(world, team_agent, players, acs={}, config=None):
