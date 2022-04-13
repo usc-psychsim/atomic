@@ -6,7 +6,6 @@ import os.path
 import sys
 import glob
 import traceback
-from atomic.definitions.map_utils import get_default_maps
 from atomic.parsing.get_psychsim_action_name import Msg2ActionEntry
 from atomic.parsing.parse_into_msg_qs import MsgQCreator
 from rddl2psychsim.conversion.converter import Converter
@@ -16,8 +15,11 @@ try:
 except ImportError:
     pbar_manager = None
 
-from psychsim.pwl import *
-from psychsim.action import *
+from psychsim.pwl.keys import stateKey, WORLD
+from psychsim.pwl.matrix import scaleMatrix, setToConstantMatrix
+from psychsim.pwl.plane import equalRow
+from psychsim.pwl.tree import makeTree
+from psychsim.action import Action, ActionSet
 
 COND_MAP_TAG = 'CondWin'
 COND_TRAIN_TAG = 'CondBtwn'
@@ -67,10 +69,11 @@ def accumulate_files(files, include_trials=None, ext='.metadata'):
         files.sort(key=lambda fname: int(filename_to_condition(os.path.splitext(os.path.basename(fname))[0])['Vers']))
         if len(files) > 1:
             logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} '\
-                f'{", ".join([filename_to_condition(os.path.splitext(fname)[0])["Vers"] for fname in files[:-1]])} '\
-                f'in favor of version {filename_to_condition(os.path.splitext(files[-1])[0])["Vers"]}')
+                            f'{", ".join([filename_to_condition(os.path.splitext(fname)[0])["Vers"] for fname in files[:-1]])} '\
+                            f'in favor of version {filename_to_condition(os.path.splitext(files[-1])[0])["Vers"]}')
     result = [files[-1] for files in trials.values()]
     return result
+
 
 def make_augmented_world(fname, visitation=True, victims=None, conditions={}):
     # Team mission
@@ -85,7 +88,7 @@ def make_augmented_world(fname, visitation=True, victims=None, conditions={}):
                 var = rddl_converter.world.defineState(player_name, f'(visited, {loc})', float)
                 rddl_converter.world.setFeature(var, 1 if rddl_converter.world.getState(player_name, 'pLoc', unique=True) == loc else 0)
                 tree = makeTree({'if': equalRow(stateKey(player_name, 'pLoc', True), loc),
-                    True: setToConstantMatrix(var, 1), False: scaleMatrix(var, 0.99)})
+                                True: setToConstantMatrix(var, 1), False: scaleMatrix(var, 0.99)})
                 rddl_converter.world.setDynamics(var, True, tree)
     if victims:
         victim_counts = {}
@@ -115,6 +118,7 @@ def make_augmented_world(fname, visitation=True, victims=None, conditions={}):
                     rddl_converter.world.setFeature(var, victim_counts[room][value])
     return rddl_converter
 
+
 class Replayer(object):
     """
     Base class for replaying log files
@@ -143,6 +147,7 @@ class Replayer(object):
             self.config = config
         self.logger = logger
         self.rddl_file = rddl_file
+        self.players = {}
         if action_file:
             Msg2ActionEntry.read_psysim_msg_conversion(os.path.join(os.path.dirname(__file__), '..', '..', action_file), os.path.join(os.path.dirname(__file__), '..', '..', aux_file))
             self.msg_types = Msg2ActionEntry.get_msg_types()
@@ -231,6 +236,7 @@ class Replayer(object):
         try:
             if self.rddl_file:
                 rddl_converter = make_augmented_world(self.rddl_file, visitation=True, victims=parser.jsonParser.victims, conditions=filename_to_condition(fname))
+                self.players[fname] = dict(rddl_converter.world.agents)
                 return rddl_converter
 
             else:
@@ -262,7 +268,8 @@ class Replayer(object):
             if count != 0:
                 logging.debug(f'Nonzero victim count {var[len(prefix):-1]}: {count}')
         for i, msgs in enumerate(parser.actions):
-            if self.pbar: self.pbar.update()
+            if self.pbar: 
+                self.pbar.update()
             self.times[parser.jsonFile] = i
             if i == duration:
                 break
@@ -273,7 +280,6 @@ class Replayer(object):
             debug = {ag_name: {'preserve_states': True} for ag_name in rddl_converter.actions}
             
             actions = {}
-            any_none = False
             for player_name, msg in msgs.items():
                 if msg['sub_type'] == 'Event:location' and msg.get('old_room_name', '') == '':
                     logger.warning(f'Empty or missing old room in message {i} {msg} for player {player_name}')
@@ -293,7 +299,7 @@ class Replayer(object):
                     logger.warning(f'Msg {i} {msg} has unknown action {action_name}')
                     if msg['sub_type'] == 'Event:location':
                         logger.warning(f'Unable to find message {i} move action for {player_name} from {msg["old_room_name"]} to {msg["room_name"]}')
-                    action_name = Msg2ActionEntry.get_action({'playername':player_name, 'sub_type':'noop'})
+                    action_name = Msg2ActionEntry.get_action({'playername': player_name, 'sub_type': 'noop'})
                 action = rddl_converter.actions[player_name][action_name]
                 if action not in world.agents[player_name].getLegalActions():
                     illegal = True # Maybe we can salvage something and flip this flag
@@ -327,7 +333,8 @@ class Replayer(object):
                     old_rooms[player_name] = msg['old_room_name']
                 if 'room_name' in msg and action['verb'] != 'noop':
                     new_rooms[player_name] = msg['room_name']
-            for name, models in world.get_current_models().items():
+            model_dict = {name: models for name, models in world.get_current_models().items() if name in self.players[parser.jsonFile]}
+            for name, models in model_dict.items():
                 if name in old_rooms and old_rooms[name] != world.getState(name, 'pLoc', unique=True):
                     logger.error(f'Before message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {old_rooms[name]}')
                 for model in models:
@@ -344,7 +351,8 @@ class Replayer(object):
                 break
             logger.info(f'Completed step for message {i}')
             self.post_step(world, actions, i, parser, debug, logger)
-            for name, models in world.get_current_models().items():
+            model_dict = {name: models for name, models in world.get_current_models().items() if name in self.players[parser.jsonFile]}
+            for name, models in model_dict.items():
                 if name in new_rooms and new_rooms[name] != world.getState(name, 'pLoc', unique=True):
                     logger.warning(f'After message {i}, {name} is in {world.getState(name, "pLoc", unique=True)}, not {new_rooms[name]}, after doing {actions[name]}')
                 else:
@@ -361,7 +369,7 @@ class Replayer(object):
                     if beliefs is not True:
                         for player_name, room in new_rooms.items():
                             if world.getState(player_name, 'pLoc', beliefs, True) != room:
-                                    raise ValueError(f'After message {i}, {model} believes {player_name} to be in {world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
+                                raise ValueError(f'After message {i}, {model} believes {player_name} to be in {world.getState(player_name, "pLoc", beliefs, True)}, not {room}')
             # Look for count changes
             for var, count in sorted(old_count.items()):
                 new_count = world.getFeature(var, unique=True)
@@ -389,6 +397,7 @@ class Replayer(object):
         else:
             return self.process_files(args.get('number', None))
 
+
 def parse_replay_config(fname, parser):
     """
     Extracts command-line arguments from an INI file (first argument)
@@ -400,7 +409,7 @@ def parse_replay_config(fname, parser):
     if language == 'RDDL':
         root = os.path.join(os.path.dirname(__file__), '..', '..')
         mapping = {'rddl': ('domain', 'filename'), 'actions': ('domain', 'actions'), 'aux': ('domain', 'aux'),
-            'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
+                   'debug': ('run', 'debug'), 'profile': ('run', 'profile'), 'number': ('run', 'steps')}
         for flag, entry in mapping.items():
             if config.has_option(entry[0], entry[1]):
                 default = parser.get_default(flag)
@@ -417,6 +426,7 @@ def parse_replay_config(fname, parser):
     else:
         raise ValueError(f'Unknown domain language: {language}')        
     return args
+
 
 def filename_to_condition(fname):
     """
