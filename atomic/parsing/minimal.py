@@ -3,10 +3,10 @@ import json
 import os.path
 import pandas
 
-from sklearn.preprocessing import *
-from sklearn.linear_model import *
+from sklearn.linear_model import LinearRegression
 
-from replayer import *
+from replayer import Replayer, filename_to_condition
+
 
 class MinimalReplayer(Replayer):
     def process_files(self, num_steps=0, fname=None):
@@ -30,7 +30,7 @@ class MinimalReplayer(Replayer):
                         if text[-1] != msg["data"]["text"].strip():
                             text.append(f'{participant}: {msg["data"]["text"].strip()}')
                             record = {'Trial': conditions['Trial'], 'Team': conditions['Team'], 'Participant': participant, 'Timestamp': msg['header']['timestamp'], 
-                                'Text': msg['data']['text'].strip() if msg['data']['text'] else ''}
+                                      'Text': msg['data']['text'].strip() if msg['data']['text'] else ''}
                             for label in set(sum([ex['labels'] for ex in msg['data']['extractions']], [])):
                                 record[label] = True
                                 self.labels.add(label)
@@ -47,11 +47,7 @@ class MinimalReplayer(Replayer):
         self.extractions.to_csv('labels.tsv', sep='\t', na_rep=0, columns=['Trial', 'Team', 'Participant', 'Timestamp', 'Text']+sorted(self.labels))
         data = self.totals.dropna(subset=['TeamScore', 'Commitment'])
         data.to_csv('totals.tsv', sep='\t', na_rep=0, columns=['Trial', 'Team', 'TeamScore']+sorted(self.labels))
-        regression = self.regression()
-        weights = [(label, regression.coef_[i]) for i, label in enumerate(fields)]
-        weights.sort(key=lambda tup: abs(tup[1]), reverse=True)
-        data = pandas.DataFrame([{'Label': label, 'Coefficient': coef} for label, coef in weights])
-        data.to_csv('regression.csv')
+        self.regression()
 
     def regression(self):
         y = self.totals.dropna(subset=['TeamScore', 'Commitment']).filter(items=['TeamScore']).astype(int)
@@ -63,10 +59,16 @@ class MinimalReplayer(Replayer):
 #        X = scaler.fit_transform(X)
         regression = LinearRegression().fit(X, y)
         print(regression.score(X, y))
+        weights = [(label, regression.coef_[i]) for i, label in enumerate(fields)]
+        weights.sort(key=lambda tup: abs(tup[1]), reverse=True)
+        data = pandas.DataFrame([{'Label': label, 'Coefficient': coef} for label, coef in weights])
+        data.to_csv('regression.csv')
         return regression
+
 
 def normalize(data):
     return (data-data.min())/(data.max()-data.min())
+
 
 if __name__ == '__main__':
     # Process command-line arguments
