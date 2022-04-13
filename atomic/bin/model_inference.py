@@ -1,26 +1,23 @@
-import configparser
-import copy
-import cProfile
 import csv
-from datetime import datetime
 import itertools
 import json
 import logging
 import os.path
 import re
 import traceback
-from argparse import ArgumentParser
 
 import numpy as np
 import pandas
 from plotly import express as px
 
 from psychsim.probability import Distribution
-from psychsim.pwl import WORLD, modelKey, stateKey
+from psychsim.pwl.keys import modelKey
+from psychsim.pwl.state import VectorDistributionSet
 
-from atomic.definitions.map_utils import get_default_maps
-from atomic.parsing.replay_features import *
+from atomic.parsing.replayer import parse_replay_args, filename_to_condition
+from atomic.parsing.replay_features import FeatureReplayer, feature_cmd_parser
 from atomic.inference import *
+from atomic.analytic import REGEX_INDIVIDUAL
 
 from appraisal.appraisal_dimensions import AppraisalDimensions
 
@@ -32,8 +29,7 @@ def plot_data(data, color_field, title):
 class Analyzer(FeatureReplayer):
 
     def __init__(self, files=[], trials=None, config=None, maps=None, rddl_file=None, action_file=None, aux_file=None, logger=logging, output=None):
-        super().__init__(files=files, trials=trials, config=config, maps=maps, rddl_file=rddl_file, action_file=action_file, aux_file=aux_file, output=output,
-            logger=logger)
+        super().__init__(files=files, trials=trials, config=config, maps=maps, rddl_file=rddl_file, action_file=action_file, aux_file=aux_file, output=output, logger=logger)
 
         if config:
             self.models = {key: json.loads(values) for key, values in self.config.items('models')}
@@ -45,7 +41,10 @@ class Analyzer(FeatureReplayer):
         self.decisions = {}
         self.debug_data = {}
         self.model_columns = None
-        self.appraisals = AppraisalDimensions()
+        if self.config.getboolean('appraisal', 'active', fallback=False):
+            self.appraisals = AppraisalDimensions()
+        else:
+            self.appraisals = None
 
     def pre_replay(self, parser, logger=logging):
         result = super().pre_replay(parser, logger)
@@ -68,8 +67,7 @@ class Analyzer(FeatureReplayer):
                 for model in models:
                     if model['level'] > 0:
                         model['selection'] = 'random'
-            self.beliefs[parser.jsonFile] = {name: Distribution({model['name']: 1/len(models) for model in models}) 
-                for name, models in player_models.items()}
+            self.beliefs[parser.jsonFile] = {name: Distribution({model['name']: 1/len(models) for model in models}) for name, models in player_models.items()}
             self.decisions[parser.jsonFile] = {name: {} for name in player_models}
         except:
             logger.error('Unable to create player models')
@@ -78,16 +76,11 @@ class Analyzer(FeatureReplayer):
         state = VectorDistributionSet()
         for name, belief in self.beliefs[parser.jsonFile].items():
             result.world.setFeature(modelKey(name), belief, state=state)
-        tree = {}
         self.debug_data[parser.jsonFile] = []
         return result
 
     def pre_step(self, world, parser, logger=logging):
         super().pre_step(world, logger)
-        #<SIMULATE>
-#        debug_s = {ag_name: {'preserve_states': True} for ag_name in parser.agentToPlayer}
-#        world.step(real=False, debug=debug_s) # This is where the script hangs
-        #</SIMULATE>
         actions = {}
         for name, models in self.beliefs[parser.jsonFile].items():
             self.decisions[parser.jsonFile][name].clear()
@@ -111,12 +104,12 @@ class Analyzer(FeatureReplayer):
                     # Zero probability, probably because of illegal action
                     prob[model] = decision['action'].epsilon
                 self.beliefs[parser.jsonFile][name][model] *= prob[model]
-                for other in self.decisions[parser.jsonFile]:
-                    if other != name:
-                        appraisal_params = self.appraisals.get_appraisal_params_psychsim_model_inference(name, actions[name], 
-                            other, world, self.decisions[parser.jsonFile])
-                        appraisal = self.appraisals.get_appraisals_for_step(appraisal_params)
-                        logger.info(f'Appraisal by {name} of {other} is {appraisal}')
+                if self.appraisals:
+                    for other in self.decisions[parser.jsonFile]:
+                        if other != name:
+                            appraisal_params = self.appraisals.get_appraisal_params_psychsim_model_inference(name, actions[name], other, world, self.decisions[parser.jsonFile])
+                            appraisal = self.appraisals.get_appraisals_for_step(appraisal_params)
+                            logger.info(f'Appraisal by {name} of {other} is {appraisal}')
             self.beliefs[parser.jsonFile][name].normalize()
             logger.info(self.beliefs[parser.jsonFile][name])
             for model, decision in models.items():
@@ -157,6 +150,7 @@ class Analyzer(FeatureReplayer):
             fig = plot_data(self.prediction_data, 'Color', 'Prediction {}'.format(name))
             fig.show()
 
+
 def load_clusters(fname):
     ignore = {'Cluster', 'Player name', 'Filename'}
 
@@ -189,11 +183,12 @@ def load_clusters(fname):
     logging.info('Baseline conditions: {}'.format(', '.join(['P({})={}'.format(c, p) for c, p in sorted(condition_map[None].items())])))
     return reward_weights, cluster_map, condition_map
 
+
 def apply_cluster_rewards(reward_weights, models=None):
     if models is None:
         models = DEFAULT_MODELS
-    models['reward'] = {'cluster{}'.format(cluster): vector
-        for cluster, vector in reward_weights.items()}
+    models['reward'] = {'cluster{}'.format(cluster): vector for cluster, vector in reward_weights.items()}
+
 
 def model_to_cluster(model):
     try:
@@ -201,11 +196,13 @@ def model_to_cluster(model):
     except ValueError:
         return None
 
+
 def model_cmd_parser():
     # Process command-line arguments
     parser = feature_cmd_parser()
-    parser.add_argument('-c','--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
+    parser.add_argument('-c', '--clusters', help='Name of CSV file containing reward clusters to use as basis for player models')
     return parser
+
 
 if __name__ == '__main__':
     parser = model_cmd_parser()
