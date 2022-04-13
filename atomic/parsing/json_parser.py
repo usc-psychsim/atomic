@@ -4,14 +4,20 @@ import os
 import functools
 import json
 from collections import Counter
+import numpy as np
+
 try:
     from tqdm import tqdm
 except ImportError:
     tqdm = None
 print = functools.partial(print, flush=True)
-from atomic.definitions import GOLD_STR, GREEN_STR
+from atomic.definitions import GOLD_STR, GREEN_STR, extract_time
 from atomic.parsing.map_parser import extract_map
-from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list
+from atomic.parsing.make_rddl_instance import generate_rddl_victims_from_list_named_vics
+from atomic.analytic.ihmc_wrapper import JAGWrapper
+from atomic.analytic.gallup_wrapper import GelpWrapper
+from atomic.analytic.corenll_wrapper import ComplianceWrapper
+from atomic.analytic.cmu_wrapper import TEDWrapper
 
 class room(object):
     def __init__(self, name, coords):
@@ -48,10 +54,10 @@ class JSONReader(object):
         self.derivedFeatures = []
         self.locations_from = LOCATION_MONITOR
         self.msg_types = {'Event:Triage', 'Mission:VictimList', 'state', 'Event:MissionState',
-#                          'Event:ToolUsed', 'Event:RoleSelected', 'Event:ToolDepleted',
                           'Event:VictimPlaced', 'Event:VictimPickedUp', 'Event:VictimEvacuated',
                           'Event:RubbleDestroyed', 'Event:RubblePlaced', 'Event:RubbleCollapse',
-                          'Event:Signal', 'Event:ProximityBlockInteraction',
+                          'Event:Signal', 'Event:Chat',
+                          'Event:ProximityBlockInteraction',
                           'Event:MarkerPlaced', 'Event:MarkerRemoved', 
 #                          'Event:ItemEquipped', 'Event:dialogue_event',
                           # dp added:
@@ -85,12 +91,34 @@ class JSONReader(object):
                         'Event:Signal': ['message'],
                         'Event:ToolUsed': [],
                         'Event:location': [],
+                        'Event:Chat': ['sender', 'addressees', 'text'],
                         'Event:MarkerPlaced': ['type'], 
                         'Event:MarkerRemoved': ['type'], 
                         'Event:MarkerDestroyed': ['type'],
                         'Event:ProximityBlockInteraction': ['action_type', 'players_in_range', 'victim_id'],
                         'Event:RubbleDestroyed': [],
                         'Event:RubblePlaced': []}
+        self.participant_2_role = dict()        
+        self.ac_filters = {'ihmc':{'observations/events/player/jag', 'observations/events/mission',
+                                   'observations/events/player/role_selected'}, 
+#                           'cornell':{'agent/ac/player_compliance'},
+#                           'cmu_ted':{'agent/ac/cmuta2-ted-ac/ted'},
+#                           'gallup':{'agent/gelp'}
+                           }
+        self.ac_wrappers = {'ihmc':JAGWrapper('ihmc', 'jag'),
+#                            'cornell': ComplianceWrapper('cornell', 'compliance'),
+#                            'cmu_ted': TEDWrapper('cmu', 'ted'), 
+#                            'gallup': GelpWrapper('gallup', 'gelp')
+                            }
+        self.all_topics = set()
+        
+        def make_victime_name(x):
+            return 'v' + str(x)
+        
+        def make_addressees(lst):
+            return [self.participant_2_role[adr] for adr in lst]
+            
+        self.field_transformations = {'victim_id': make_victime_name, 'addressees': make_addressees}
         self.verbose = verbose
         self.rooms = {}
         self.fname = fname
@@ -114,6 +142,13 @@ class JSONReader(object):
         self.player_to_curr_room = dict()
         
 
+    def make_role_mappings(self, roles):
+        for role_msg in roles:
+            role = role_msg['new_role'].lower()[:3]
+            self.participant_2_role[role_msg['participant_id']] = role
+        print(self.participant_2_role)
+        
+
     def process_json_file(self, fname):
         self.reset()
         
@@ -122,16 +157,30 @@ class JSONReader(object):
         jsonfile.close()        
         self.allMTypes = set()
         
+        roles = [m['data'] for m in self.jsonMsgs if m['msg']['sub_type']=='Event:RoleSelected']
+        self.make_role_mappings(roles)
+        
 #        if tqdm and not self.verbose:
 #            iterable = tqdm(self.jsonMsgs)
 #        else:
 #            iterable = self.jsonMsgs
         for ji, jmsg in enumerate(self.jsonMsgs):
-            self.process_message(jmsg)
+            msg_topic = jmsg.get('topic', '')
             self.allMTypes.add(jmsg['msg']['sub_type'])
-#            if ji>3500:
-#                break
-#            
+#            self.process_message(jmsg)
+            self.all_topics.add(msg_topic)
+            for ac_name, topics in self.ac_filters.items():
+                if (msg_topic == 'trial') or (msg_topic in topics):
+                    self.ac_wrappers[ac_name].handle_message(msg_topic, jmsg['msg'], jmsg['data'])
+                    
+            if len(self.ac_wrappers['ihmc'].messages) > 40000:
+                break
+            
+        ## Add time in seconds and a serial number to each message
+        for i, msg in enumerate(self.messages):
+            msg['serial'] = i
+            msg['time_sec'] = extract_time(msg)
+            
     def read_semantic_map(self):        
         jsonfile = open(self.fname, 'rt')
         
@@ -196,8 +245,7 @@ class JSONReader(object):
     
     def process_message(self, jmsg):        
         mtype = jmsg['msg']['sub_type']
-        if mtype == 'Event:VictimEvacuated':
-            print('hi')
+        
         if mtype == 'start':
             if 'client_info' in jmsg['data']:
                 # Initial message about experimental setup
@@ -213,6 +261,10 @@ class JSONReader(object):
             return
         m = jmsg['data']
         m['sub_type'] = mtype
+        
+        if 'jag' in m.keys():
+            self.jag_msgs.append(m)
+            
         
         if mtype == "Event:MissionState":
             mission_state = m['mission_state']
@@ -246,7 +298,7 @@ class JSONReader(object):
                 m['state'] = 'unsaved'        
 
         is_location_event = False
-        player = self.subjects[m['participant_id']]
+        player = self.participant_2_role.get(m.get('participant_id', ''), '')
         m['playername'] = player
 
         if player not in self.player_to_curr_room:
@@ -368,6 +420,9 @@ class JSONReader(object):
             m['mission_timer'] = '15 : 0'
         
         smallMsg = {k:m[k] for k in m if k in self.generalFields + self.typeToFields.get(m['sub_type'], [])}
+        for k,v in smallMsg.items():
+            if k in self.field_transformations.keys():
+                smallMsg[k] = self.field_transformations[k](v)
         self.messages.append(smallMsg)
 
         ## For every derived feature, ask it to process this message
@@ -385,19 +440,87 @@ class JSONReader(object):
         print('\n==MarkerPlaced by type', self.filter_and_tally(['sub_type'],['Event:MarkerPlaced'], 'type'))
         print('\n==MarkerRemoved by player', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'playername'))
         print('\n==MarkerRemoved by type', self.filter_and_tally(['sub_type'],['Event:MarkerRemoved'], 'type'))
-        print('\n==ProximityBlockInteraction by action', self.filter_and_tally(['sub_type'],['Event:ProximityBlockInteraction'], 'action_type'))
+        print('\n==RubbleCollapse by player', self.filter_and_tally(['sub_type'],['Event:RubbleCollapse'], 'playername'))
+        print('\n==RubbleDestroyed by room', self.filter_and_tally(['sub_type'],['Event:RubbleDestroyed'], 'room_name'))
+        print('\n==Signal by content', self.filter_and_tally(['sub_type'],['Event:Signal'], 'message'))
+        print('\n==ProximityBlockInteraction by victim', self.filter_and_tally(['sub_type'],['Event:ProximityBlockInteraction'], 'victim_id'))
+
+
+
+    ''' 
+    Args:   
+                msg1_condition, msg2_condition: 2 dicts with the conditions you're looking for in the json msgs
+                A key with value None in msg1_condition denotes a wildcard for which you want msg1[key]==msg2[key]
+                time_limit: msg2 should appear at most time_limit seconds after msg2    
+    Example 1:  time between a player having rubble collapse on them and the engineer starting to destroy it
+                msg1_condition = {'sub_type':'Event:RubbleCollapse', 'room_name':None}
+                msg2_condition = {'playername':'eng', 'sub_type':'Event:RubbleDestroyed'}
+    Example 2:  time between medic triaging a victim and transporter evacuating it
+                msg1_condition = {'sub_type':'Event:RubbleCollapse', 'room_name':None}
+                msg2_condition = {'playername':'eng', 'sub_type':'Event:RubbleDestroyed'}
+    Example 3:  time between medic identifying a critical victim in a room and another player moving to that room
+                msg1_condition = {'playername':'med', 'sub_type':'Event:Chat', 'text':'{"text":"Victim Type : C.","color":"red"}', 'room_name':None}
+                msg2_condition = {'sub_type':'Event:location'}
+    Returns 2 lists
+    positives:  Each element is a list [m1, m2, td]. cases where the 2 conditions were met less than time_limit seconds apart
+    negatives:  Cases where 2 conditions where met > time_limit seconds apart. If m2 is None, the corresponding m1 was never pairer
+                (e.g., a victim that was triaged but never evacuated by the transporter (maybe it was evac'd by someone else))
+    '''
+    def collect_msg_seq(self, msg1_condition, msg2_condition, time_limit):
+        positives = []
+        negatives = []
+        msg1_matches = []
+        
+        for msg in self.messages:
+            msg1_match = np.all([msg.get(key, '') == val for key, val in msg1_condition.items() if val is not None])
+            if msg1_match:
+                msg1_matches.append(msg)
+                continue
+            
+            ## If no msg 1 matches
+            if len(msg1_matches) == 0:
+                continue
+            
+            msg2_match = np.all([msg.get(key, '') == val for key, val in msg2_condition.items()])
+            if not msg2_match:
+                continue
+            
+            ## If we're here, there are msg1 matches and msg matches msg2
+            to_pop = []
+            for m1 in msg1_matches:
+                wildcards = {key:m1[key] for key,val in msg1_condition.items() if val is None}
+                wildcard_match = np.all([msg.get(key, '') == val for key, val in wildcards.items()])
+
+                if not wildcard_match:
+                    continue
+                to_pop.append(m1)
+                tdiff = msg['time_sec'] - m1['time_sec']
+                if tdiff <= time_limit:
+                    positives.append([m1, msg, tdiff])
+                else:
+                    negatives.append([m1, msg, tdiff])
+                
+            ## Clear prev_msg1
+            for m1 in to_pop:
+                msg1_matches.remove(m1)
+        
+        
+        ## Add any un-paired msg1s to the negatives
+        for m1 in msg1_matches:
+            negatives.append([m1, None, -1])
+        return positives, negatives
         
         
     def collapse_messages(self, remove_types=[]):
         collapsed_msgs = []
-        last_player = ''
-        last_mtype = ''
+        last_msg = {}
         for msg in self.messages:
             if msg['sub_type'] in remove_types:
                 continue
-            if (msg['sub_type'] != last_mtype) or (msg.get('playername', '') != last_player):
-                last_mtype = msg['sub_type']  
-                last_player = msg.get('playername', '')
+            flds = ['sub_type', 'playername', 'room_name'] + self.typeToFields.get(msg['sub_type'], [])
+            fields_changed = np.any([ msg.get(fld, '') != last_msg.get(fld, '') for fld in flds  ])
+            if fields_changed:
+                last_msg = msg
                 collapsed_msgs.append(msg)
                 
         return collapsed_msgs
@@ -462,13 +585,16 @@ class JSONReader(object):
         if len(self.vList) == 0:
             print('ERROR: No victims msg in metadata file')
             return None
-        rooms = list(set([self.room_name_lookup[rm] for rm in self.rooms.keys()]))
-        vic_str = generate_rddl_victims_from_list(self.vList, rooms)
+        if self.USE_COLLAPSED_MAP:
+            rooms = list(set([self.room_name_lookup[rm] for rm in self.rooms.keys()]))
+        else:
+            rooms = list(self.rooms.keys())
+        vic_str = generate_rddl_victims_from_list_named_vics(self.vList, rooms)
             
         rddl_temp_file = open(rddl_template + '.rddl', "r")    
         master_rddl_str = rddl_temp_file.read()
         rddl_str = master_rddl_str.replace('VICSTR', vic_str) 
-        rddl_inst_file = open(rddl_template + '_v.rddl', "w")
+        rddl_inst_file = open(rddl_template + '_inst.rddl', "w")
         rddl_inst_file.write(rddl_str)    
         rddl_inst_file.close()
         

@@ -8,7 +8,7 @@ Created on Thu Apr  2 20:35:23 2020
 import logging
 from atomic.parsing import GameLogParser
 from atomic.parsing.json_parser import JSONReader
-from atomic.definitions import MISSION_DURATION
+from atomic.definitions import MISSION_DURATION, extract_time
 import numpy as np
 
 
@@ -17,8 +17,7 @@ class MsgQCreator(GameLogParser):
     def __init__(self, filename, processor=None, logger=logging, use_collapsed_map=True, use_ihmc_locations=True, verbose=True):
         self.verbose = verbose
         super().__init__(filename, processor, logger)
-        self.playerToAgent = {}
-        self.agentToPlayer = {}
+        self.call_sign_2_role = {'BLUE_ASIST1':'eng', 'GREEN_ASIST1':'tran', 'RED_ASIST1':'med'}
         self.locations = set()
         self.jsonFile = filename
         self.grouping_res = 10
@@ -42,12 +41,6 @@ class MsgQCreator(GameLogParser):
         
         ## Initialize player-specific data structures
         self.playerToMsgs = {pl:[m for m in self.allPlayersMs if m['playername'] == pl] for pl in self.players}
-
-        # Establish a player name to RDDL agent name mapping. Arbitrary.
-        for i,p in enumerate(self.players):
-            self.playerToAgent[p] = 'p' + str(i+1)
-            self.agentToPlayer['p' + str(i+1)] = p      
-#        self.player_maps = {self.playerToAgent[p]: map_version for p, map_version in self.jsonParser.player_maps.items()}
         self.createActionQs()
         
 
@@ -62,14 +55,10 @@ class MsgQCreator(GameLogParser):
                 continue
             
             ## If malformed time, skip
-            nums = msg['mission_timer'].split(':')
-            if any(not n.strip().isdigit() for n in nums):
+            timeInSec = extract_time(msg)
+            if timeInSec is None:
                 nextMsg = nextMsg + 1
                 continue
-            
-            ## Extract time
-            ts = [int(n) for n in nums]
-            timeInSec = MISSION_DURATION - (ts[0] * 60) - ts[1]
             
             ## If message is later than our cutoff time, break
             if timeInSec > maxTime:
@@ -126,8 +115,9 @@ class MsgQCreator(GameLogParser):
                             logging.error(f'Player "{player}" has {len(self.playerToMsgs[player])} messages, '\
                                 f'so index {msgIdx} (during {timeNow}-{timeNow+self.grouping_res}) is too high.')
                             msg = {'sub_type':'noop'}
-                    msg['realname'] = player
-                    msg['playername'] = self.playerToAgent[player]
-                    step_actions[self.playerToAgent[player]] = msg
+#                    msg['playername'] = self.call_sign_2_role[player]
+#                    step_actions[self.call_sign_2_role[player]] = msg
+#                    msg['playername'] = self.call_sign_2_role[player]
+                    step_actions[player] = msg
                 self.actions.append(step_actions)
                         

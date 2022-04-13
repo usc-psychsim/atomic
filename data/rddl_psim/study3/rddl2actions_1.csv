@@ -1,0 +1,10 @@
+psysim,args,msg_type,conditions
+move-0,,Event:location,room_name=NBR0(old_room_name)
+move-1,,Event:location,room_name=NBR1(old_room_name)
+move-2,,Event:location,room_name=NBR2(old_room_name)
+move-3,,Event:location,room_name=NBR3(old_room_name)
+Med_triages,victim_id,Event:Triage,"triage_state=SUCCESSFUL, type=REGULAR"
+Eng_clears,,Event:RubbleDestroyed,
+pickup_victim,victim_id,Event:VictimPickedUp,type=REGULAR
+dropVictim,"victim_id, room_name",Event:VictimPlaced,
+noop,,noop,

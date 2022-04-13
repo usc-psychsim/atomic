@@ -68,7 +68,7 @@ class BenchmarkReplayer(Replayer):
         self.start = -1.
 
     def pre_step(self, world, parser, logger=logging):
-        self.prev_world = copy_world(world)  # todo change agent world cloning
+        # self.prev_world = copy_world(world)  # TODO change agent world cloning
         self.start = timer()
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
@@ -145,8 +145,8 @@ def _generate_trajectories():
         verbose=True)
     elapsed = (timer() - start) * n_procs
 
-    logging.info('(mean: {:.3f}s per trajectory, {:.3f}s per step)'.format(
-        elapsed / args['trajectories'], elapsed / (args['trajectories'] * args['length'])))
+    logging.info(f'(mean: {elapsed / args["trajectories"]:.3f}s per trajectory, '
+                 f'{elapsed / (args["trajectories"] * args["length"]):.3f}s per step)')
 
 
 def _process_files():

@@ -13,13 +13,12 @@ domain know1 {
 
 	pvariables { 	
 		/// Victim fluents
-		vloc(victim, loc) : { state-fluent, bool, default = null };
 		evacuated(victim): { state-fluent, bool, default = false };
 		triaged(victim): { state-fluent, bool, default = false };		
 		saved(victim): { state-fluent, bool, default = false };
 		/// Victim non-fluents
-		regular(victim) : { non-fluent, bool, default = true };
 		station(victim) : { non-fluent, loc, default = null };
+		vloc(victim) : { non-fluent, loc, default = null };
 
 		/// Locatoin fluents
 		accessible(loc) : { state-fluent, bool, default = true };
@@ -32,7 +31,7 @@ domain know1 {
 		
 		/// Role-specific actions
 		Med_triages(agent, victim) : {action-fluent, bool,  default = false };
-		Eng_clears(agent) :  {action-fluent, bool,  default = false };
+		Eng_clears(agent, loc) :  {action-fluent, bool,  default = false };
 		/// General actions
 		pickup_victim(agent, victim) :  {action-fluent, bool,  default = false };
 		drop_victim(agent, victim, loc) :  {action-fluent, bool,  default = false };
@@ -41,12 +40,9 @@ domain know1 {
 	};
 	cpfs {	
 		ploc'(?a, ?lc) =
-			if (move(?a, ?lc) | ploc(?a, ?lc))
+			if (move(?a, ?lc) ^ accessible(?lc) )
 				then KronDelta(true)
-			else  KronDelta(false);			
-
-		vloc'(?v, ?lc) = 
-			if (  (exists_{?p : agent} [  drop_victim(?p, ?v, ?lc) ] )  | vloc(?v, ?lc)  )
+			else if (ploc(?a, ?lc))
 				then KronDelta(true)
 			else  KronDelta(false);			
 
@@ -56,12 +52,12 @@ domain know1 {
 			else  saved(?v);
 
 		triaged'(?v) = 
-			if (Med_triages(med, ?v) ^ regular(?v) ^ can_move(med) ^   (exists_{?lc : loc} [ploc(med, ?lc) ^ accessible(?lc) ^ vloc(?v, ?lc)]))
+			if (Med_triages(med, ?v) ^ ploc(med, vloc(?v)) )
 				then KronDelta(true)
 			else triaged(?v);
 		
 		accessible'(?lc) = 
-			if ( Eng_clears(eng) ^ ploc(eng, ?lc) )
+			if ( Eng_clears(eng, ?lc) )
 				then KronDelta(true)
 			else  accessible(?lc);
 
@@ -78,7 +74,7 @@ domain know1 {
 		can_move'(?p) = 
 			if (?p == eng)
 				then KronDelta(true)
-			else if (Eng_clears(eng) ^ (exists_{?lc : loc} [ ploc(?p, ?lc) ^ threat(?lc) ^ ploc(eng, ?lc) ]) )   
+			else if ((exists_{?lc : loc} [ Eng_clears(eng, ?lc) ^ ploc(?p, ?lc) ^ threat(?lc) ^ ploc(eng, ?lc) ]) )   
 				then KronDelta(true)
 			else if (exists_{?lc : loc} [ ploc(?p, ?lc) ^ threat(?lc)] ) 
 				then KronDelta(false)
@@ -93,7 +89,7 @@ domain know1 {
 
 	action-preconditions {
 	    forall_{?p : agent, ?v : victim} [
-	        pickup_victim(?p, ?v) => exists_{?lc : loc} [ploc(?p, ?lc) ^ vloc(?v, ?lc) ]    ];
+	        pickup_victim(?p, ?v) => exists_{?lc : loc} [ploc(?p, vloc(?v)) ]    ];
 
 	    forall_{?p : agent, ?v : victim, ?lc : loc} [
 	        drop_victim(?p, ?v, ?lc) =>  ( has_victim(?p, ?v) ^ ploc(?p, ?lc) ) ];
@@ -101,21 +97,23 @@ domain know1 {
 	    forall_{?p : agent, ?v : victim} [
 		Med_triages(?p, ?v) => (?p == med) ];
 
-	    forall_{?p : agent} [
-		Eng_clears(?p) => (?p == eng) ];
+	    forall_{?p : agent, ?lc : loc} [
+		Eng_clears(?p, ?lc) => (?p == eng) ];
     };
 
 }
 non-fluents know1_inst1{
 	domain = know1; 
 	objects { 
-		loc : {tkt_1, sga_7, sga_6};
+		loc : {tkt_1, sga_7}; //, sga_6
 		victim: {v1, v2};
-		agent : {eng, med, tran};
+		agent : {eng, med}; //, tran
 	}; 
 	non-fluents {
-		station(v1) = tkt_1;
-		station(v2) = sga_7;
+		station(v1) = sga_7;
+		station(v2) = tkt_1;
+		vloc(v1) = tkt_1;
+		vloc(v2) = sga_7;
 		//threat(loc1) = true;
 		//threat(loc2) = false;	
 	};
@@ -126,8 +124,7 @@ instance know1_inst1 {
 	init-state { 
 		ploc(eng, tkt_1) = true;
 		ploc(med, tkt_1) = true;
-		ploc(tran, tkt_1) = true;
-		vloc(v1, tkt_1) = true;
+//		ploc(tran, tkt_1) = true;
 	};
 	max-nondef-actions = 3;
 	horizon = 2;
