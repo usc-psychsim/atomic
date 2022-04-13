@@ -171,6 +171,7 @@ if __name__ == '__main__':
     world.addAgent(team)
     for ac in acs.values():
         ac.augment_world(world, team, players)
+    team.initialize_effects(acs)
     for data in messages:
         add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
     for player in players:
@@ -178,4 +179,3 @@ if __name__ == '__main__':
 
     asi = make_asi(world, team, players, acs, config)
     world.save('asi')
-    world.printState()

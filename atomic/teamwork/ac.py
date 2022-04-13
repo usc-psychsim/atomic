@@ -1,4 +1,5 @@
 from psychsim.pwl.plane import equalRow
+from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.tree import makeTree
 from psychsim.action import Action, ActionSet
 from psychsim.reward import maximizeFeature
@@ -23,13 +24,15 @@ class AC_model:
         return {var: table['effects'][intervention] for var, table in self.variables.items() 
                 if 'effects' in table and intervention in table['effects']}
 
+    def get_field(self, field):
+        return {var: table[field] for var, table in self.variables.items()
+                if field in table}    
+
     def get_ASI_reward(self):
-        return {var: table['ASI reward'] for var, table in self.variables.items()
-                if 'ASI reward' in table}        
+        return self.get_field('ASI reward')
 
     def get_conditions(self):
-        return {var: table['condition'] for var, table in self.variables.items()
-                if 'condition' in table}        
+        return self.get_field('condition')
 
     def augment_world(self, world, team_agent, players):
         """
@@ -43,7 +46,7 @@ class AC_model:
                     var = world.defineState(player, f'{self.name} {var_name}', list, lo=table['values'])
                     world.setFeature(var, table['values'][0])
                 elif table['values'] is int:
-                    var = world.defineState(player, f'{self.name} {var_name}', int, lo=0)
+                    var = world.defineState(player, f'{self.name} {var_name}', int, lo=0, hi=table.get('hi', 1))
                     world.setFeature(var, 0)
                 else:
                     raise TypeError(f'Unable to create variable {self.name} '
@@ -58,7 +61,7 @@ class AC_model:
                             var = world.defineRelation(player, other, f'{self.name} {var_name}', list, lo=table['values'])
                             world.setFeature(var, table['values'][0])
                         elif table['values'] is int:
-                            var = world.defineRelation(player, other, f'{self.name} {var_name}', int, lo=0)
+                            var = world.defineRelation(player, other, f'{self.name} {var_name}', int, lo=0, hi=table.get('hi', 1))
                             world.setFeature(var, 0)
                         else:
                             raise TypeError(f'Unable to create variable {self.name} {var_name} of type {table["values"].__class__.__name__}')
@@ -69,7 +72,7 @@ class AC_model:
                 var = world.defineState(team_agent.name, f'{self.name} {var_name}', list, lo=table['values'])
                 world.setFeature(var, table['values'][0])
             elif table['values'] is int:
-                var = world.defineState(team_agent.name, f'{self.name} {var_name}', int, lo=0)
+                var = world.defineState(team_agent.name, f'{self.name} {var_name}', int, lo=0, hi=table.get('hi', 1))
                 world.setFeature(var, 0)
             else:
                 raise TypeError(f'Unable to create variable {self.name} {var_name} of type {table["values"].__class__.__name__}')
@@ -77,49 +80,54 @@ class AC_model:
 
 
 AC_specs = {'CMU_TED': 
-            {'team': {'skill use': {'values': ['lo', 'mid', 'hi'],
+            {'team': {'skill use': {'values': int, 'hi': 2,
                                     'ASI reward': 1},
-                      'task strategy': {'values': ['lo', 'mid', 'hi'],
+                      'task strategy': {'values': int, 'hi': 2,
                                         'ASI reward': 1},
-                      'collective effort': {'values': ['lo', 'mid', 'hi'],
+                      'collective effort': {'values': int, 'hi': 2,
                                             'ASI reward': 1},
-                      'communication': {'values': ['lo', 'mid', 'hi'],
+                      'communication': {'values': int, 'hi': 2,
                                         'ASI reward': 1,
                                         'effects': {'report drop': {'object': operator.gt}}},
                       },
-             'player': {'skill use': {'values': ['lo', 'mid', 'hi'],
+             'player': {'skill use': {'values': int, 'hi': 2,
                                       'condition': operator.gt},
-                        'task strategy': {'values': ['lo', 'mid', 'hi'],
+                        'task strategy': {'values': int, 'hi': 2,
                                           'condition': operator.gt},
-                        'collective effort': {'values': ['lo', 'mid', 'hi'],
+                        'collective effort': {'values': int, 'hi': 2,
                                               'condition': operator.gt,
                                               'effects': {'report drop': {'about': operator.gt}}},
-                        'communication': {'values': ['lo', 'mid', 'hi'],
+                        'communication': {'values': int, 'hi': 2,
                                           'effects': {'report drop': {'object': operator.gt}}},
                         },
              'pair': {},
              },
             'CMU_BEARD':
-            {'player': {'anger': {'values': ['lo', 'mid', 'hi'],
-                                  'effects': {'cheer': {'object': operator.lt}}},
-                        'anxiety': {'values': ['lo', 'mid', 'hi'],
-                                    'effects': {'cheer': {'object': operator.lt}}},
-                        'minecraft skill': {'values': ['lo', 'mid', 'hi'],
+            {'player': {'anger': {'values': int, 'hi': 2,
+                                  'effects': {'cheer': {'object': operator.lt}},
+                                  'process': {'affect management': -1}},
+                        'anxiety': {'values': int, 'hi': 2,
+                                    'effects': {'cheer': {'object': operator.lt}},
+                                    'process': {'affect management': -1}},
+                        'minecraft skill': {'values': int, 'hi': 2,
                                             'condition': operator.gt},
-                        'social perceptiveness': {'values': ['lo', 'mid', 'hi']}}},
+                        'social perceptiveness': {'values': int, 'hi': 2}}},
             'Gallup_GELP': 
-            {'player': {'leadership': {'values': ['lo', 'hi']},
+            {'player': {'leadership': {'values': int, 'hi': 1},
                         }},
             'Cornell_Team_Trust':
             {'pair': {'open requests': {'values': int},
                       'compliance': {'values': int},
-                      'compliance rate': {'values': ['lo', 'hi']},
-                      'response start': {'values': ['lo', 'hi']},
-                      'response action': {'values': ['lo', 'hi']}}},
+                      'compliance rate': {'values': int, 'hi': 1},
+                      'response start': {'values': int, 'hi': 1},
+                      'response action': {'values': int, 'hi': 1}}},
             'UCF':
-            {'player': {'taskwork potential': {'values': ['lo', 'hi'],
+            {'player': {'taskwork potential': {'values': int, 'hi': 1,
                                                'condition': operator.gt},
-                        'teamwork potential': {'values': ['lo', 'hi']}}}
+                        'teamwork potential': {'values': int, 'hi': 1}}},
+            'Rutgers_belief_diff':
+            {'player': {'indiv entropy': {'values': int, 'hi': 1},
+                        'marker entropy': {'values': int, 'hi': 1}}},
             }
 
 
@@ -143,10 +151,17 @@ def add_joint_activity(world, player, team, jag):
         goal = maximizeFeature(var, player.name)
         player.setReward(goal, 1, model)
     # Add action for addressing this activity
-    if not player.hasAction({'verb': 'work on', 'object': victim}):
+    action_dict = {'verb': 'advance', 'object': victim}
+    if not player.hasAction(action_dict):
         tree = makeTree({'if': equalRow(var, 'complete'), 
                         True: False, False: True})
-        player.addAction({'verb': 'work on', 'object': victim}, tree)
+        player.addAction(action_dict, tree)
+        tree = makeTree({'if': equalRow(var, ['discovered', 'aware', 'preparing', 'addressing']),
+                         'discovered': setToConstantMatrix(var, 'aware'),
+                         'aware': setToConstantMatrix(var, 'preparing'),
+                         'preparing': setToConstantMatrix(var, 'addressing'),
+                         'addressing': setToConstantMatrix(var, 'complete'),
+                         })
     for child in jag['children']:
         add_joint_activity(world, player, team, child)
 

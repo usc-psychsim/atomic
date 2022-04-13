@@ -1,4 +1,4 @@
-from psychsim.pwl.keys import stateKey
+from psychsim.pwl.keys import stateKey, makeFuture
 from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.plane import equalRow
 from psychsim.pwl.tree import makeTree
@@ -13,6 +13,7 @@ class ASI(Agent):
 
     def __init__(self, world, acs={}, config=None, name='ATOMIC'):
         self.acs = acs
+        self.config = config
         super().__init__(name, world)
         self.conditions = {}
         for AC in self.acs.values():
@@ -111,12 +112,44 @@ def make_asi(world, team_agent, players, acs={}, config=None):
 
 
 class Team(Agent):
+
+    processes = ['mission analysis', 'goal specification', 'strategy formulation', 
+                 'monitor goal progress', 'systems monitoring', 'team monitoring backup', 
+                 'coordination', 'conflict management', 'motivating', 'affect management']
+
     def __init__(self, world, name='team'):
         super().__init__(name, world)
 
     def initialize_variables(self):
-        for var in ['mission analysis', 'goal specification', 'strategy formulation', 
-                    'monitor goal progress', 'systems monitoring', 'team monitoring backup', 
-                    'coordination', 'conflict management', 'motivating', 'affect management']:
-            self.world.defineState(self.name, var, list, lo=['lo', 'hi'])
-            self.setState(var, 'lo')
+        for var in self.processes:
+            self.world.defineState(self.name, var, int, lo=0, hi=1)
+            self.setState(var, 0)
+
+    def initialize_effects(self, acs={}):
+        # Identify AC variables that influence process variables
+        conditions = {}
+        for AC in acs.values():
+            for var, table in AC.get_field('process').items():
+                for process, effect in table.items():
+                    try:
+                        conditions[process][var] = effect
+                    except KeyError:
+                        conditions[process] = {var: effect}
+        for process, table in conditions.items():
+            key = stateKey(self.name, process)
+            lo = hi = 0
+            for var, effect in table.items():
+                if effect < 0:
+                    lo -= 1
+                elif effect > 0:
+                    hi += 1
+            tree_table = {'if': equalRow({makeFuture(k): weight for k, weight in table.items()}, 
+                                         list(range(lo, hi+1)))}
+            for condition_count in range(lo, hi+1):
+                prob_hi = (condition_count-lo+1)/(hi-lo+1)
+                tree_table[condition_count] = {'if': equalRow(key, [0, 1]),
+                                               0: {'distribution': [(setToConstantMatrix(key, 0), 0.5+(1-prob_hi)/2), 
+                                                                    (setToConstantMatrix(key, 1), prob_hi/2)]},
+                                               1: {'distribution': [(setToConstantMatrix(key, 0), (1-prob_hi)/2), 
+                                                                    (setToConstantMatrix(key, 1), 0.5+prob_hi/2)]}}
+            self.world.setDynamics(key, True, makeTree(tree_table))
