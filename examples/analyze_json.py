@@ -2,7 +2,7 @@ import os.path
 import json
 from atomic.analytic.ihmc_wrapper import JAGWrapper
 from atomic.analytic.gallup_wrapper import GelpWrapper
-from atomic.analytic.corenll_wrapper import ComplianceWrapper
+from atomic.analytic.cornell_wrapper import ComplianceWrapper
 from atomic.analytic.cmu_wrapper import TEDWrapper
 
 ddir = os.path.join(os.path.dirname(__file__), '..', 'data', 'ASU_DATA')
