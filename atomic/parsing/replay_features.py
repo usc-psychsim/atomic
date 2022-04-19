@@ -9,7 +9,7 @@ import math
 import pandas
 
 from atomic.parsing.count_features import *
-from atomic.parsing.replayer import *
+from atomic.parsing.rddl_replayer import *
 from atomic.analytic import *
 from atomic.analytic.metrics2 import *
 
@@ -24,7 +24,7 @@ COUNT_ACTIONS_ARGS = [
     ('Event:RoleSelected', {})
 ]
 
-class FeatureReplayer(Replayer):
+class FeatureReplayer(RDDL_Replayer):
     DEFAULT_FEATURES = {'RecordScore', 'MarkerPlacement', 'DialogueLabels', 'RecordMap', 'CountAction', 'CountEnterExit', 
         'CountTriageInHallways', 'CountVisitsPerRole', 'PlayerRoomPercentage'}
 
