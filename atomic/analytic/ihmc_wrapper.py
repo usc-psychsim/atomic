@@ -26,7 +26,6 @@ class JAGWrapper(ACWrapper):
             'observations/events/mission': self.handle_mission,
             'observations/events/player/role_selected': self.handle_role
         }
-        print('inited')
         self.players = {}
         self.elapsed_milliseconds = 0
         self.started = False
