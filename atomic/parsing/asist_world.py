@@ -56,6 +56,11 @@ class ASISTWorld(World):
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
         self.acs = make_ac_handlers(self.config)
+        # Any AC handling of this start message?
+        msg_topic = msg.get('topic', None)
+        for AC in self.acs.values():
+            if AC.wrapper and msg_topic in AC.wrapper.topic_handlers:
+                AC.wrapper.handle_message(msg_topic, msg['msg'], msg['data'])
         # Create team agent
         self.team = self.create_team()
 
@@ -63,7 +68,10 @@ class ASISTWorld(World):
             ac.augment_world(self, self.team, self.participants)
         self.team.initialize_effects(self.acs)
 
+        self.asi = make_asi(self, self.team, self.participants, self.acs, self.config)
+
     def process_msg(self, msg):
+        intervention = None
         if msg['msg']['source'] in self.TESTBED_SOURCES:
             self.process_testbed_msg(msg)
         elif msg['msg']['source'] in self.acs:
@@ -72,13 +80,16 @@ class ASISTWorld(World):
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
                 self.last_decision = self.now
+        return intervention
 
     def process_testbed_msg(self, msg):
-        if msg['msg']['sub_type'] == 'trial':
+        if msg['msg']['sub_type'] == 'trial' or msg['msg']['sub_type'] == 'replay':
             self.info = msg['msg']
-            self.info.update(msg['data']['metadata']['trial'])
+            self.info.update(msg['data']['metadata'][msg['msg']['sub_type']])
         elif msg['msg']['sub_type'] == 'start':
-            self.process_start(msg)
+            if self.participants is None:
+                # Sometimes there are duplicate start messages?
+                self.process_start(msg)
         elif msg['msg']['sub_type'] == 'state':
             self.update_state(msg)
         elif msg['msg']['sub_type'][:5] == 'Event':
@@ -97,10 +108,7 @@ class ASISTWorld(World):
         except KeyError:
             self.logger.warning(f'Processing message by unknown AC {msg["msg"]["source"]}')
             return None
-        msg_topic = msg.get('topic', '')
-        if (msg_topic == 'trial') or (msg_topic in AC.filters):
-            AC.wrapper.handle_message(msg_topic, msg['msg'], msg['data'])
-        # add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
+        AC.process_msg(msg)
 
     def update_state(self, msg):
         try:
@@ -127,7 +135,7 @@ class ASISTWorld(World):
             return (start[0]-self.now[0])*60 + start[1] - self.now[1]
 
     def process_stop(self, msg):
-        print(msg)
+        pass
 
     def close(self):
         if self.msg_types:
