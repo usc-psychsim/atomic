@@ -53,7 +53,7 @@ class JAGWrapper(ACWrapper):
                 s = jag.short_string()
             else:
                 s = jag.to_string()
-            print(player_id, s)
+            # print(player_id, s)
             
         
     def print_asi_jam(self, short=True):
@@ -64,7 +64,7 @@ class JAGWrapper(ACWrapper):
                 s = jag.short_string()
             else:
                 s = jag.to_string()
-            print(s)
+            # print(s)
 
     ''' Look back at messages that were received prematurely
         if you find this uid, process them

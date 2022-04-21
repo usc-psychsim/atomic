@@ -36,9 +36,9 @@ class GelpWrapper(ACWrapper):
                                         [overall_results.get(callsign, 0) for callsign in self.callsigns]
                                         
         
-        print(len(self.messages))
-        if (len(self.messages) % 10) == 1:
-            print(self.name, self.compare(10))
+        # print(len(self.messages))
+        # if (len(self.messages) % 10) == 1:
+        #     print(self.name, self.compare(10))
     
     '''
 “Overall” leadership score: mean = 6.1, SD = 1.6. 
