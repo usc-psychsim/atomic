@@ -32,6 +32,12 @@ class AC_model:
         self.variables_pair = kwargs.get('pair', {})
         self.variables = {}
 
+    def process_msg(self, msg):
+        msg_topic = msg.get('topic', '')
+        if msg_topic in self.filters and self.wrapper:
+            self.wrapper.handle_message(msg_topic, msg['msg'], msg['data'])
+        # add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
+
     def get_effects(self, intervention):
         """
         :return: any effects on this AC's variables by the given intervention
@@ -96,7 +102,9 @@ class AC_model:
             self.variables[var] = table
 
 
-AC_specs = {'ac_cmu_ta2_ted': 
+AC_specs = {'AC_CMUFMS_TA2_Cognitive':
+            {},
+            'ac_cmu_ta2_ted': 
             {'filters': {'agent/ac/cmuta2-ted-ac/ted'},
              'wrapper': (TEDWrapper, ('cmu', 'ted')),
              'team': {'skill use': {'values': int, 'hi': 2,
@@ -131,6 +139,8 @@ AC_specs = {'ac_cmu_ta2_ted':
                         'minecraft skill': {'values': int, 'hi': 2,
                                             'condition': operator.gt},
                         'social perceptiveness': {'values': int, 'hi': 2}}},
+            'AC_CORNELL_TA2_ASI-FACEWORK':
+            {},
             'AC_CORNELL_TA2_TEAMTRUST':
             {'filters': {'agent/ac/player_compliance'},
              'wrapper': (ComplianceWrapper, ('cornell', 'compliance')),
@@ -144,6 +154,14 @@ AC_specs = {'ac_cmu_ta2_ted':
              'wrapper': (GelpWrapper, ('gallup', 'gelp')),
              'player': {'leadership': {'values': int, 'hi': 1},
                         }},
+            'ac_gallup_ta2_gold':
+            {},
+            'AC_IHMC_TA2_Dyad-Reporting':
+            {},
+            'AC_IHMC_TA2_Location-Monitor':
+            {},
+            'AC_IHMC_TA2_Player-Proximity':
+            {},
             'ac_ihmc_ta2_joint-activity-interdependence':
             {'filters': {'observations/events/player/jag', 
                          'observations/events/mission',
