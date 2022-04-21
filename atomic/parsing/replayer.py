@@ -110,7 +110,7 @@ class Replayer(object):
         self.finish()
 
     def process_file(self, fname, num_steps):
-        self.logger.debug(f'Processing file {fname}')
+        self.logger.info(f'Processing file {fname}')
 
         self.pre_replay(fname)
         self.replay(fname, num_steps)
@@ -156,7 +156,6 @@ class Replayer(object):
         pass
 
     def finish(self):
-        print(sorted(self.sources))
         pass
 
     def parameterized_replay(self, args, simulate=False):
