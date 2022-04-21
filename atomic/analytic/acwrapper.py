@@ -9,6 +9,7 @@ from dateutil import parser
 import pandas as pd
 import numpy as np
 
+
 class ACWrapper:
     def __init__(self, team_name, ac_name):
         self.team_name = team_name
@@ -17,6 +18,7 @@ class ACWrapper:
         self.start_time = 0
         self.score_names = []
         self.callsigns = ['green', 'red', 'blue']
+        self.data = []
         
     @property
     def name(self):
@@ -35,7 +37,6 @@ class ACWrapper:
         self.topic_handlers[topic](message, data) 
         self.messages.append([message, data])
         
-        
     def handle_trial(self, message, data):
         self.start_time = parser.parse(message['timestamp'])
         
@@ -44,7 +45,6 @@ class ACWrapper:
         milliseconds = 1000*time_diff.seconds + time_diff.microseconds/1000
         return milliseconds
         
-    
     ''' Compare players over the last history_sec seconds
         For each score, return a list of [min, max] of the players that fall well below/above 
         the others on this score.
@@ -66,4 +66,3 @@ class ACWrapper:
                     extremes[score][1] = callsign
                     
         return extremes
-        
