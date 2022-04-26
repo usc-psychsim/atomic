@@ -40,15 +40,39 @@ class TEDWrapper(ACWrapper):
             "process_workload_burnt_agg"]
         self.topic_handlers = {
             'trial': self.handle_trial,
-            'agent/ac/cmuta2-ted-ac/ted': self.handle_msg}
+            'agent/ac/ac_cmu_ta2_ted/ted': self.handle_msg}
         
-        self.data = pd.DataFrame(columns=['millis'] + self.score_names)
+        self.data = pd.DataFrame()
+        # self.data = pd.DataFrame(columns=['millis'] + self.score_names)
 
-        
     def handle_msg(self, message, data):
-        elapsed = [self.elapsed_millis(message)]
-        row = [data.get(score, 0) for score in self.score_names]
-        self.data.loc[len(self.data)] = elapsed + row
-            
-            
-                    
+        new_data = [data]
+        self.last = pd.DataFrame(new_data)
+        self.last['Timestamp'] = message['timestamp']
+        self.data = pd.concat([self.data, self.last], ignore_index=True)
+        # elapsed = [self.elapsed_millis(message)]
+        # row = [data.get(score, 0) for score in self.score_names]
+        # self.data.loc[len(self.data)] = elapsed + row
+        # return row
+        return new_data
+
+
+class BEARDWrapper(ACWrapper):
+    def __init__(self, team_name, ac_name):
+        super().__init__(team_name, ac_name)
+        self.topic_handlers = {
+            'trial': self.handle_trial,
+            'agent/ac/ac_cmu_ta2_beard/beard': self.handle_msg}
+        
+        self.data = pd.DataFrame()
+
+    def handle_msg(self, message, data):
+        new_data = []
+        for player, table in data.items():
+            if player != 'team':
+                new_data.append(table)
+                new_data[-1]['Player'] = player
+        self.last = pd.DataFrame(new_data)
+        self.last['Timestamp'] = message['timestamp']
+        self.data = pd.concat([self.data, self.last], ignore_index=True)
+        return new_data        
