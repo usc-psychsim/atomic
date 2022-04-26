@@ -18,7 +18,10 @@ class ACWrapper:
         self.start_time = 0
         self.score_names = []
         self.callsigns = ['green', 'red', 'blue']
-        self.data = []
+        self.data = None
+        self.last = None
+        self.topic_handlers = {}
+        self.ignored_topics = set()
         
     @property
     def name(self):
@@ -30,12 +33,14 @@ class ACWrapper:
     def n_scores(self):
         return len(self.score_names)
         
-    def handle_message(self, topic, message, data):
+    def handle_message(self, topic, message, data, mission_time=None):
         if topic not in self.topic_handlers:
-            return
+            if 'versioninfo' not in topic and 'heartbeats' not in topic:
+                self.ignored_topics.add(topic)
+            return []
 
-        self.topic_handlers[topic](message, data) 
         self.messages.append([message, data])
+        return self.topic_handlers[topic](message, data)
         
     def handle_trial(self, message, data):
         self.start_time = parser.parse(message['timestamp'])
