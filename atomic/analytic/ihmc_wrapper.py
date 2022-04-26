@@ -112,6 +112,7 @@ class JAGWrapper(ACWrapper):
         role = data['new_role']
         player = self.players[player_id]
         player.set_role(role)
+        return []
         
     def handle_jag(self, message, data):
         jid = data['jag'].get('id', '')
@@ -258,6 +259,7 @@ class JAGWrapper(ACWrapper):
                 
         except Exception:
             print(traceback.format_exc())
+        return []
     
     def __get_player_by_callsign(self, callsign):
         for player in self.players.values():
