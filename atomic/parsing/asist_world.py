@@ -55,7 +55,7 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.config)
+        self.acs = make_ac_handlers(self.participant2player, self.config)
         # Any AC handling of this start message?
         msg_topic = msg.get('topic', None)
         for AC in self.acs.values():
@@ -108,7 +108,7 @@ class ASISTWorld(World):
         except KeyError:
             self.logger.warning(f'Processing message by unknown AC {msg["msg"]["source"]}')
             return None
-        AC.process_msg(msg)
+        AC.process_msg(msg, self.now)
 
     def update_state(self, msg):
         try:
@@ -135,7 +135,9 @@ class ASISTWorld(World):
             return (start[0]-self.now[0])*60 + start[1] - self.now[1]
 
     def process_stop(self, msg):
-        pass
+        for AC in self.acs.values():
+            if AC.wrapper and AC.wrapper.ignored_topics:
+                print(AC.name, sorted(AC.wrapper.ignored_topics))
 
     def close(self):
         if self.msg_types:
