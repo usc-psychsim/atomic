@@ -4,7 +4,7 @@ import cProfile
 import json
 import logging
 import os.path
-import sys
+import pandas
 import glob
 import traceback
 try:
@@ -91,6 +91,10 @@ class Replayer(object):
         self.worlds = {}
         self.sources = set()
 
+        # Accumulated AC data
+        self.AC_data = {}
+        self.AC_last = {}
+
         self.pbar = None
 
     def process_files(self, num_steps=0, fname=None):
@@ -147,6 +151,17 @@ class Replayer(object):
                     self.worlds[fname].process_msg(msg)
 
     def post_replay(self, fname):
+        for AC in self.worlds[fname].acs.values():
+            if AC.wrapper and AC.wrapper.last is not None:
+                AC.wrapper.data.to_csv(os.path.join(os.path.dirname(fname), 
+                                                    f'{self.worlds[fname].info["name"]}_{AC.name}.csv'))
+                try:
+                    self.AC_data[AC.name] = pandas.concat([self.AC_data[AC.name], AC.wrapper.data], ignore_index=True)
+                    self.AC_last[AC.name] = pandas.concat([self.AC_last[AC.name], AC.wrapper.last], ignore_index=True)
+                except KeyError:
+                    self.AC_data[AC.name] = AC.wrapper.data
+                    self.AC_last[AC.name] = AC.wrapper.last
+
         self.worlds[fname].close()
 
     def pre_step(self, world):
@@ -156,7 +171,24 @@ class Replayer(object):
         pass
 
     def finish(self):
-        pass
+        result = pandas.DataFrame()
+        non_stats = ['Requestor', 'Requestee', 'Timestamp', 'role', 'millis', 
+                     'Player', 'elapsed_ms', 'delta_ms']
+        for name, data in sorted(self.AC_data.items(), key=lambda tup: tup[0].lower()):
+            if data is not None:
+                numeric = data.drop(columns=non_stats, errors='ignore')
+                frame = numeric.min().to_frame('min')
+                frame = frame.join(numeric.max().to_frame('max'))
+                frame = frame.join(numeric.mean().to_frame('mean'))
+                frame = frame.join(numeric.std().to_frame('std'))
+                numeric = self.AC_last[name].drop(columns=non_stats, errors='ignore')
+                frame = frame.join(numeric.min().to_frame('min final'))
+                frame = frame.join(numeric.max().to_frame('max final'))
+                frame = frame.join(numeric.mean().to_frame('mean final'))
+                frame = frame.join(numeric.std().to_frame('std final'))
+                frame.insert(0, 'AC', name)
+                result = pandas.concat([result, frame.sort_index()])
+        result.to_csv('/home/david/Downloads/ac_stats.csv')
 
     def parameterized_replay(self, args, simulate=False):
         if args['profile']:
