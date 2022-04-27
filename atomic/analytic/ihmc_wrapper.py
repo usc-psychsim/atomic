@@ -16,6 +16,11 @@ from .models.jags.jag import Jag
 from atomic.analytic.models.player import Player
 from atomic.analytic.acwrapper import ACWrapper
 
+from psychsim.pwl.plane import equalRow
+from psychsim.pwl.matrix import setToConstantMatrix
+from psychsim.pwl.tree import makeTree
+from psychsim.reward import maximizeFeature
+
 class JAGWrapper(ACWrapper):
     def __init__(self, team_name, ac_name):
         super().__init__(team_name, ac_name)
@@ -418,3 +423,32 @@ class JAGWrapper(ACWrapper):
              player = self.players[player_id]
              jag = player.joint_activity_model.get_by_id(uid)
              print(mtype, player_id, (jag is None))
+
+
+def add_joint_activity(world, player, team, jag):
+    urn = jag['urn'].split(':')
+    victim = jag['inputs']['victim-id']
+    feature = f'{urn[-1]}_{victim}'
+    # Create status variable for this joint activity
+    var = world.defineState(player, feature, list, 
+                            ['discovered', 'aware', 'preparing', 'addressing', 
+                             'complete'])
+    world.setFeature(var, 'discovered')
+    # Add reward component for progressing through this activity
+    for model in world.get_current_models()[player.name]:
+        goal = maximizeFeature(var, player.name)
+        player.setReward(goal, 1, model)
+    # Add action for addressing this activity
+    action_dict = {'verb': 'advance', 'object': victim}
+    if not player.hasAction(action_dict):
+        tree = makeTree({'if': equalRow(var, 'complete'), 
+                        True: False, False: True})
+        player.addAction(action_dict, tree)
+        tree = makeTree({'if': equalRow(var, ['discovered', 'aware', 'preparing', 'addressing']),
+                         'discovered': setToConstantMatrix(var, 'aware'),
+                         'aware': setToConstantMatrix(var, 'preparing'),
+                         'preparing': setToConstantMatrix(var, 'addressing'),
+                         'addressing': setToConstantMatrix(var, 'complete'),
+                         })
+    for child in jag['children']:
+        add_joint_activity(world, player, team, child)
