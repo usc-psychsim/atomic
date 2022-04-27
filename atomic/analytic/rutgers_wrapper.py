@@ -9,7 +9,10 @@ class BeliefDiffWrapper(ACWrapper):
         super().__init__(team_name, ac_name)
         self.topic_handlers = {
             'trial': self.handle_trial,
-            'agent/ac/belief_diff': self.handle_msg}
+            'agent/ac/belief_diff': self.handle_msg,
+            'agent/ac/threat_room_communication': self.ignore_msg,
+            'agent/ac/victim_type_communication': self.ignore_msg,
+            'agent/ac/threat_room_coordination': self.handle_threat}
         self.data = pd.DataFrame()
 
     def handle_msg(self, message, data):
@@ -19,5 +22,13 @@ class BeliefDiffWrapper(ACWrapper):
             if isinstance(value, list) and field != 'room_id':
                 new_data[field] = value[overall_pos]
         self.last = pd.DataFrame([new_data])
+        self.data = pd.concat([self.data, self.last], ignore_index=True)
+        return new_data
+
+    def handle_threat(self, message, data):
+        new_data = [{'Player': player, 
+                     'wait_time': data['wait_time'][i]}
+                    for i, player in enumerate(data['threat_activation_player'])]
+        self.last = pd.DataFrame(new_data)
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data
