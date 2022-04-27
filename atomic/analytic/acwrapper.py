@@ -9,11 +9,13 @@ from dateutil import parser
 import pandas as pd
 import numpy as np
 
+from psychsim.pwl.keys import stateKey, binaryKey
+from psychsim.action import Action, ActionSet
+
 
 class ACWrapper:
-    def __init__(self, team_name, ac_name):
-        self.team_name = team_name
-        self.ac_name = ac_name
+    def __init__(self, name, **kwargs):
+        self.name = name
         self.messages = []
         self.start_time = 0
         self.score_names = []
@@ -22,10 +24,20 @@ class ACWrapper:
         self.last = None
         self.topic_handlers = {}
         self.ignored_topics = set()
-        
-    @property
-    def name(self):
-        return self.team_name + ':' + self.ac_name
+
+        self.variables = kwargs.get('variables', {})
+
+    def handle_message(self, msg, mission_time=None):
+        msg_topic = msg.get('topic', '')
+        try:
+            handler = self.topic_handlers[msg_topic]
+        except KeyError:
+            data = []
+        else:
+            data = handler(msg['msg'], msg['data'])
+        # add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
+        state_delta = {}
+        return state_delta        
         
     def make_dfs(self):
         self.data = [pd.DataFrame(columns=['millis'] + self.callsigns) for i in range(len(self.score_names))]
@@ -33,15 +45,9 @@ class ACWrapper:
     def n_scores(self):
         return len(self.score_names)
         
-    def handle_message(self, topic, message, data, mission_time=None):
-        if topic not in self.topic_handlers:
-            if 'versioninfo' not in topic and 'heartbeats' not in topic:
-                self.ignored_topics.add(topic)
-            return []
+    def ignore_msg(self, message, data):
+        return []
 
-        self.messages.append([message, data])
-        return self.topic_handlers[topic](message, data)
-        
     def handle_trial(self, message, data):
         self.start_time = parser.parse(message['timestamp'])
         
@@ -71,3 +77,67 @@ class ACWrapper:
                     extremes[score][1] = callsign
                     
         return extremes
+
+    def get_effects(self, intervention):
+        """
+        :return: any effects on this AC's variables by the given intervention
+        """
+        if isinstance(intervention, Action) or isinstance(intervention, ActionSet):
+            intervention = intervention['verb']
+        return {var: table['effects'][intervention] for var, table in self.variables.items() 
+                if 'effects' in table and intervention in table['effects']}
+
+    def get_field(self, field):
+        return {var: table[field] for var, table in self.variables.items()
+                if field in table}    
+
+    def get_ASI_reward(self):
+        return self.get_field('ASI reward')
+
+    def get_conditions(self):
+        return self.get_field('condition')
+
+    def get_player_variable(self, player, var_name):
+        return stateKey(player, f'{self.name} {var_name}')
+
+    def get_pair_variable(self, player1, player2, var_name):
+        return binaryKey(player1, player2, f'{self.name} {var_name}')
+
+    def get_team_variable(self, team_name, var_name):
+        return stateKey(team_name, f'{self.name} {var_name}')
+
+    def define_variable(self, world, key, table):
+        if isinstance(table['values'], list):
+            world.defineVariable(key, list, lo=table['values'])
+            world.setFeature(key, table['values'][0])
+        elif table['values'] is int:
+            world.defineVariable(key, int, lo=0, hi=table.get('hi', 1))
+            world.setFeature(key, 0)
+        else:
+            raise TypeError(f'Unable to create variable {key} of type {table["values"].__class__.__name__}')
+
+    def augment_world(self, world, team_agent, players):
+        """
+        :type team_agent: Agent
+        :type players: dict(str->Agent)
+        """
+        for var_name, table in self.variables.items():
+            if 'object' not in table:
+                self.logger.warning(f'No player/pair/team specification for variable {var_name} in AC {self.name}')
+            elif table['object'] == 'player':
+                # Player-specific variables
+                for player in players:
+                    key = self.get_player_variable(player, var_name)
+                    self.define_variable(world, key, table)
+            elif table['object'] == 'pair':
+                # Pairwise variables
+                for player in players:
+                    for other in players:
+                        if other != player:
+                            key = self.get_pair_variable(player, other, var_name)
+                            world.relations[var_name] = world.relations.get(var_name, {}) | {key: {'subject': player, 'object': other}}
+                            self.define_variable(world, key, table)
+            elif table['object'] == 'team':
+                # Team-wide variables
+                key = self.get_team_variable(team_agent.name, var_name)
+                self.define_variable(world, key, table)
