@@ -3,7 +3,7 @@ import logging
 
 from psychsim.world import World
 
-from atomic.teamwork.ac import make_ac_handlers
+from atomic.analytic import make_ac_handlers
 from atomic.teamwork.asi import make_asi, make_team
 
 
@@ -55,12 +55,10 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.participant2player, self.config)
+        self.acs = make_ac_handlers(self.config)
         # Any AC handling of this start message?
-        msg_topic = msg.get('topic', None)
         for AC in self.acs.values():
-            if AC.wrapper and msg_topic in AC.wrapper.topic_handlers:
-                AC.wrapper.handle_message(msg_topic, msg['msg'], msg['data'])
+            AC.handle_message(msg['msg'], msg['data'])
         # Create team agent
         self.team = self.create_team()
 
@@ -108,7 +106,7 @@ class ASISTWorld(World):
         except KeyError:
             self.logger.warning(f'Processing message by unknown AC {msg["msg"]["source"]}')
             return None
-        AC.process_msg(msg, self.now)
+        AC.handle_message(msg, self.now)
 
     def update_state(self, msg):
         try:
@@ -136,8 +134,8 @@ class ASISTWorld(World):
 
     def process_stop(self, msg):
         for AC in self.acs.values():
-            if AC.wrapper and AC.wrapper.ignored_topics:
-                print(AC.name, sorted(AC.wrapper.ignored_topics))
+            if AC.ignored_topics:
+                print(AC.name, sorted(AC.ignored_topics))
 
     def close(self):
         if self.msg_types:
