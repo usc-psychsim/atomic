@@ -152,15 +152,15 @@ class Replayer(object):
 
     def post_replay(self, fname):
         for AC in self.worlds[fname].acs.values():
-            if AC.wrapper and AC.wrapper.last is not None:
-                AC.wrapper.data.to_csv(os.path.join(os.path.dirname(fname), 
-                                                    f'{self.worlds[fname].info["name"]}_{AC.name}.csv'))
+            if AC.last is not None:
+                AC.data.to_csv(os.path.join(os.path.dirname(fname), 
+                                            f'{self.worlds[fname].info["name"]}_{AC.name}.csv'))
                 try:
-                    self.AC_data[AC.name] = pandas.concat([self.AC_data[AC.name], AC.wrapper.data], ignore_index=True)
-                    self.AC_last[AC.name] = pandas.concat([self.AC_last[AC.name], AC.wrapper.last], ignore_index=True)
+                    self.AC_data[AC.name] = pandas.concat([self.AC_data[AC.name], AC.data], ignore_index=True)
+                    self.AC_last[AC.name] = pandas.concat([self.AC_last[AC.name], AC.last], ignore_index=True)
                 except KeyError:
-                    self.AC_data[AC.name] = AC.wrapper.data
-                    self.AC_last[AC.name] = AC.wrapper.last
+                    self.AC_data[AC.name] = AC.data
+                    self.AC_last[AC.name] = AC.last
 
         self.worlds[fname].close()
 
