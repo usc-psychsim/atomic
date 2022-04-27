@@ -58,7 +58,7 @@ class ASISTWorld(World):
         self.acs = make_ac_handlers(self.config)
         # Any AC handling of this start message?
         for AC in self.acs.values():
-            AC.handle_message(msg['msg'], msg['data'])
+            AC.handle_message(msg)
         # Create team agent
         self.team = self.create_team()
 
