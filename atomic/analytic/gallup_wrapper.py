@@ -26,8 +26,8 @@ class GelpWrapper(ACWrapper):
     HELP: mean = 4.8, SD = 1.2.
     """
 
-    def __init__(self, team_name, ac_name):
-        super().__init__(team_name, ac_name)
+    def __init__(self, agent_name, **kwargs):
+        super().__init__(agent_name, **kwargs)
         self.score_names = ['Ideas', 'Focus', 'Coordinate', 'Monitor', 'Share', 'Plan', 'Agree', 'Help', 'Leadership'] 
         self.topic_handlers = {
             'trial': self.handle_trial,

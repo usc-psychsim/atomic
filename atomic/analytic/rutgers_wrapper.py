@@ -5,8 +5,8 @@ import numpy as np
 
 
 class BeliefDiffWrapper(ACWrapper):
-    def __init__(self, team_name, ac_name):
-        super().__init__(team_name, ac_name)
+    def __init__(self, agent_name, **kwargs):
+        super().__init__(agent_name, **kwargs)
         self.topic_handlers = {
             'trial': self.handle_trial,
             'agent/ac/belief_diff': self.handle_msg,

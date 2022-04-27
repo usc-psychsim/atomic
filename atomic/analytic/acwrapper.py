@@ -14,8 +14,9 @@ from psychsim.action import Action, ActionSet
 
 
 class ACWrapper:
-    def __init__(self, name, **kwargs):
-        self.name = name
+    def __init__(self, agent_name, **kwargs):
+        self.name = agent_name
+
         self.messages = []
         self.start_time = 0
         self.score_names = []

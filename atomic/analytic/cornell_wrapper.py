@@ -13,8 +13,8 @@ import numpy as np
 
 
 class ComplianceWrapper(ACWrapper):
-    def __init__(self, team_name, ac_name):
-        super().__init__(team_name, ac_name)
+    def __init__(self, agent_name, **kwargs):
+        super().__init__(agent_name, **kwargs)
         self.score_names = ['avg_response_time', 'N_requests_open', 'compliance_ratio']
         self.topic_handlers = {
             'trial': self.handle_trial,

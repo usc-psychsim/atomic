@@ -21,9 +21,10 @@ from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.tree import makeTree
 from psychsim.reward import maximizeFeature
 
+
 class JAGWrapper(ACWrapper):
-    def __init__(self, team_name, ac_name):
-        super().__init__(team_name, ac_name)
+    def __init__(self, agent_name, **kwargs):
+        super().__init__(agent_name, **kwargs)
         self.score_names = ["active_duration","joint_activity_efficiency","redundancy_ratio"]
         self.topic_handlers = {
             'trial': self.handle_trial,
@@ -49,7 +50,6 @@ class JAGWrapper(ACWrapper):
         for pid in self.players.keys():
             self.player_jag_ids(pid)
             
-                
     def player_jag_ids(self, player_id, short=True):
         for jag in self.players[player_id].joint_activity_model.jag_instances:
             if jag.urn != aj.RESCUE_VICTIM['urn']:
@@ -60,7 +60,6 @@ class JAGWrapper(ACWrapper):
                 s = jag.to_string()
             # print(player_id, s)
             
-        
     def print_asi_jam(self, short=True):
         for jag in self.asi_completed_jags:
             if jag.urn != aj.RESCUE_VICTIM['urn']:
