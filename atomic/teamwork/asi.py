@@ -1,9 +1,13 @@
+from string import Template
+
 from psychsim.pwl.keys import stateKey, makeFuture
 from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.plane import equalRow
 from psychsim.pwl.tree import makeTree
 from psychsim.reward import maximizeFeature
 from psychsim.agent import Agent
+
+from .interventions import interventions
 
 
 class ASI(Agent):
@@ -19,40 +23,28 @@ class ASI(Agent):
         for AC in self.acs.values():
             self.conditions.update(AC.get_conditions())
 
+    def generate_message(self, decision):
+        action = decision['action']
+        if action == self.noop:
+            return None
+        else:
+            template = interventions[action['verb']]['template']
+            sub = dict(action.items())
+            return template.substitute(sub)
+
     def add_interventions(self, players, team):
-        # Inter-mission AAR prompt
-        # Associated state: Descriptors from situation to highlight (implies descriptors of current situation are being maintained)
-
-        # Cheerleading action
-        for player in players:
-            action = self.addAction({'verb': 'cheer', 'object': player})
-            self.add_dynamics(action)
-
-        # Report performance change
-        # Associated state: Individual performance level, team leader
-        for player in players:
-            for other in players:
-                if other != player:
-                    action = self.addAction({'verb': 'report drop', 'object': player, 'about': other})
+        self.noop = self.addAction({'verb': 'do nothing'})
+        for verb, table in interventions.items():
+            if isinstance(table['template'], str):
+                table['template'] = Template(table['template'])
+            obj = table.get('object', 'team')
+            if obj == 'player':
+                for player in players:
+                    action = self.addAction({'verb': verb, 'object': player})
                     self.add_dynamics(action)
-
-        # Recommend phase-sensitive plan
-        # Associated state: Game phase
-        for player in players:
-            action = self.addAction({'verb': 'notify phase', 'object': player})
-            self.add_dynamics(action)
-            
-        # Prompt for coordination best practices
-        # Associated state: Unassigned requests/goals
-        for player in players:
-            action = self.addAction({'verb': 'remind practices', 'object': player})
-            self.add_dynamics(action)
-
-        # Spread workload
-        # Associated state: workload of individual players
-        for player in players:
-            action = self.addAction({'verb': 'distribute workload', 'object': player})
-            self.add_dynamics(action)
+            elif obj == 'team':
+                action = self.addAction({'verb': verb})
+                self.add_dynamics(action)
 
     def add_dynamics(self, action):
         """
