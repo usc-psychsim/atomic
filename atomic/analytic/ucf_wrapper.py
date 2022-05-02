@@ -12,11 +12,12 @@ class PlayerProfileWrapper(ACWrapper):
             'agent/ac_ucf_ta2_playerprofiler/playerprofile': self.handle_msg}
         self.data = pd.DataFrame()
 
-    def handle_msg(self, message, data):
-        new_data = {'Player': f'{data["callsign"].upper()}_ASIST2'}
-        new_data['team-potential-category'] = 1 if data['team-potential-category'] == 'HighTeam' else 0
-        new_data['task-potential-category'] = 1 if data['task-potential-category'] == 'HighTask' else 0
+    def handle_msg(self, message, data, mission_time):
+        new_data = {'Player': data["callsign"]}
+        new_data['team-potential-category'] = data['team-potential-category'] == 'HighTeam'
+        new_data['task-potential-category'] = data['task-potential-category'] == 'HighTask'
         self.last = pd.DataFrame([new_data])
-        self.last['Timestamp'] = message['timestamp']
+        self.last['Timestamp'] = mission_time
+        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
-        return new_data
+        return [new_data]
