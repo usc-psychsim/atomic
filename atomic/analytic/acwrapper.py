@@ -21,12 +21,14 @@ class ACWrapper:
         self.start_time = 0
         self.score_names = []
         self.callsigns = ['green', 'red', 'blue']
+        self.trial = None
         self.data = None
         self.last = None
         self.topic_handlers = {}
         self.ignored_topics = set()
 
         self.variables = kwargs.get('variables', {})
+        self.team_agent = None
 
     def handle_message(self, msg, mission_time=None):
         msg_topic = msg.get('topic', '')
@@ -35,9 +37,25 @@ class ACWrapper:
         except KeyError:
             data = []
         else:
-            data = handler(msg['msg'], msg['data'])
+            data = handler(msg['msg'], msg['data'], 
+                           None if mission_time is None else (15*60)-(mission_time[0]*60+mission_time[1]))
         # add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
         state_delta = {}
+        if data:
+            for record in data:
+                for field in record.keys() & self.variables.keys():
+                    if self.variables[field]['object'] == 'player':
+                        var = self.get_player_variable(record['Player'], field)
+                    elif self.variables[field]['object'] == 'team':
+                        var = self.get_team_variable(field)
+                    else:
+                        raise ValueError(f'Unable to create variable for {field}')
+                    if not isinstance(record[field], self.variables[field]['values']):
+                        if self.variables[field]['values'] is bool:
+                            record[field] = record[field] > self.variables[field]['threshold']
+                        else:
+                            raise TypeError(f'Unable to coerce type for {field}')
+                    state_delta[var] = record[field]
         return state_delta        
         
     def make_dfs(self):
@@ -46,11 +64,12 @@ class ACWrapper:
     def n_scores(self):
         return len(self.score_names)
         
-    def ignore_msg(self, message, data):
+    def ignore_msg(self, message, data, mission_time):
         return []
 
-    def handle_trial(self, message, data):
+    def handle_trial(self, message, data, mission_time):
         self.start_time = parser.parse(message['timestamp'])
+        self.trial = data['trial_number']
         
     def elapsed_millis(self, message):
         time_diff = parser.parse(message['timestamp']) - self.start_time
@@ -104,24 +123,31 @@ class ACWrapper:
     def get_pair_variable(self, player1, player2, var_name):
         return binaryKey(player1, player2, f'{self.name} {var_name}')
 
-    def get_team_variable(self, team_name, var_name):
-        return stateKey(team_name, f'{self.name} {var_name}')
+    def get_team_variable(self, var_name):
+        return stateKey(self.team_agent.name, f'{self.name} {var_name}')
 
     def define_variable(self, world, key, table):
         if isinstance(table['values'], list):
             world.defineVariable(key, list, lo=table['values'])
             world.setFeature(key, table['values'][0])
         elif table['values'] is int:
-            world.defineVariable(key, int, lo=0, hi=table.get('hi', 1))
+            world.defineVariable(key, int, lo=0, hi=table.get('hi', None))
             world.setFeature(key, 0)
+        elif table['values'] is bool:
+            world.defineVariable(key, bool)
+            world.setFeature(key, True)
+        elif table['values'] is float:
+            world.defineVariable(key, float)
+            world.setFeature(key, 0.)
         else:
-            raise TypeError(f'Unable to create variable {key} of type {table["values"].__class__.__name__}')
+            raise TypeError(f'Unable to create variable {key} of type {table["values"].__name__}')
 
     def augment_world(self, world, team_agent, players):
         """
         :type team_agent: Agent
         :type players: dict(str->Agent)
         """
+        self.team_agent = team_agent
         for var_name, table in self.variables.items():
             if 'object' not in table:
                 self.logger.warning(f'No player/pair/team specification for variable {var_name} in AC {self.name}')
@@ -140,5 +166,5 @@ class ACWrapper:
                             self.define_variable(world, key, table)
             elif table['object'] == 'team':
                 # Team-wide variables
-                key = self.get_team_variable(team_agent.name, var_name)
+                key = self.get_team_variable(var_name)
                 self.define_variable(world, key, table)
