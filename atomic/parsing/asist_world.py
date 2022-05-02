@@ -20,7 +20,7 @@ class ASISTWorld(World):
             self.logger = logging
         else:
             self.logger = logger
-        self.info = None
+        self.info = {}
         self.msg_types = set()
 
         self.participants = None
@@ -29,6 +29,7 @@ class ASISTWorld(World):
         self.player2participant = None
 
         # Team agent
+        self.acs = {}
         self.team = None
 
         # Time variables
