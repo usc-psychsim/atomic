@@ -86,6 +86,9 @@ class ASISTWorld(World):
         if not self.planning:
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
+                model = self.asi.get_true_model()
+                decision = self.asi.decide(model=model)
+                intervention = self.asi.generate_message(decision)
                 self.last_decision = self.now
         return intervention
 
