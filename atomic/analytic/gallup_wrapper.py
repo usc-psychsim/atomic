@@ -35,7 +35,7 @@ class GelpWrapper(ACWrapper):
 
         self.data = pd.DataFrame()
         
-    def handle_msg(self, message, data):
+    def handle_msg(self, message, data, mission_time):
         new_data = []
         if message['timestamp'] is not None:
             for result in data['gelp_results']:
@@ -44,11 +44,11 @@ class GelpWrapper(ACWrapper):
                 record[self.score_names[-1]] = result['gelp_overall']
                 new_data.append(record)
             self.last = pd.DataFrame(new_data)
-            self.last['Timestamp'] = message['timestamp']
+            self.last['Timestamp'] = mission_time
+            self.last['Trial'] = self.trial
             self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data
     
-          
 
 class GOLDWrapper(ACWrapper):
     def __init__(self, team_name, ac_name):
@@ -59,6 +59,6 @@ class GOLDWrapper(ACWrapper):
 
         self.data = pd.DataFrame()
 
-    def handle_msg(self, message, data):
+    def handle_msg(self, message, data, mission_time):
         if data['gold_results']:
             print(data)

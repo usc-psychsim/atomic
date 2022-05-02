@@ -7,6 +7,7 @@ Created on Tue Mar 15 13:32:51 2022
 """
 
 from atomic.analytic.acwrapper import ACWrapper
+import json
 import pandas as pd
 import numpy as np
 
@@ -45,10 +46,11 @@ class TEDWrapper(ACWrapper):
         self.data = pd.DataFrame()
         # self.data = pd.DataFrame(columns=['millis'] + self.score_names)
 
-    def handle_msg(self, message, data):
+    def handle_msg(self, message, data, mission_time):
         new_data = [data]
         self.last = pd.DataFrame(new_data)
-        self.last['Timestamp'] = message['timestamp']
+        self.last['Timestamp'] = mission_time
+        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         # elapsed = [self.elapsed_millis(message)]
         # row = [data.get(score, 0) for score in self.score_names]
@@ -66,13 +68,14 @@ class BEARDWrapper(ACWrapper):
         
         self.data = pd.DataFrame()
 
-    def handle_msg(self, message, data):
+    def handle_msg(self, message, data, mission_time):
         new_data = []
         for player, table in data.items():
             if player != 'team':
                 new_data.append(table)
-                new_data[-1]['Player'] = player
+                new_data[-1]['Player'] = player.split('_')[0].capitalize()
         self.last = pd.DataFrame(new_data)
-        self.last['Timestamp'] = message['timestamp']
+        self.last['Timestamp'] = mission_time
+        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data        
