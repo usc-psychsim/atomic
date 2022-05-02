@@ -2,6 +2,7 @@ import json
 import logging
 
 from psychsim.world import World
+from psychsim.agent import Agent
 
 from atomic.analytic import make_ac_handlers
 from atomic.teamwork.asi import make_asi, make_team
@@ -12,10 +13,13 @@ class ASISTWorld(World):
     DIALOG_SOURCES = {'uaz_dialog_agent', 'tomcat_speech_analyzer'}
     DECISION_INTERVAL = 5
 
-    def __init__(self, config=None, logger=logging):
+    def __init__(self, config=None, logger=None):
         super().__init__()
         self.config = config
-        self.logger = logger
+        if logger is None:
+            self.logger = logging
+        else:
+            self.logger = logger
         self.info = None
         self.msg_types = set()
 
@@ -36,7 +40,8 @@ class ASISTWorld(World):
         self.planning = True
 
     def create_participant(self, name):
-        agent = self.addAgent(name)
+        agent = self.addAgent(PlayerModel(name))
+        agent.noop = agent.addAction({'verb': 'do nothing'})
         return agent
 
     def create_team(self):
@@ -44,14 +49,7 @@ class ASISTWorld(World):
         self.addAgent(agent)
         return agent
 
-    def process_start(self, msg):
-        for key, value in msg['data'].items():
-            if key == 'client_info':
-                self.participant2player = {client['unique_id']: client for client in value if client['unique_id']}
-                self.player2participant = {client['playername']: unique_id 
-                                           for unique_id, client in self.participant2player.items()}
-            elif key not in self.info:
-                self.info[key] = value
+    def create_agents(self, msg):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
@@ -61,12 +59,23 @@ class ASISTWorld(World):
             AC.handle_message(msg)
         # Create team agent
         self.team = self.create_team()
-
         for ac in self.acs.values():
             ac.augment_world(self, self.team, self.participants)
         self.team.initialize_effects(self.acs)
 
         self.asi = make_asi(self, self.team, self.participants, self.acs, self.config)
+
+        self.setOrder([{self.asi.name}, set(self.agents.keys()-{self.asi.name})])
+
+    def process_start(self, msg):
+        for key, value in msg['data'].items():
+            if key == 'client_info':
+                self.participant2player = {client['unique_id']: client for client in value if client['unique_id']}
+                self.player2participant = {client['playername'].split('_')[0].capitalize(): unique_id 
+                                           for unique_id, client in self.participant2player.items()}
+            elif key not in self.info:
+                self.info[key] = value
+        self.create_agents(msg)
 
     def process_msg(self, msg):
         intervention = None
@@ -106,7 +115,10 @@ class ASISTWorld(World):
         except KeyError:
             self.logger.warning(f'Processing message by unknown AC {msg["msg"]["source"]}')
             return None
-        AC.handle_message(msg, self.now)
+        delta = AC.handle_message(msg, self.now)
+        if delta:
+            for var, value in delta.items():
+                self.setFeature(var, value, recurse=True)
 
     def update_state(self, msg):
         try:
@@ -140,3 +152,7 @@ class ASISTWorld(World):
     def close(self):
         if self.msg_types:
             self.logger.warning(f'Unknown message types: {", ".join(sorted(self.msg_types))}')
+
+
+class PlayerModel(Agent):
+    pass
