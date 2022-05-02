@@ -126,6 +126,7 @@ class Team(Agent):
             self.setState(var, 0)
 
     def initialize_effects(self, acs={}):
+        self.noop = self.addAction({'verb': 'do nothing'})
         # Identify AC variables that influence process variables
         conditions = {}
         for AC in acs.values():
