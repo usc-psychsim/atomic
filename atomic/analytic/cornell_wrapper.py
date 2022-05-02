@@ -22,7 +22,8 @@ class ComplianceWrapper(ACWrapper):
             'agent/ac/goal_alignment': self.handle_alignment_msg}
         self.data = pd.DataFrame()
 
-    def handle_compliance_msg(self, message, data):
+    def handle_compliance_msg(self, message, data, mission_time):
+        # Load in the latest compliance numbers
         new_data = []
         for player1, table in data.items():
             if player1 != 'elapsed_ms':
@@ -31,21 +32,21 @@ class ComplianceWrapper(ACWrapper):
                     for player2, value in subtable.items():
                         player2 = player2.split('_')[0]
                         if player2 not in records:
-                            records[player2] = {'Requestor': f'{player1.upper()}_ASIST2', 'Requestee': f'{player2.upper()}_ASIST2'}
+                            records[player2] = {'Requestor': player1, 'Requestee': player2}
                         records[player2][field] = value
                 new_data += list(records.values())
-        self.last = pd.DataFrame(new_data)
-        self.last['Timestamp'] = message['timestamp']
+        new_frame = pd.DataFrame(new_data)
+        # Identify any changes
+        if len(self.data) > 0:
+            for i, record in new_frame.iterrows():
+                previous = self.data[(self.data['Requestor'] == record['Requestor']) & (self.data['Requestee'] == record['Requestee'])]
+        self.last = new_frame
+        self.last['Timestamp'] = mission_time
+        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
-        # elapsed = [self.elapsed_millis(message)]
-        ######### This needs an overhaul to work with pairwise compliance
-        # 
-        # for si, score in enumerate(self.score_names):
-        #    row = elapsed + [data.get(score+'_'+callsign, 0) for callsign in self.callsigns]
-        #    self.data[si].loc[len(self.data[si])] = row
         return new_data
 
-    def handle_alignment_msg(self, message, data):
+    def handle_alignment_msg(self, message, data, mission_time):
         new_data = []
         for player1, table in data.items():
             if player1 == 'Team':
@@ -54,12 +55,13 @@ class ComplianceWrapper(ACWrapper):
                 new_data[-1]['goal_alignment_current'] = 1 if table['goal_alignment_current'] else 0
             elif player1 != 'elapsed_ms':
                 for player2 in table['goal_alignment_current']:
-                    record = {'Requestor': f'{player1.upper()}_ASIST2', 'Requestee': f'{player2.upper()}_ASIST2',
+                    record = {'Requestor': player1, 'Requestee': player2,
                               'current_goal': table['current_goal']}
                     record.update({field: value[player2] for field, value in table.items() if field != 'current_goal'})
                     record['goal_alignment_current'] = 1 if record['goal_alignment_current'] else 0
                     new_data.append(record)
         self.last = pd.DataFrame(new_data)
-        self.last['Timestamp'] = message['timestamp']
+        self.last['Timestamp'] = mission_time
+        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data            

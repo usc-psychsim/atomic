@@ -76,7 +76,7 @@ class JAGWrapper(ACWrapper):
     def look_back(self, uid):
         indices = [i for i in range(len(self.orphan_msgs)) if self.orphan_msgs[i][0] == uid]
         for i in indices:
-            self.handle_jag(self.orphan_msgs[i][1], self.orphan_msgs[i][2])
+            self.handle_jag(self.orphan_msgs[i][1], self.orphan_msgs[i][2], None)
             
         self.orphan_msgs = [self.orphan_msgs[i] for i in range(len(self.orphan_msgs)) if i not in indices]
 
@@ -87,7 +87,7 @@ class JAGWrapper(ACWrapper):
     ########################################
     ########################################
 
-    def handle_trial(self, message, data):
+    def handle_trial(self, message, data, mission_time):
         if len(self.players) > 0:
             return
         players = {}
@@ -101,9 +101,9 @@ class JAGWrapper(ACWrapper):
             
             players[client['participant_id']] = Player(client)
         self.players.update(players)
-        super().handle_trial(message, data)
+        super().handle_trial(message, data, mission_time)
 
-    def handle_mission(self, message, data):
+    def handle_mission(self, message, data, mission_time):
         self.elapsed_milliseconds = data['elapsed_milliseconds']
         state = data['mission_state']
         if state == 'Start':
@@ -111,14 +111,14 @@ class JAGWrapper(ACWrapper):
         if state == 'Stop':
             self.started = False
 
-    def handle_role(self, message, data):
+    def handle_role(self, message, data, mission_time):
         player_id = data['participant_id']
         role = data['new_role']
         player = self.players[player_id]
         player.set_role(role)
         return []
         
-    def handle_jag(self, message, data):
+    def handle_jag(self, message, data, mission_time):
         jid = data['jag'].get('id', '')
         if jid == 'b35361d2-ee24-4a43-a3e5-c1a43afa9f7a':
             print('+++++++++', message['sub_type'], data)
@@ -341,7 +341,6 @@ class JAGWrapper(ACWrapper):
         self.__player_stats_from_jags(False)
         print('asi perspective')
         self.__player_stats_from_jags(True)        
-            
             
     def __player_stats_from_jags(self, from_asi_perspective):
         pmap = {'P000464': 'green', 'P000465': 'blue', 'P000463': 'red'}
