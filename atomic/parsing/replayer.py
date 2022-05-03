@@ -12,6 +12,7 @@ try:
     pbar_manager = enlighten.get_manager()
 except ImportError:
     pbar_manager = None
+import matplotlib.pyplot as plt    
 
 from atomic.parsing.asist_world import ASISTWorld
 
@@ -148,7 +149,11 @@ class Replayer(object):
                     msg = None
                 if msg:
                     self.sources.add(msg['msg']['source'])
-                    self.worlds[fname].process_msg(msg)
+                    try:
+                        self.worlds[fname].process_msg(msg)
+                    except Exception:
+                        self.logger.error(traceback.format_exc())
+                        self.logger.error(f'Error in handling line {line_no} of {fname}')
 
     def post_replay(self, fname):
         for AC in self.worlds[fname].acs.values():
@@ -172,8 +177,9 @@ class Replayer(object):
 
     def finish(self):
         result = pandas.DataFrame()
+        plot_data = {}
         non_stats = ['Requestor', 'Requestee', 'Timestamp', 'role', 'millis', 
-                     'Player', 'elapsed_ms', 'delta_ms']
+                     'Player', 'elapsed_ms', 'delta_ms', 'Trial']
         for name, data in sorted(self.AC_data.items(), key=lambda tup: tup[0].lower()):
             if data is not None:
                 numeric = data.drop(columns=non_stats, errors='ignore')
@@ -188,6 +194,31 @@ class Replayer(object):
                 frame = frame.join(numeric.std().to_frame('std final'))
                 frame.insert(0, 'AC', name)
                 result = pandas.concat([result, frame.sort_index()])
+                # Generate data for graphs
+                subset = ['Timestamp', 'Trial']
+                if 'Player' in data.columns:
+                    subset.append('Player')
+                for y in set(data.columns) - set(non_stats):
+                    y_data = data[subset+[y]]
+                    plot = False
+                    for trial in y_data['Trial'].unique():
+                        trial_data = y_data[y_data['Trial'] == trial]
+                        if 'Player' in trial_data.columns:
+                            for player in trial_data['Player'].unique():
+                                player_data = trial_data[trial_data['Player'] == player]
+                                if len(player_data) > 1:
+                                    plt.plot(player_data['Timestamp'], player_data[y])
+                                    plot = True
+                        else:
+                            if len(trial_data) > 1:
+                                if not plot:
+                                    plt.figure()
+                                    plot = True
+                                plt.plot(trial_data['Timestamp'], trial_data[y], label=trial)
+                    # if plot:
+                    #     plt.show()
+                    #     plt.savefig(f'/home/david/Downloads/plots/{name}_{y}.png')
+                    #     plt.close()
         result.to_csv('/home/david/Downloads/ac_stats.csv')
 
     def parameterized_replay(self, args, simulate=False):
