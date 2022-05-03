@@ -70,7 +70,7 @@ class ACWrapper:
     def handle_trial(self, message, data, mission_time):
         self.start_time = parser.parse(message['timestamp'])
         self.trial = data['trial_number']
-        
+
     def elapsed_millis(self, message):
         time_diff = parser.parse(message['timestamp']) - self.start_time
         milliseconds = 1000*time_diff.seconds + time_diff.microseconds/1000
@@ -162,7 +162,10 @@ class ACWrapper:
                     for other in players:
                         if other != player:
                             key = self.get_pair_variable(player, other, var_name)
-                            world.relations[var_name] = world.relations.get(var_name, {}) | {key: {'subject': player, 'object': other}}
+                            if var_name in world.relations:
+                                world.relations[var_name][key] = {'subject': player, 'object': other}
+                            else:
+                                world.relations[var_name] = {key: {'subject': player, 'object': other}}
                             self.define_variable(world, key, table)
             elif table['object'] == 'team':
                 # Team-wide variables
