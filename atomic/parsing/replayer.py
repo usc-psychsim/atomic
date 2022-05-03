@@ -201,6 +201,7 @@ class Replayer(object):
                 for y in set(data.columns) - set(non_stats):
                     y_data = data[subset+[y]]
                     plot = False
+                    continue
                     for trial in y_data['Trial'].unique():
                         trial_data = y_data[y_data['Trial'] == trial]
                         if 'Player' in trial_data.columns:
