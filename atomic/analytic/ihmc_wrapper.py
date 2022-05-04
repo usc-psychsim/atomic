@@ -16,6 +16,7 @@ from .models.jags.jag import Jag
 from atomic.analytic.models.player import Player
 from atomic.analytic.acwrapper import ACWrapper
 
+from psychsim.pwl.keys import stateKey
 from psychsim.pwl.plane import equalRow
 from psychsim.pwl.matrix import setToConstantMatrix
 from psychsim.pwl.tree import makeTree
@@ -425,11 +426,15 @@ class JAGWrapper(ACWrapper):
 
 def add_joint_activity(world, player, jag):
     urn = jag.urn.split(':')
-    if len(jag.inputs) == 1:
+    if len(jag.inputs) == 0:
+        obj = None
+    elif len(jag.inputs) == 1:
         obj = next(iter(jag.inputs.values()))
+    elif 'victim-id' in jag.inputs:
+        obj = jag.inputs['victim-id']
     else:
         raise NameError(f'{urn} {jag.inputs}')
-    feature = f'{urn[-1]}_{obj}'
+    feature = jag2feature(jag)
     # Create status variable for this joint activity
     var = world.defineState(player.callsign, feature, list, 
                             ['discovered', 'aware', 'preparing', 'addressing', 
@@ -440,7 +445,9 @@ def add_joint_activity(world, player, jag):
         goal = maximizeFeature(var, player.callsign)
         world.agents[player.callsign].setReward(goal, 1, model)
     # Add action for addressing this activity
-    action_dict = {'verb': 'advance', 'object': obj}
+    action_dict = {'verb': 'advance'}
+    if obj is not None:
+        action_dict['object'] = obj 
     if not world.agents[player.callsign].hasAction(action_dict):
         tree = makeTree({'if': equalRow(var, 'complete'), 
                         True: False, False: True})
@@ -453,3 +460,20 @@ def add_joint_activity(world, player, jag):
                          })
     for child in jag.children:
         add_joint_activity(world, player, child)
+
+
+def jag2feature(jag):
+    urn = jag.urn.split(':')
+    if len(jag.inputs) == 0:
+        obj = None
+    elif len(jag.inputs) == 1:
+        obj = next(iter(jag.inputs.values()))
+    elif 'victim-id' in jag.inputs:
+        obj = jag.inputs['victim-id']
+    else:
+        raise NameError(f'{urn} {jag.inputs}')
+    return f'{urn[-1]}_{obj}' if obj is not None else urn[-1]
+
+
+def jag2variable(jag, player):
+    return stateKey(player.callsign, jag2feature(jag))
