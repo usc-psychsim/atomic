@@ -137,8 +137,8 @@ class JAGWrapper(ACWrapper):
                 ######### USC addition
                 ########################################
                 self.look_back(jag_instance.id)
-                if self.world:
-                    add_joint_activity(self.world, player, jag_instance)
+                # if self.world:
+                #     add_joint_activity(self.world, player, jag_instance)
                 
             elif message['sub_type'] == 'Event:Awareness':
                 observer_player_id = data['participant_id']
@@ -268,8 +268,17 @@ class JAGWrapper(ACWrapper):
             if value is not None and value != 'summary':
                 var = jag2variable(jag_instance, player)
                 return [{'Timestamp': mission_time, 'Player': player.callsign, 
-                         'Activity': jag_instance.urn[-1], 'Variable': jag2variable(jag_instance, player), 'State': value}]
+                         'Activity': jag_instance.urn.split(':')[-1], 'Variable': jag2variable(jag_instance, player), 'State': value}]
         return []
+
+    def compute_state_delta(self, data):
+        state_delta = super().compute_state_delta(data)
+        if data:
+            for record in data:
+                if record.get('State', None) == 'completion':
+                    if record['Activity'] in {'move-victim-to-triage-area'}:
+                        state_delta[stateKey(self.asi.name, 'valid cheer')] = record
+        return state_delta
     
     def __get_player_by_callsign(self, callsign):
         for player in self.players.values():
@@ -441,6 +450,7 @@ def add_joint_activity(world, player, jag):
         raise NameError(f'{urn} {jag.inputs}')
     feature = jag2feature(jag)
     # Create status variable for this joint activity
+    world.dependency.clear()
     var = world.defineState(player.callsign, feature, list, 
                             ['discovered', 'aware', 'preparing', 'addressing', 
                              'complete'])
