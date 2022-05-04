@@ -1,6 +1,7 @@
 import json
 import logging
 
+from psychsim.pwl.keys import WORLD, isTurnKey, state2agent
 from psychsim.world import World
 from psychsim.agent import Agent
 
@@ -39,6 +40,9 @@ class ASISTWorld(World):
 
         # Assume we start in the planning stage
         self.planning = True
+
+        self.defineState(WORLD, 'clock', int)
+        self.setState(WORLD, 'clock', 0)
 
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
@@ -84,13 +88,23 @@ class ASISTWorld(World):
             self.process_testbed_msg(msg)
         elif msg['msg']['source'] in self.acs:
             self.process_AC_msg(msg)
-        if not self.planning:
-            if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
-                self.logger.debug(f'Evaluating interventions at time {self.now}')
-                model = self.asi.get_true_model()
-                decision = self.asi.decide(model=model)
-                intervention = self.asi.generate_message(decision)
-                self.last_decision = self.now
+        if self.planning:
+            pass
+        elif self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
+            self.logger.debug(f'Evaluating interventions at time {self.now}')
+            self.step()
+            decision = self.getAction(self.asi.name, unique=True)
+            intervention = self.asi.generate_message(decision)
+            if intervention is not None:
+                print(intervention)
+            self.last_decision = self.now
+            # Spin until ASI's turn is up again
+            for var in self.state.keys():
+                if isTurnKey(var):
+                    if state2agent(var) == self.asi.name:
+                        self.setFeature(var, 0, recurse=True)
+                    else:
+                        self.setFeature(var, 1, recurse=True)
         return intervention
 
     def process_testbed_msg(self, msg):
@@ -135,6 +149,8 @@ class ASISTWorld(World):
             if self.start_time is None:
                 self.start_time = self.now
                 self.logger.debug(f'Starting at time {self.now}')
+            if self.now is not None:
+                self.setState(WORLD, 'clock', 900-self.now[0]*60-self.now[1], recurse=True)
 
     def process_event(self, msg):
         if msg['msg']['sub_type'] == 'Event:PlanningStage':
