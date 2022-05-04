@@ -54,7 +54,7 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.config)
+        self.acs = make_ac_handlers(self.config, world=self)
         # Any AC handling of this start message?
         for AC in self.acs.values():
             AC.handle_message(msg)
@@ -66,7 +66,7 @@ class ASISTWorld(World):
 
         self.asi = make_asi(self, self.team, self.participants, self.acs, self.config)
 
-        self.setOrder([{self.asi.name}, set(self.agents.keys()-{self.asi.name})])
+        self.setOrder([{self.asi.name}, set(self.agents.keys())-{self.asi.name}])
 
     def process_start(self, msg):
         for key, value in msg['data'].items():
