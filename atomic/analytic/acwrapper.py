@@ -28,7 +28,9 @@ class ACWrapper:
         self.ignored_topics = set()
 
         self.variables = kwargs.get('variables', {})
+        self.influences = {}
         self.team_agent = None
+        self.asi = None
 
         self.world = world
 
@@ -42,6 +44,9 @@ class ACWrapper:
             data = handler(msg['msg'], msg['data'], 
                            None if mission_time is None else (15*60)-(mission_time[0]*60+mission_time[1]))
         # add_joint_activity(world, world.agents[data['participant_id']], team.name, data['jag'])
+        return self.compute_state_delta(data)
+
+    def compute_state_delta(self, data):
         state_delta = {}
         if data:
             for record in data:
@@ -143,6 +148,7 @@ class ACWrapper:
             world.setFeature(key, 0.)
         else:
             raise TypeError(f'Unable to create variable {key} of type {table["values"].__name__}')
+        self.influences[key] = table.get('influences', {})
 
     def augment_world(self, world, team_agent, players):
         """
