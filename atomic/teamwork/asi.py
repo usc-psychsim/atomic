@@ -149,7 +149,6 @@ class ASI(Agent):
     def update_interventions(self, AC, delta):
         change = False
         influence = {}
-        print(self.world.getFeature(stateKey(self.name, 'valid cheer')))
         leadership = {}
         for key, value in delta.items():
             for process, value in self.acs[AC.name].influences.get(key, {}).items():
@@ -161,7 +160,6 @@ class ASI(Agent):
                 change = True
         if leadership:
             self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
-            print(f'Leader: {self.team.leader}')
             change = True
         beliefs = self.getBelief(model=self.get_true_model())
         for process, value in influence.items():
