@@ -23,6 +23,7 @@ class ASISTWorld(World):
             self.logger = logger
         self.info = {}
         self.msg_types = set()
+        self.prior_beliefs = None
 
         self.participants = None
         # Mappings between player and participant IDs
@@ -44,6 +45,8 @@ class ASISTWorld(World):
         self.defineState(WORLD, 'clock', int)
         self.setState(WORLD, 'clock', 0)
 
+        self.run_count = 0
+
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
         agent.noop = agent.addAction({'verb': 'do nothing'})
@@ -55,6 +58,7 @@ class ASISTWorld(World):
         return agent
 
     def create_agents(self, msg):
+        self.run_count += 1
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
@@ -69,9 +73,12 @@ class ASISTWorld(World):
         self.team.initialize_effects(self.acs)
 
         self.asi = make_asi(self, self.team, self.participants, self.acs, self.config)
+        for AC in self.acs.values():
+            AC.asi = self.asi
 
         self.setOrder([{self.asi.name}, set(self.agents.keys())-{self.asi.name}])
-
+        self.asi.initialize_team_beliefs(self.prior_beliefs)
+ 
     def process_start(self, msg):
         for key, value in msg['data'].items():
             if key == 'client_info':
@@ -92,9 +99,11 @@ class ASISTWorld(World):
             pass
         elif self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
             self.logger.debug(f'Evaluating interventions at time {self.now}')
-            self.step()
+            self.step(select='max')
+            self.state.normalize()
             decision = self.getAction(self.asi.name, unique=True)
             intervention = self.asi.generate_message(decision)
+            self.explainDecision(decision)
             if intervention is not None:
                 print(intervention)
             self.last_decision = self.now
@@ -137,6 +146,7 @@ class ASISTWorld(World):
         if delta:
             for var, value in delta.items():
                 self.setFeature(var, value, recurse=True)
+            self.asi.update_interventions(AC, delta)
 
     def update_state(self, msg):
         try:
@@ -168,6 +178,20 @@ class ASISTWorld(World):
         for AC in self.acs.values():
             if AC.ignored_topics:
                 print(AC.name, sorted(AC.ignored_topics))
+        self.prior_beliefs = self.asi.getBelief(model=self.asi.get_true_model())
+        self.initialize()
+        self.info.clear()
+        self.msg_types = set()
+
+        self.participants = None
+        self.participant2player = None
+        self.player2participant = None
+        self.acs = {}
+        self.team = None
+        self.now = None
+        self.start_time = None
+        self.last_decision = None
+        self.planning = True
 
     def close(self):
         if self.msg_types:
