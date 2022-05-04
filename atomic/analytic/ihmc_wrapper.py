@@ -129,16 +129,16 @@ class JAGWrapper(ACWrapper):
                 player_id = data['participant_id']
                 player = self.players[player_id]
                 instance_description = data['jag']
-                jag = player.joint_activity_model.create_from_instance(instance_description)
-                self.debug_discover.append(jag)
+                jag_instance = player.joint_activity_model.create_from_instance(instance_description)
+                self.debug_discover.append(jag_instance)
 #                print("discovered " + jag.short_string())
                 
                 ########################################
                 ######### USC addition
                 ########################################
-                self.look_back(jag.id)
+                self.look_back(jag_instance.id)
                 if self.world:
-                    add_joint_activity(self.world, player, jag)
+                    add_joint_activity(self.world, player, jag_instance)
                 
             elif message['sub_type'] == 'Event:Awareness':
                 observer_player_id = data['participant_id']
@@ -251,7 +251,6 @@ class JAGWrapper(ACWrapper):
                 if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
                     player.set_last_activity_completed(jag_instance)
                     player.set_last_activity_completion_time(elapsed_ms)
-                
             ########################################
             ######### USC addition
             ########################################
@@ -264,6 +263,12 @@ class JAGWrapper(ACWrapper):
                 
         except Exception:
             print(traceback.format_exc())
+        else:
+            value = message['sub_type'].split(':')[-1].lower()
+            if value is not None and value != 'summary':
+                var = jag2variable(jag_instance, player)
+                return [{'Timestamp': mission_time, 'Player': player.callsign, 
+                         'Activity': jag_instance.urn[-1], 'Variable': jag2variable(jag_instance, player), 'State': value}]
         return []
     
     def __get_player_by_callsign(self, callsign):
