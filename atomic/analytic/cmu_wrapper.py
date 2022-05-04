@@ -13,8 +13,8 @@ import numpy as np
 
 
 class TEDWrapper(ACWrapper):
-    def __init__(self, agent_name, **kwargs):
-        super().__init__(agent_name, **kwargs)
+    def __init__(self, agent_name, world=None, **kwargs):
+        super().__init__(agent_name, world, **kwargs)
         self.score_names = [
             "process_coverage",
             "process_coverage_agg",
@@ -60,8 +60,8 @@ class TEDWrapper(ACWrapper):
 
 
 class BEARDWrapper(ACWrapper):
-    def __init__(self, agent_name, **kwargs):
-        super().__init__(agent_name, **kwargs)
+    def __init__(self, agent_name, world=None, **kwargs):
+        super().__init__(agent_name, world, **kwargs)
         self.topic_handlers = {
             'trial': self.handle_trial,
             'agent/ac/ac_cmu_ta2_beard/beard': self.handle_msg}

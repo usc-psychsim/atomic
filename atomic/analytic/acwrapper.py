@@ -14,7 +14,7 @@ from psychsim.action import Action, ActionSet
 
 
 class ACWrapper:
-    def __init__(self, agent_name, **kwargs):
+    def __init__(self, agent_name, world=None, **kwargs):
         self.name = agent_name
 
         self.messages = []
@@ -29,6 +29,8 @@ class ACWrapper:
 
         self.variables = kwargs.get('variables', {})
         self.team_agent = None
+
+        self.world = world
 
     def handle_message(self, msg, mission_time=None):
         msg_topic = msg.get('topic', '')

@@ -5,8 +5,8 @@ import numpy as np
 
 
 class PlayerProfileWrapper(ACWrapper):
-    def __init__(self, agent_name, **kwargs):
-        super().__init__(agent_name, **kwargs)
+    def __init__(self, agent_name, world=None, **kwargs):
+        super().__init__(agent_name, world, **kwargs)
         self.topic_handlers = {
             'trial': self.handle_trial,
             'agent/ac_ucf_ta2_playerprofiler/playerprofile': self.handle_msg}

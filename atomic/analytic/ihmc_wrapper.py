@@ -23,8 +23,8 @@ from psychsim.reward import maximizeFeature
 
 
 class JAGWrapper(ACWrapper):
-    def __init__(self, agent_name, **kwargs):
-        super().__init__(agent_name, **kwargs)
+    def __init__(self, agent_name, world=None, **kwargs):
+        super().__init__(agent_name, world, **kwargs)
         self.score_names = ["active_duration","joint_activity_efficiency","redundancy_ratio"]
         self.topic_handlers = {
             'trial': self.handle_trial,
@@ -135,9 +135,9 @@ class JAGWrapper(ACWrapper):
                 ########################################
                 ######### USC addition
                 ########################################
-                if jag.id == 'b35361d2-ee24-4a43-a3e5-c1a43afa9f7a':
-                    print('+++++++++', message['sub_type'], data)
                 self.look_back(jag.id)
+                if self.world:
+                    add_joint_activity(self.world, player, jag)
                 
             elif message['sub_type'] == 'Event:Awareness':
                 observer_player_id = data['participant_id']
@@ -423,7 +423,7 @@ class JAGWrapper(ACWrapper):
              print(mtype, player_id, (jag is None))
 
 
-def add_joint_activity(world, player, team, jag):
+def add_joint_activity(world, player, jag):
     urn = jag['urn'].split(':')
     victim = jag['inputs']['victim-id']
     feature = f'{urn[-1]}_{victim}'
@@ -449,4 +449,4 @@ def add_joint_activity(world, player, team, jag):
                          'addressing': setToConstantMatrix(var, 'complete'),
                          })
     for child in jag['children']:
-        add_joint_activity(world, player, team, child)
+        add_joint_activity(world, player, child)

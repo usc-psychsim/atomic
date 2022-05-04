@@ -1,9 +1,7 @@
-import operator
-
 from .acwrapper import ACWrapper
 from .cmu_wrapper import TEDWrapper, BEARDWrapper
 from .cornell_wrapper import ComplianceWrapper
-from .gallup_wrapper import GelpWrapper, GOLDWrapper
+from .gallup_wrapper import GelpWrapper
 from .ihmc_wrapper import JAGWrapper
 from .rutgers_wrapper import BeliefDiffWrapper
 from .ucf_wrapper import PlayerProfileWrapper
@@ -70,6 +68,6 @@ AC_specs = {
             }
 
 
-def make_ac_handlers(config=None):
-    return {name: AC_spec.get('wrapper', ACWrapper)(name, **AC_spec) for name, AC_spec in AC_specs.items() 
+def make_ac_handlers(config=None, world=None):
+    return {name: AC_spec.get('wrapper', ACWrapper)(name, world, **AC_spec) for name, AC_spec in AC_specs.items() 
             if config is None or config.getboolean('teamwork', name, fallback=False)}
