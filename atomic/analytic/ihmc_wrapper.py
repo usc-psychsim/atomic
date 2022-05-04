@@ -25,7 +25,7 @@ from psychsim.reward import maximizeFeature
 class JAGWrapper(ACWrapper):
     def __init__(self, agent_name, world=None, **kwargs):
         super().__init__(agent_name, world, **kwargs)
-        self.score_names = ["active_duration","joint_activity_efficiency","redundancy_ratio"]
+        self.score_names = ["active_duration", "joint_activity_efficiency", "redundancy_ratio"]
         self.topic_handlers = {
             'trial': self.handle_trial,
             'observations/events/player/jag': self.handle_jag,
@@ -40,9 +40,9 @@ class JAGWrapper(ACWrapper):
         self.data = pd.DataFrame(columns=['millis'] + self.score_names)
         common_tasks = [aj.AT_PROPER_TRIAGE_AREA, aj.CHECK_IF_UNLOCKED, aj.DROP_OFF_VICTIM, aj.PICK_UP_VICTIM,
                         aj.GET_IN_RANGE, aj.UNLOCK_VICTIM]
-        self.role_to_urns = {clr:common_tasks for clr in ['red', 'blue', 'green']}
+        self.role_to_urns = {clr: common_tasks for clr in ['red', 'blue', 'green']}
         self.role_to_urns['red'].extend([aj.STABILIZE, aj.DETERMINE_TRIAGE_AREA])
-        self.role_to_urns = {k:[j['urn'] for j in v] for k,v in self.role_to_urns.items()}
+        self.role_to_urns = {k: [j['urn'] for j in v] for k,v in self.role_to_urns.items()}
         
         self.debug_discover = []
 
@@ -424,29 +424,32 @@ class JAGWrapper(ACWrapper):
 
 
 def add_joint_activity(world, player, jag):
-    urn = jag['urn'].split(':')
-    victim = jag['inputs']['victim-id']
-    feature = f'{urn[-1]}_{victim}'
+    urn = jag.urn.split(':')
+    if len(jag.inputs) == 1:
+        obj = next(iter(jag.inputs.values()))
+    else:
+        raise NameError(f'{urn} {jag.inputs}')
+    feature = f'{urn[-1]}_{obj}'
     # Create status variable for this joint activity
-    var = world.defineState(player, feature, list, 
+    var = world.defineState(player.callsign, feature, list, 
                             ['discovered', 'aware', 'preparing', 'addressing', 
                              'complete'])
     world.setFeature(var, 'discovered')
     # Add reward component for progressing through this activity
-    for model in world.get_current_models()[player.name]:
-        goal = maximizeFeature(var, player.name)
-        player.setReward(goal, 1, model)
+    for model in world.get_current_models()[player.callsign]:
+        goal = maximizeFeature(var, player.callsign)
+        world.agents[player.callsign].setReward(goal, 1, model)
     # Add action for addressing this activity
-    action_dict = {'verb': 'advance', 'object': victim}
-    if not player.hasAction(action_dict):
+    action_dict = {'verb': 'advance', 'object': obj}
+    if not world.agents[player.callsign].hasAction(action_dict):
         tree = makeTree({'if': equalRow(var, 'complete'), 
                         True: False, False: True})
-        player.addAction(action_dict, tree)
+        world.agents[player.callsign].addAction(action_dict, tree)
         tree = makeTree({'if': equalRow(var, ['discovered', 'aware', 'preparing', 'addressing']),
                          'discovered': setToConstantMatrix(var, 'aware'),
                          'aware': setToConstantMatrix(var, 'preparing'),
                          'preparing': setToConstantMatrix(var, 'addressing'),
                          'addressing': setToConstantMatrix(var, 'complete'),
                          })
-    for child in jag['children']:
+    for child in jag.children:
         add_joint_activity(world, player, child)
