@@ -1,10 +1,12 @@
+import itertools
 from string import Template
 
-from psychsim.pwl.keys import stateKey, makeFuture
+from psychsim.pwl.keys import stateKey, makeFuture, isStateKey, state2agent, state2feature
 from psychsim.pwl.matrix import setToConstantMatrix, setTrueMatrix, setFalseMatrix
 from psychsim.pwl.plane import equalRow, trueRow
 from psychsim.pwl.tree import makeTree
 from psychsim.reward import maximizeFeature, minimizeFeature
+from psychsim.probability import Distribution
 from psychsim.agent import Agent
 
 from .interventions import interventions
@@ -24,6 +26,7 @@ class ASI(Agent):
             self.conditions.update(AC.get_conditions())
         self.team = None
         self.interventions = {}
+        self.arguments = {}
 
     def generate_message(self, action):
         if action == self.noop:
@@ -31,6 +34,7 @@ class ASI(Agent):
         else:
             template = interventions[action['verb']]['template']
             sub = dict(action.items())
+            sub.update(self.arguments.get(action['verb'], {}))
             return template.substitute(sub)
 
     def add_noop(self, team):
@@ -52,25 +56,30 @@ class ASI(Agent):
             # Extract NLG template
             if isinstance(table['template'], str):
                 table['template'] = Template(table['template'])
+            self.arguments[verb] = {}
             # Create flag for tracking whether we've already done this intervention
             flag = self.world.defineState(self.name, f'tried {verb}', bool)
             self.world.setFeature(flag, False)
+            valid = self.world.defineState(self.name, f'valid {verb}', bool)
+            self.world.setFeature(valid, table.get('valid on start', False))
             # Figure out whether this intervention targets a single player or the whole team
             obj = table.get('object', 'team')
             if obj == 'player':
                 for player in players:
                     action = self.addAction({'verb': verb, 'object': player})
                     self.add_dynamics(action, flag)
-                    tree = {'if': trueRow(flag), True: False, False: True}
+                    tree = {'if': trueRow(flag), True: False, 
+                            False: {'if': trueRow(valid), True: True, False: False}}
                     if 'legal' in table:
-                        tree[False] = table['legal']
+                        tree[False][True] = table['legal']
                     self.setLegal(action, makeTree(tree))
             elif obj == 'team':
                 action = self.addAction({'verb': verb})
                 self.add_dynamics(action, flag)
-                tree = {'if': trueRow(flag), True: False, False: True}
+                tree = {'if': trueRow(flag), True: False, 
+                        False: {'if': trueRow(valid), True: True, False: False}}
                 if 'legal' in table:
-                    tree[False] = table['legal']
+                    tree[False][True] = table['legal']
                 self.setLegal(action, makeTree(tree))
             else:
                 raise NameError(f'Illegal object {obj} specified for intervention {verb}')
@@ -128,14 +137,55 @@ class ASI(Agent):
             table[val_i] = {'distribution': dist}
         return table
 
+    def initialize_team_beliefs(self, prior=None):
+        belief = self.create_belief_state()
+        for feature in self.team.processes:
+            key = stateKey(self.team.name, feature)
+            if prior is None:
+                self.world.setFeature(key, Distribution({True: 0.5, False: 0.5}), belief)
+            else:
+                self.world.setFeature(key, self.world.getFeature(key, prior), belief)
+
+    def update_interventions(self, AC, delta):
+        change = False
+        influence = {}
+        print(self.world.getFeature(stateKey(self.name, 'valid cheer')))
+        leadership = {}
+        for key, value in delta.items():
+            for process, value in self.acs[AC.name].influences.get(key, {}).items():
+                influence[process] = influence.get(process, 0) + value
+            if isStateKey(key) and state2feature(key) == 'ac_gallup_ta2_gelp Leadership':
+                leadership[state2agent(key)] = value
+            elif key == stateKey(self.name, 'valid cheer'):
+                self.arguments['cheer'].update(value)
+                change = True
+        if leadership:
+            self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
+            print(f'Leader: {self.team.leader}')
+            change = True
+        beliefs = self.getBelief(model=self.get_true_model())
+        for process, value in influence.items():
+            old_dist = self.world.getState(self.team.name, process, beliefs)
+            expected = value > 0
+            prob_unexpected = pow(self.base_probability['unexpected'], abs(value))
+            new_dist = {expected: old_dist.get(expected)*(1-prob_unexpected) + old_dist.get(not expected)*(1-prob_unexpected-self.base_probability['null']),
+                        not expected: old_dist.get(expected)*prob_unexpected + old_dist.get(not expected)*(prob_unexpected+self.base_probability['null'])}
+            new_dist = Distribution(new_dist)
+            new_dist.normalize()
+            self.world.setState(self.team.name, process, new_dist, beliefs)
+            change = True
+        beliefs.select(True)
+        if not change:
+            print(delta)
+            exit()
+
 
 def make_asi(world, team_agent, players, acs={}, config=None):
     agent = ASI(world, acs, config)
     world.addAgent(agent)
     agent.add_interventions(players, team_agent)
-    for AC in acs.values():
-        for var, weight in AC.get_ASI_reward().items():
-            agent.setReward(maximizeFeature(var, agent.name), weight)
+    for feature in team_agent.processes:
+        agent.setReward(maximizeFeature(stateKey(team_agent.name, feature), agent.name), 1)
     agent.setReward(minimizeFeature(stateKey(team_agent.name, 'cognitive load'), agent.name), 1)
     agent.setAttribute('horizon', 1)
     return agent
@@ -157,6 +207,7 @@ class Team(Agent):
 
     def __init__(self, world, name='team'):
         super().__init__(name, world)
+        self.leader = None
 
     def initialize_variables(self):
         for var in self.processes:
