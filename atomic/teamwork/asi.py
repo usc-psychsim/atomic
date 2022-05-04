@@ -4,7 +4,7 @@ from psychsim.pwl.keys import stateKey, makeFuture
 from psychsim.pwl.matrix import setToConstantMatrix, setTrueMatrix, setFalseMatrix
 from psychsim.pwl.plane import equalRow, trueRow
 from psychsim.pwl.tree import makeTree
-from psychsim.reward import maximizeFeature
+from psychsim.reward import maximizeFeature, minimizeFeature
 from psychsim.agent import Agent
 
 from .interventions import interventions
@@ -23,10 +23,9 @@ class ASI(Agent):
         for AC in self.acs.values():
             self.conditions.update(AC.get_conditions())
         self.team = None
-        self.setAttribute('horizon', 1)
+        self.interventions = {}
 
-    def generate_message(self, decision):
-        action = decision['action']
+    def generate_message(self, action):
         if action == self.noop:
             return None
         else:
@@ -34,22 +33,53 @@ class ASI(Agent):
             sub = dict(action.items())
             return template.substitute(sub)
 
-    def add_interventions(self, players, team):
+    def add_noop(self, team):
         self.noop = self.addAction({'verb': 'do nothing'})
+        for feature in team.processes:
+            var = stateKey(team.name, feature)
+            tree = {'if': trueRow(var), 
+                    True: {'distribution': [(setTrueMatrix(var), 1-self.base_probability['unexpected']),
+                                            (setFalseMatrix(var), self.base_probability['unexpected'])]},
+                    False: {'distribution': [(setTrueMatrix(var), self.base_probability['unexpected']),
+                                             (setFalseMatrix(var), 1-self.base_probability['unexpected'])]}}
+            self.world.setDynamics(var, self.noop, makeTree(tree))
+
+    def add_interventions(self, players, team):
         self.team = team
+        self.add_noop(team)
+        self.interventions[None] = {self.noop}
         for verb, table in interventions.items():
+            # Extract NLG template
             if isinstance(table['template'], str):
                 table['template'] = Template(table['template'])
+            # Create flag for tracking whether we've already done this intervention
+            flag = self.world.defineState(self.name, f'tried {verb}', bool)
+            self.world.setFeature(flag, False)
+            # Figure out whether this intervention targets a single player or the whole team
             obj = table.get('object', 'team')
             if obj == 'player':
                 for player in players:
                     action = self.addAction({'verb': verb, 'object': player})
-                    self.add_dynamics(action)
+                    self.add_dynamics(action, flag)
+                    tree = {'if': trueRow(flag), True: False, False: True}
+                    if 'legal' in table:
+                        tree[False] = table['legal']
+                    self.setLegal(action, makeTree(tree))
             elif obj == 'team':
                 action = self.addAction({'verb': verb})
-                self.add_dynamics(action)
+                self.add_dynamics(action, flag)
+                tree = {'if': trueRow(flag), True: False, False: True}
+                if 'legal' in table:
+                    tree[False] = table['legal']
+                self.setLegal(action, makeTree(tree))
+            else:
+                raise NameError(f'Illegal object {obj} specified for intervention {verb}')
+            if verb in self.interventions:
+                self.interventions[verb].add(action)
+            else:
+                self.interventions[verb] = {action}
 
-    def add_dynamics(self, action):
+    def add_dynamics(self, action, flag=None):
         """
         Automatically add dynamics of action on AC variables
         """
@@ -61,6 +91,8 @@ class ASI(Agent):
                     False: {'distribution': [(setTrueMatrix(var), self.base_probability['expected']),
                                              (setFalseMatrix(var), 1-self.base_probability['expected'])]}}
             self.world.setDynamics(var, action, makeTree(tree))
+        if flag is not None:
+            self.world.setDynamics(flag, action, makeTree(setTrueMatrix(flag)))
 
     def create_tree(self, var, action, effect):
         # Create condition branch
@@ -104,6 +136,8 @@ def make_asi(world, team_agent, players, acs={}, config=None):
     for AC in acs.values():
         for var, weight in AC.get_ASI_reward().items():
             agent.setReward(maximizeFeature(var, agent.name), weight)
+    agent.setReward(minimizeFeature(stateKey(team_agent.name, 'cognitive load'), agent.name), 1)
+    agent.setAttribute('horizon', 1)
     return agent
 
 
@@ -128,6 +162,8 @@ class Team(Agent):
         for var in self.processes:
             self.world.defineState(self.name, var, bool)
             self.setState(var, False)
+        var = self.world.defineState(self.name, 'cognitive load', bool)
+        self.setState('cognitive load', False)
 
     def initialize_effects(self, acs={}):
         self.noop = self.addAction({'verb': 'do nothing'})
