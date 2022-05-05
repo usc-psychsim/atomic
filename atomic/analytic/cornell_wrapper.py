@@ -46,6 +46,23 @@ class ComplianceWrapper(ACWrapper):
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data
 
+    def compute_state_delta(self, data):
+        state_delta = super().compute_state_delta(data)
+        if data:
+            for record in data:
+                if record['Requestor'] != record.get('Requestee', None):
+                    if 'goal_alignment_overall' in record:
+                        pass
+                    elif 'N_open_requests_triage' in record:
+                        for var in self.variables:
+                            total = 0
+                            for key, value in record.items():
+                                if var in key:
+                                    total += value
+                            key = self.get_pair_variable(record['Requestor'], record['Requestee'], var)
+                            state_delta[key] = total
+        return state_delta
+
     def handle_alignment_msg(self, message, data, mission_time):
         new_data = []
         for player1, table in data.items():
