@@ -23,7 +23,7 @@ TEAM_ID_TAG = 'Team'
 TRIAL_TAG = 'Trial'
 
 
-def accumulate_files(files, include_trials=None, ext='.metadata', logger=logging):
+def accumulate_files(files, include_trials=None, ext='.metadata', logger=logging, group_by_team=False):
     """
     Accumulate a list of files from a given list of names of files and directories
     :type files: List(str)
@@ -44,6 +44,7 @@ def accumulate_files(files, include_trials=None, ext='.metadata', logger=logging
             result.extend(glob.glob(fname))
     # Look for alternate versions of the same trial and use only the most recent
     trials = {}
+    teams = {}
     for fname in result:
         conditions = filename_to_condition(os.path.splitext(os.path.basename(fname))[0])
         try:
@@ -60,13 +61,19 @@ def accumulate_files(files, include_trials=None, ext='.metadata', logger=logging
             logging.warning(f'Ignoring training trial {os.path.basename(trial)}')
         elif include_trials is None or int(trial[1:]) in include_trials:
             trials[trial] = trials.get(trial, []) + [fname]
+            teams[conditions['Team']] = teams.get(conditions['Team'], set()) | {trial}
     for trial, files in trials.items():
         files.sort(key=lambda fname: int(filename_to_condition(os.path.splitext(os.path.basename(fname))[0])['Vers']))
         if len(files) > 1:
             logging.warning(f'Ignoring version(s) of trial {os.path.basename(trial)} '
                             f'{", ".join([filename_to_condition(os.path.splitext(fname)[0])["Vers"] for fname in files[:-1]])} '
                             f'in favor of version {filename_to_condition(os.path.splitext(files[-1])[0])["Vers"]}')
-    result = [files[-1] for files in trials.values()]
+    if group_by_team:
+        # Group newest trials by team
+        teams = {team: [trials[trial][-1] for trial in sorted(trial_list)] for team, trial_list in teams.items()}
+        result = [trial_list for team, trial_list in sorted(teams.items())]
+    else:
+        result = [files[-1] for files in trials.values()]
     return result
 
 
@@ -77,9 +84,9 @@ class Replayer(object):
     :type files: List(str)
     """
 
-    def __init__(self, files=[], trials=None, config=None, logger=logging):
+    def __init__(self, files=[], trials=None, config=None, strict=False, logger=logging):
         # Extract files to process
-        self.files = accumulate_files(files, trials)
+        self.files = accumulate_files(files, trials, group_by_team=True)
 
         if isinstance(config, str):
             self.config = configparser.ConfigParser()
@@ -87,6 +94,7 @@ class Replayer(object):
         else:
             self.config = config
         self.logger = logger
+        self.strict = strict
 
         # Per-file PsychSim objects
         self.worlds = {}
@@ -117,9 +125,15 @@ class Replayer(object):
     def process_file(self, fname, num_steps):
         self.logger.info(f'Processing file {fname}')
 
-        self.pre_replay(fname)
-        self.replay(fname, num_steps)
-        self.post_replay(fname)
+        if not isinstance(fname, list):
+            fname = [fname]
+        for f_index, f in enumerate(fname):
+            if f_index == 0:
+                self.pre_replay(fname[0])
+            else:
+                self.worlds[f] = self.worlds[fname[0]]
+            self.replay(f, num_steps)
+            self.post_replay(f)
 
     def pre_replay(self, fname):
         logger_child = self.logger.getLogger(os.path.splitext(os.path.basename(fname))[0])
@@ -144,16 +158,22 @@ class Replayer(object):
                 try:
                     msg = json.loads(line)
                 except Exception:
-                    self.logger.error(traceback.format_exc())
-                    self.logger.error(f'Error in reading line {line_no} of {fname}')
-                    msg = None
+                    if self.strict:
+                        raise
+                    else:
+                        self.logger.error(traceback.format_exc())
+                        self.logger.error(f'Error in reading line {line_no} of {fname}')
+                        msg = None
                 if msg:
                     self.sources.add(msg['msg']['source'])
                     try:
                         self.worlds[fname].process_msg(msg)
                     except Exception:
-                        self.logger.error(traceback.format_exc())
-                        self.logger.error(f'Error in handling line {line_no} of {fname}')
+                        if self.strict:
+                            raise
+                        else:
+                            self.logger.error(traceback.format_exc())
+                            self.logger.error(f'Error in handling line {line_no} of {fname}')
 
     def post_replay(self, fname):
         for AC in self.worlds[fname].acs.values():
@@ -273,6 +293,7 @@ def replay_parser():
                         help='Trials to include (default is all)')
     parser.add_argument('-d', '--debug', default='WARNING', help='Level of logging detail')
     parser.add_argument('--profile', action='store_true', help='Run profiler')
+    parser.add_argument('--strict', action='store_true', help='Throw exceptions without catching them')
     return parser
 
 
@@ -291,5 +312,5 @@ def parse_replay_args(parser, arg_list=None):
 if __name__ == '__main__':
     # Process command-line arguments
     args = parse_replay_args(replay_parser())
-    replayer = Replayer(args['fname'], args['trials'], args['config'], logging)
+    replayer = Replayer(args['fname'], args['trials'], config=args['config'], strict=args['strict'], logger=logging)
     replayer.parameterized_replay(args)
