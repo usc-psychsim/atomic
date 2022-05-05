@@ -16,12 +16,12 @@ interventions = {  # Inter-mission AAR prompt
                    # Report performance change
                    # Associated state: Individual performance level, team leader
                    'report drop': {'object': 'team',
-                                   'template': 'Can you check on ${object}? They haven\'t been responding.',
+                                   'template': '${Leader}, can you check on ${Player}? They haven\'t been responding to requests by ${Requestor}.',
                                    'effects': {'team monitoring': 1, 'cognitive load': 0.2}},
                    # Recommend phase-sensitive plan (early)
                    # Associated state: Game phase
                    'notify early phase': {'object': 'team',
-                                          'template': 'Team, it looks like you\'re working well to clear this section, however the building is large and spreading out early on may be useful.',
+                                          'template': 'Team, it looks like you\'re working well to clear this section; however, the building is large, so spreading out may be more useful now.',
                                           'effects': {'systems monitoring': 1, 'cognitive load': 0.2},
                                           'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), [300, 360]),
                                                     0: False, 1: True, 2: False},
