@@ -1,7 +1,7 @@
 import itertools
 from string import Template
 
-from psychsim.pwl.keys import stateKey, makeFuture, isStateKey, state2agent, state2feature
+from psychsim.pwl.keys import stateKey, makeFuture, isStateKey, state2agent, state2feature, key2relation
 from psychsim.pwl.matrix import setToConstantMatrix, setTrueMatrix, setFalseMatrix
 from psychsim.pwl.plane import equalRow, trueRow
 from psychsim.pwl.tree import makeTree
@@ -150,6 +150,8 @@ class ASI(Agent):
         change = False
         influence = {}
         leadership = {}
+        gap = {}
+        noncompliance = set()
         for key, value in delta.items():
             for process, value in self.acs[AC.name].influences.get(key, {}).items():
                 influence[process] = influence.get(process, 0) + value
@@ -158,6 +160,29 @@ class ASI(Agent):
             elif key == stateKey(self.name, 'valid cheer'):
                 self.arguments['cheer'].update(value)
                 change = True
+            elif AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
+                rel = key2relation(key)
+                pair = (rel['subject'], rel['object'])
+                if rel['relation'] == f'{AC.name}_compliance_overall':
+                    if value < 0.01:
+                        noncompliance.add(pair)
+                    value = -value
+                gap[pair] = gap.get(pair, 0) + value
+        if AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
+            influence['coordination'] = influence.get('coordination', 0)-sum(gap.values())/100
+            influence['team monitoring'] = influence.get('team monitoring', 0)-sum(gap.values())/100
+            dysfunctional = [pair for pair in noncompliance if gap[pair] > 1]
+            change = True
+            if dysfunctional:
+                # What if two? 
+                self.arguments['report drop'] = {'Player': dysfunctional[0][1], 'Requestor': dysfunctional[0][0]}
+                if self.team.leader is None or len(self.team.leader) > 1 or self.team.leader[0] in dysfunctional[0]:
+                    self.arguments['report drop']['Leader'] = 'Team'
+                else:
+                    self.arguments['report drop']['Leader'] = self.team.leader[0]
+                self.setState('valid report drop', True, recurse=True)
+            else:
+                self.setState('valid report drop', True, recurse=False)
         if leadership:
             self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
             change = True
