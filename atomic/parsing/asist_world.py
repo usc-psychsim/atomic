@@ -105,7 +105,7 @@ class ASISTWorld(World):
             intervention = self.asi.generate_message(decision)
             self.explainDecision(decision)
             if intervention is not None:
-                print(intervention)
+                print(f'{self.now}: "{intervention}"')
             self.last_decision = self.now
             # Spin until ASI's turn is up again
             for var in self.state.keys():
