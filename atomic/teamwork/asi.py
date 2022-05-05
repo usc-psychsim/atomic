@@ -182,7 +182,16 @@ class ASI(Agent):
                     self.arguments['report drop']['Leader'] = self.team.leader[0]
                 self.setState('valid report drop', True, recurse=True)
             else:
-                self.setState('valid report drop', True, recurse=False)
+                self.setState('valid report drop', False, recurse=False)
+            waiting = {}
+            for pair, count in gap.items():
+                waiting[pair[0]] = waiting.get(pair[0], 0) + count
+            wait_count = max(waiting.values())
+            if wait_count > 5:
+                self.arguments['remind practices'] = {'Player': next(iter([p for p, count in waiting.items() if count == wait_count]))}
+                self.setState('valid remind practices', True, recurse=True)
+            else:
+                self.setState('valid remind practices', False, recurse=False)
         if leadership:
             self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
             change = True
