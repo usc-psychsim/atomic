@@ -27,6 +27,7 @@ class ASI(Agent):
         self.team = None
         self.interventions = {}
         self.arguments = {}
+        self.inactivity = 0
 
     def generate_message(self, action):
         if action == self.noop:
@@ -153,8 +154,8 @@ class ASI(Agent):
         gap = {}
         noncompliance = set()
         for key, value in delta.items():
-            for process, value in self.acs[AC.name].influences.get(key, {}).items():
-                influence[process] = influence.get(process, 0) + value
+            for process, change in self.acs[AC.name].influences.get(key, {}).items():
+                influence[process] = influence.get(process, 0) + change
             if isStateKey(key) and state2feature(key) == 'ac_gallup_ta2_gelp Leadership':
                 leadership[state2agent(key)] = value
             elif key == stateKey(self.name, 'valid cheer'):
@@ -168,6 +169,15 @@ class ASI(Agent):
                         noncompliance.add(pair)
                     value = -value
                 gap[pair] = gap.get(pair, 0) + value
+            elif isStateKey(key) and state2feature(key) == 'ac_cmu_ta2_ted inaction_stand_s':
+                if value:
+                    self.inactivity += 1
+                else:
+                    self.inactivity = 0
+                if self.inactivity > 10:
+                    self.setState('valid distribute workload', True, recurse=True)
+                else:
+                    self.setState('valid distribute workload', False, recurse=True)
         if AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
             influence['coordination'] = influence.get('coordination', 0)-sum(gap.values())/100
             influence['team monitoring'] = influence.get('team monitoring', 0)-sum(gap.values())/100
