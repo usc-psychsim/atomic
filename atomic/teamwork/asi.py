@@ -175,9 +175,9 @@ class ASI(Agent):
                 else:
                     self.inactivity = 0
                 if self.inactivity > 10:
-                    self.setState('valid distribute workload', True, recurse=True)
+                    self.setState('valid prompt activity', True, recurse=True)
                 else:
-                    self.setState('valid distribute workload', False, recurse=True)
+                    self.setState('valid prompt activity', False, recurse=True)
         if AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
             influence['coordination'] = influence.get('coordination', 0)-sum(gap.values())/100
             influence['team monitoring'] = influence.get('team monitoring', 0)-sum(gap.values())/100
