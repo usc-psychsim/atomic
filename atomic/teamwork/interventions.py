@@ -12,17 +12,17 @@ interventions = {  # Inter-mission AAR prompt
                    # Cheerleading action
                    'cheer': {'object': 'team',
                              'template': 'Great job getting that victim into the triage area, ${Player}!',
-                             'effects': {'motivating': 1, 'affect management': 1, 'cognitive load': 0.2}},
+                             'effects': {'motivating': 1, 'affect management': 1, 'cognitive load': 1}},
                    # Report performance change
                    # Associated state: Individual performance level, team leader
                    'report drop': {'object': 'team',
                                    'template': '${Leader}, can you check on ${Player}? They haven\'t been responding to requests by ${Requestor}.',
-                                   'effects': {'team monitoring': 1, 'cognitive load': 0.2}},
+                                   'effects': {'team monitoring': 1, 'cognitive load': 1}},
                    # Recommend phase-sensitive plan (early)
                    # Associated state: Game phase
                    'notify early phase': {'object': 'team',
                                           'template': 'Team, it looks like you\'re working well to clear this section; however, the building is large, so spreading out may be more useful now.',
-                                          'effects': {'systems monitoring': 1, 'cognitive load': 0.2},
+                                          'effects': {'systems monitoring': 1, 'cognitive load': 1},
                                           'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), [300, 360]),
                                                     0: False, 1: True, 2: False},
                                           'valid on start': True
@@ -30,8 +30,8 @@ interventions = {  # Inter-mission AAR prompt
                    # Recommend phase-sensitive plan (late)
                    # Associated state: Game phase
                    'notify late phase': {'object': 'team',
-                                         'template': 'Team, the mission is nearing its end, it\'s time to work together in a high-value region and focus on transport and triaging to get points!',
-                                         'effects': {'systems monitoring': 1, 'cognitive load': 0.2},
+                                         'template': 'Team, the mission is nearing its end, it\'s time to work together in a more promising region and worry less about exploration!',
+                                         'effects': {'systems monitoring': 1, 'cognitive load': 1},
                                          'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), [600, 660]),
                                                    0: False, 1: True, 2: False},
                                          'valid on start': True
@@ -39,11 +39,11 @@ interventions = {  # Inter-mission AAR prompt
                    # Prompt for coordination best practices
                    # Associated state: Unassigned requests/goals
                    'remind practices': {'object': 'team',
-                                        'template': 'No one has fulfilled ${object}\'s request. Can anyone help?',
-                                        'effects': {'coordination': 1, 'cognitive load': 0.2}},
+                                        'template': 'No one has fulfilled ${Player}\'s requests. Can anyone help?',
+                                        'effects': {'coordination': 1, 'cognitive load': 1}},
                    # Spread workload
                    # Associated state: workload of individual players
                    'distribute workload': {'object': 'team',
                                            'template': 'Can someone help ${object} who is currently overloaded?',
-                                           'effects': {'team monitoring': 1, 'coordination': 1, 'cognitive load': 0.2}},
+                                           'effects': {'team monitoring': 1, 'coordination': 1, 'cognitive load': 1}},
                  }
