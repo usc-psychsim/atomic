@@ -193,6 +193,9 @@ class ASISTWorld(World):
         self.last_decision = None
         self.planning = True
 
+        self.defineState(WORLD, 'clock', int)
+        self.setState(WORLD, 'clock', 0)
+
     def close(self):
         if self.msg_types:
             self.logger.warning(f'Unknown message types: {", ".join(sorted(self.msg_types))}')
