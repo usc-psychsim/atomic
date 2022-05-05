@@ -128,7 +128,7 @@ class ACWrapper:
         return stateKey(player, f'{self.name} {var_name}')
 
     def get_pair_variable(self, player1, player2, var_name):
-        return binaryKey(player1, player2, f'{self.name} {var_name}')
+        return binaryKey(player1, player2, f'{self.name}_{var_name}')
 
     def get_team_variable(self, var_name):
         return stateKey(self.team_agent.name, f'{self.name} {var_name}')
