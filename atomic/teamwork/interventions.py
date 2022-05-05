@@ -43,7 +43,7 @@ interventions = {  # Inter-mission AAR prompt
                                         'effects': {'coordination': 1, 'cognitive load': 1}},
                    # Spread workload
                    # Associated state: workload of individual players
-                   'distribute workload': {'object': 'team',
-                                           'template': 'Can someone help ${object} who is currently overloaded?',
-                                           'effects': {'team monitoring': 1, 'coordination': 1, 'cognitive load': 1}},
+                   'prompt activity': {'object': 'team',
+                                       'template': 'There\'s not much activity. Is anyone stuck?',
+                                       'effects': {'team monitoring': 1, 'coordination': 1, 'cognitive load': 1}},
                  }
