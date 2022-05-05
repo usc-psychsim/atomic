@@ -49,11 +49,11 @@ AC_specs = {
             # 'AC_CORNELL_TA2_ASI-FACEWORK': {},
             'AC_CORNELL_TA2_TEAMTRUST':
             {'wrapper': ComplianceWrapper,
-             'variables': {'open requests': {'values': int, 'object': 'pair'},
-                           'compliance': {'values': int, 'object': 'pair'},
-                           'compliance rate': {'values': int, 'hi': 1, 'object': 'pair'},
-                           'response start': {'values': int, 'hi': 1, 'object': 'pair'},
-                           'response action': {'values': int, 'hi': 1, 'object': 'pair'}}},
+             'variables': {'open_requests': {'values': int, 'object': 'pair'},
+                           'compliance_overall': {'values': int, 'object': 'pair'},
+                           # 'response_start': {'values': int, 'hi': 1, 'object': 'pair'},
+                           # 'response_action': {'values': int, 'hi': 1, 'object': 'pair'}
+                           }},
             'ac_gallup_ta2_gelp': 
             {'wrapper': GelpWrapper,
              'variables': {'Leadership': {'values': float, 'object': 'player'}}},
