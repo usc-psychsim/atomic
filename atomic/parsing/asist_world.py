@@ -62,7 +62,7 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.config, world=self)
+        self.acs = make_ac_handlers(self.config, world=self, logger=self.logger, version=0)
         # Any AC handling of this start message?
         for AC in self.acs.values():
             AC.handle_message(msg)
@@ -105,7 +105,7 @@ class ASISTWorld(World):
             intervention = self.asi.generate_message(decision)
             self.explainDecision(decision)
             if intervention is not None:
-                print(f'{self.info["trial_number"]} {self.now}: "{intervention}"')
+                print(f'{self.info["trial_number"]},{self.now[0]},{self.now[1]},{self.asi.name},"{intervention}"')
             self.last_decision = self.now
             # Spin until ASI's turn is up again
             for var in self.state.keys():
