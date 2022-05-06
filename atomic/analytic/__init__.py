@@ -6,6 +6,8 @@ from .ihmc_wrapper import JAGWrapper
 from .rutgers_wrapper import BeliefDiffWrapper
 from .ucf_wrapper import PlayerProfileWrapper
 
+import copy
+import logging
 
 AC_specs = {
             # 'AC_CMUFMS_TA2_Cognitive': {},
@@ -78,7 +80,20 @@ AC_specs = {
                                                        'influences': {'systems monitoring': 1}}}},
             }
 
+AC_patches = [[['AC_Rutgers_TA2_Utility', 'variables', {'wait_time': {'values': bool, 'equal': float('Infinity'), 'object': 'player'}}]]]
 
-def make_ac_handlers(config=None, world=None):
-    return {name: AC_spec.get('wrapper', ACWrapper)(name, world, **AC_spec) for name, AC_spec in AC_specs.items() 
+
+def apply_AC_patch(spec, patch):
+    for entry in patch:
+        table = spec
+        for key in entry[:-1]:
+            table = table[key]
+        table.update(entry[-1])
+
+
+def make_ac_handlers(config=None, world=None, logger=logging, version=0):
+    specs = copy.deepcopy(AC_specs)
+    if version >= 1:
+        apply_AC_patch(specs, AC_patches[0])
+    return {name: AC_spec.get('wrapper', ACWrapper)(name, world, **AC_spec) for name, AC_spec in specs.items() 
             if config is None or config.getboolean('teamwork', name, fallback=False)}
