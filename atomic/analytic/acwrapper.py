@@ -6,6 +6,7 @@ Created on Fri Mar 11 15:40:39 2022
 @author: mostafh
 """
 from dateutil import parser
+import logging
 import pandas as pd
 import numpy as np
 
@@ -14,8 +15,10 @@ from psychsim.action import Action, ActionSet
 
 
 class ACWrapper:
-    def __init__(self, agent_name, world=None, **kwargs):
+    def __init__(self, agent_name, world=None, logger=logging, **kwargs):
         self.name = agent_name
+
+        self.logger = logger
 
         self.messages = []
         self.start_time = 0
@@ -59,7 +62,14 @@ class ACWrapper:
                         raise ValueError(f'Unable to create variable for {field}')
                     if not isinstance(record[field], self.variables[field]['values']):
                         if self.variables[field]['values'] is bool:
-                            record[field] = record[field] > self.variables[field]['threshold']
+                            if 'threshold' in self.variables[field]:
+                                # Greater than comparison
+                                record[field] = record[field] > self.variables[field]['threshold']
+                            elif 'equal' in self.variables[field]:
+                                # Equality comparison
+                                record[field] = record[field] == self.variables[field]['equal']
+                            else:
+                                raise ValueError(f'No comparison given for converting {self.name} {field} to boolean')
                         else:
                             raise TypeError(f'Unable to coerce type for {field}')
                     state_delta[var] = record[field]
@@ -142,7 +152,7 @@ class ACWrapper:
             world.setFeature(key, 0)
         elif table['values'] is bool:
             world.defineVariable(key, bool)
-            world.setFeature(key, True)
+            world.setFeature(key, table.get('default', True))
         elif table['values'] is float:
             world.defineVariable(key, float)
             world.setFeature(key, 0.)
