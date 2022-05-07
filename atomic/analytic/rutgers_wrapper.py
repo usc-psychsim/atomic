@@ -27,10 +27,12 @@ class BeliefDiffWrapper(ACWrapper):
         return [new_data]
 
     def handle_threat(self, message, data, mission_time):
-        new_data = [{'Player': data['threat_activation_player'][-1], 'Timestamp': mission_time,
+        new_data = [{'Player': data['threat_activation_player'][-1].split('_')[0].capitalize(), 
+                     'Timestamp': mission_time,
                      'wait_time': data['wait_time'][-1], 
                      'threat_activation_time': data['threat_activation_time'][-1],
-                     'threat_room': data['room_id'][-1]}]
+                     'threat_room': data['room_id'][-1],
+                     'threshold': data.get('threshold', data['threshold:'])}]
         self.last = pd.DataFrame(new_data)
         self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
