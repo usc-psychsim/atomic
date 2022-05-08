@@ -4,7 +4,8 @@ from psychsim.pwl.plane import thresholdRow
 interventions = {  # Inter-mission AAR prompt
                    # Associated state: Descriptors from situation to highlight (implies descriptors of current situation are being maintained)
                    'reflect': {'object': 'team',
-                               'template': 'I\'ve noticed an instance when ${object} was waiting for longer than usual. Do you remember ${situation}? Could you comment on a) what you think happened, b) how you could identify this the next time, c) what to do when you identify this occuring?',
+                               'template': ['Good luck, team!',
+                                            'Back at the ${time_minutes} mark, ${Player} had to wait more than ${threshold} seconds while frozen in ${threat_room}. Could you comment on a) what you think happened, b) how you could identify this the next time, c) what to do when you identify this occuring?'],
                                'effects': {'coordination': 1},
                                # Legal only before time 0
                                'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), 0), True: False, False: True},
