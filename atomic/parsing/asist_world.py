@@ -29,6 +29,8 @@ class ASISTWorld(World):
         # Mappings between player and participant IDs
         self.participant2player = None
         self.player2participant = None
+        self.asi = None
+        self.intervention_args = {}
 
         # Team agent
         self.acs = {}
@@ -62,7 +64,7 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.config, world=self, logger=self.logger, version=0)
+        self.acs = make_ac_handlers(self.config, world=self, logger=self.logger, version=1)
         # Any AC handling of this start message?
         for AC in self.acs.values():
             AC.handle_message(msg)
@@ -73,6 +75,9 @@ class ASISTWorld(World):
         self.team.initialize_effects(self.acs)
 
         self.asi = make_asi(self, self.team, self.participants, self.acs, self.config)
+        for action in self.asi.actions:
+            if action['verb'] not in self.intervention_args:
+                self.intervention_args[action['verb']] = {}
         for AC in self.acs.values():
             AC.asi = self.asi
 
@@ -97,14 +102,19 @@ class ASISTWorld(World):
             self.process_AC_msg(msg)
         if self.now is not None:
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
+                # Run simulation to identify ASI action
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
                 self.step(select='max')
                 self.state.normalize()
                 decision = self.getAction(self.asi.name, unique=True)
-                intervention = self.asi.generate_message(decision, self.run_count)
+                # Generate chat message
+                intervention = self.asi.generate_message(decision, self.intervention_args.get(decision['verb'], {}), self.run_count)
                 self.explainDecision(decision)
                 if intervention is not None:
                     print(f'{self.info["trial_number"]},{self.now[0]},{self.now[1]},{self.asi.name},"{intervention}"')
+                # Clear intervention content
+                if decision != self.asi.noop and decision['verb'] in self.intervention_args:
+                    self.intervention_args[decision['verb']].clear()
                 self.last_decision = self.now
                 # Spin until ASI's turn is up again
                 for var in self.state.keys():

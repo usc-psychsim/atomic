@@ -26,19 +26,18 @@ class ASI(Agent):
             self.conditions.update(AC.get_conditions())
         self.team = None
         self.interventions = {}
-        self.arguments = {}
         self.inactivity = 0
 
-    def generate_message(self, action, trial=1):
+    def generate_message(self, action, sub={}, trial=1):
         if action == self.noop:
             return None
         else:
             template = interventions[action['verb']]['template']
             if isinstance(template, list):
                 template = template[trial-1]
-            sub = dict(action.items())
-            sub.update(self.arguments.get(action['verb'], {}))
-            return template.substitute(sub)
+            new_sub = dict(action.items())
+            new_sub.update(sub)
+            return template.substitute(new_sub)
 
     def add_noop(self, team):
         self.noop = self.addAction({'verb': 'do nothing'})
@@ -61,7 +60,6 @@ class ASI(Agent):
                 table['template'] = Template(table['template'])
             elif isinstance(table['template'], list) and isinstance(table['template'][0], str):
                 table['template'] = [Template(t) for t in table['template']]
-            self.arguments[verb] = {}
             # Create flag for tracking whether we've already done this intervention
             flag = self.world.defineState(self.name, f'tried {verb}', bool)
             self.world.setFeature(flag, False)
@@ -163,7 +161,7 @@ class ASI(Agent):
             if isStateKey(key) and state2feature(key) == 'ac_gallup_ta2_gelp Leadership':
                 leadership[state2agent(key)] = value
             elif key == stateKey(self.name, 'valid cheer'):
-                self.arguments['cheer'].update(value)
+                self.world.intervention_args['cheer'].update(value)
                 change = True
             elif AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
                 rel = key2relation(key)
@@ -173,7 +171,7 @@ class ASI(Agent):
                         noncompliance.add(pair)
                     value = -value
                 gap[pair] = gap.get(pair, 0) + value
-            elif isStateKey(key) and state2feature(key) == 'ac_cmu_ta2_ted inaction_stand_s':
+            elif isStateKey(key) and state2feature(key) == 'ac_cmu_ta2_ted inaction_stand_s' and not self.world.planning:
                 if value:
                     self.inactivity += 1
                 else:
@@ -182,6 +180,13 @@ class ASI(Agent):
                     self.setState('valid prompt activity', True, recurse=True)
                 else:
                     self.setState('valid prompt activity', False, recurse=True)
+            elif isStateKey(key) and state2feature(key) == 'AC_Rutgers_TA2_Utility wait_time':
+                if value:
+                    self.setState('valid reflect', True, recurse=True)
+                    if len(self.world.intervention_args['reflect']) == 0:
+                        self.world.intervention_args['reflect'].update(AC.last.to_dict('records')[0])
+                        self.world.intervention_args['reflect']['time_minutes'] = int(self.world.intervention_args['reflect']['threat_activation_time']/60)
+                change = True
         if AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
             influence['coordination'] = influence.get('coordination', 0)-sum(gap.values())/100
             influence['team monitoring'] = influence.get('team monitoring', 0)-sum(gap.values())/100
@@ -189,11 +194,11 @@ class ASI(Agent):
             change = True
             if dysfunctional:
                 # What if two? 
-                self.arguments['report drop'] = {'Player': dysfunctional[0][1], 'Requestor': dysfunctional[0][0]}
+                self.world.intervention_args['report drop'] = {'Player': dysfunctional[0][1], 'Requestor': dysfunctional[0][0]}
                 if self.team.leader is None or len(self.team.leader) > 1 or self.team.leader[0] in dysfunctional[0]:
-                    self.arguments['report drop']['Leader'] = 'Team'
+                    self.world.intervention_args['report drop']['Leader'] = 'Team'
                 else:
-                    self.arguments['report drop']['Leader'] = self.team.leader[0]
+                    self.world.intervention_args['report drop']['Leader'] = self.team.leader[0]
                 self.setState('valid report drop', True, recurse=True)
             else:
                 self.setState('valid report drop', False, recurse=False)
@@ -202,7 +207,7 @@ class ASI(Agent):
                 waiting[pair[0]] = waiting.get(pair[0], 0) + count
             wait_count = max(waiting.values())
             if wait_count > 5:
-                self.arguments['remind practices'] = {'Player': next(iter([p for p, count in waiting.items() if count == wait_count]))}
+                self.world.intervention_args['remind practices'] = {'Player': next(iter([p for p, count in waiting.items() if count == wait_count]))}
                 self.setState('valid remind practices', True, recurse=True)
             else:
                 self.setState('valid remind practices', False, recurse=False)
