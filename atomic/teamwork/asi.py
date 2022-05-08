@@ -29,11 +29,13 @@ class ASI(Agent):
         self.arguments = {}
         self.inactivity = 0
 
-    def generate_message(self, action):
+    def generate_message(self, action, trial=1):
         if action == self.noop:
             return None
         else:
             template = interventions[action['verb']]['template']
+            if isinstance(template, list):
+                template = template[trial-1]
             sub = dict(action.items())
             sub.update(self.arguments.get(action['verb'], {}))
             return template.substitute(sub)
@@ -57,6 +59,8 @@ class ASI(Agent):
             # Extract NLG template
             if isinstance(table['template'], str):
                 table['template'] = Template(table['template'])
+            elif isinstance(table['template'], list) and isinstance(table['template'][0], str):
+                table['template'] = [Template(t) for t in table['template']]
             self.arguments[verb] = {}
             # Create flag for tracking whether we've already done this intervention
             flag = self.world.defineState(self.name, f'tried {verb}', bool)
