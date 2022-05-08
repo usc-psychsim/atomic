@@ -80,7 +80,8 @@ AC_specs = {
                                                        'influences': {'systems monitoring': 1}}}},
             }
 
-AC_patches = [[['AC_Rutgers_TA2_Utility', 'variables', {'wait_time': {'values': bool, 'equal': float('Infinity'), 'object': 'player'}}]]]
+AC_patches = [[['AC_Rutgers_TA2_Utility', 'variables', 
+                {'wait_time': {'values': bool, 'equal': float('Infinity'), 'object': 'player'}}]]]
 
 
 def apply_AC_patch(spec, patch):
