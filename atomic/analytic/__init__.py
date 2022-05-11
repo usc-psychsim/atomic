@@ -81,7 +81,7 @@ AC_specs = {
             }
 
 AC_patches = [[['AC_Rutgers_TA2_Utility', 'variables', 
-                {'wait_time': {'values': bool, 'equal': float('Infinity'), 'object': 'player'}}]]]
+                {'wait_time': {'values': bool, 'threshold': 15, 'object': 'player'}}]]]
 
 
 def apply_AC_patch(spec, patch):
