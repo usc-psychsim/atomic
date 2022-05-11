@@ -37,7 +37,10 @@ class ASI(Agent):
                 template = template[trial-1]
             new_sub = dict(action.items())
             new_sub.update(sub)
-            return template.substitute(new_sub)
+            try:
+                return template.substitute(new_sub)
+            except KeyError:
+                return None
 
     def add_noop(self, team):
         self.noop = self.addAction({'verb': 'do nothing'})
@@ -183,8 +186,9 @@ class ASI(Agent):
             elif isStateKey(key) and state2feature(key) == 'AC_Rutgers_TA2_Utility wait_time':
                 if value:
                     self.setState('valid reflect', True, recurse=True)
-                    if len(self.world.intervention_args['reflect']) == 0:
-                        self.world.intervention_args['reflect'].update(AC.last.to_dict('records')[0])
+                    record = AC.last.to_dict('records')[0]
+                    if len(self.world.intervention_args['reflect']) == 0 or record['wait_time'] > self.world.intervention_args['reflect']['wait_time']:
+                        self.world.intervention_args['reflect'].update(record)
                         self.world.intervention_args['reflect']['time_minutes'] = int(self.world.intervention_args['reflect']['threat_activation_time']/60)
                 change = True
         if AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
