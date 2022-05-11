@@ -230,9 +230,6 @@ class ASI(Agent):
             self.world.setState(self.team.name, process, new_dist, beliefs)
             change = True
         beliefs.select(True)
-        if not change:
-            print(delta)
-            exit()
 
 
 def make_asi(world, team_agent, players, acs={}, config=None):
