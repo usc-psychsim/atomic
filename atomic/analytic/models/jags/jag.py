@@ -9,7 +9,7 @@ from ...utils.time_period import TimePeriod
 
 def update_knowledge(player_id, category, confidence_value, elapsed_ms):
     # update knowledge about activity
-    if player_id not in category:
+    if player_id not in category or len(category[player_id]) == 0:
         if confidence_value > 0.0:  # only start tracking if confidence greater than zero
             category[player_id] = [ActivityTracker(player_id, confidence_value, TimePeriod(elapsed_ms, -1))]
             return True
