@@ -37,12 +37,14 @@ class GelpWrapper(ACWrapper):
         
     def handle_msg(self, message, data, mission_time):
         new_data = []
-        if message['timestamp'] is not None:
-            for result in data['gelp_results']:
-                record = {self.score_names[i]: value for i, value in enumerate(result['gelp_components'])}
-                record['Player'] = result['callsign']
-                record[self.score_names[-1]] = result['gelp_overall']
-                new_data.append(record)
+        i = 0
+        for result in data.get('gelp_results', {}):
+            i += 1
+            record = {self.score_names[i]: value for i, value in enumerate(result['gelp_components'])}
+            record['Player'] = result['callsign']
+            record[self.score_names[-1]] = result['gelp_overall']
+            new_data.append(record)
+        if new_data:
             self.last = pd.DataFrame(new_data)
             self.last['Timestamp'] = mission_time
             self.last['Trial'] = self.trial
