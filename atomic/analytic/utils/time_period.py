@@ -2,7 +2,7 @@ class TimePeriod:
 
     def __init__(self, start, end):
         if start is None:
-            print('no')
+            start = 0
         if start < 0:
             raise Exception(f"Start time must not be negative (negative means unknown). {start}")
         if 0 <= end < start:
@@ -34,7 +34,7 @@ class TimePeriod:
 
     @property
     def ongoing(self):
-        return self.__end < 0.0
+        return self.__end is None or self.__end < 0.0
 
     def to_string(self):
         if self.has_ended:
