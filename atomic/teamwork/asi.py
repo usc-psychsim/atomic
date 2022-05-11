@@ -262,7 +262,7 @@ class Team(Agent):
 
     def __init__(self, world, name='team'):
         super().__init__(name, world)
-        self.leader = None
+        self.leader = world.prior_leader
 
     def initialize_variables(self):
         for var in self.processes:

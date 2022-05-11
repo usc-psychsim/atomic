@@ -24,6 +24,7 @@ class ASISTWorld(World):
         self.info = {}
         self.msg_types = set()
         self.prior_beliefs = None
+        self.prior_leader = None
 
         self.participants = None
         # Mappings between player and participant IDs
@@ -188,6 +189,7 @@ class ASISTWorld(World):
             if AC.ignored_topics:
                 print(AC.name, sorted(AC.ignored_topics))
         self.prior_beliefs = self.asi.getBelief(model=self.asi.get_true_model())
+        self.prior_leader = self.team.leader
         self.initialize()
         self.info.clear()
         self.msg_types = set()
