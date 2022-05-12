@@ -152,7 +152,7 @@ class ACWrapper:
             world.setFeature(key, 0)
         elif table['values'] is bool:
             world.defineVariable(key, bool)
-            world.setFeature(key, table.get('default', True))
+            world.setFeature(key, table.get('default', False))
         elif table['values'] is float:
             world.defineVariable(key, float)
             world.setFeature(key, 0.)
