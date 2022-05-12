@@ -23,7 +23,7 @@ interventions = {  # Inter-mission AAR prompt
                    # Associated state: Game phase
                    'notify early phase': {'object': 'team',
                                           'template': ['Team, it looks like you\'re working well to clear this section; however, the building is large, so spreading out may be more useful now.',
-                                                       'Team, remember to focus on exploring now.'],
+                                                       'Team, remember that there\'s a lot of building to search.'],
                                           'effects': {'systems monitoring': 1, 'cognitive load': 1},
                                           'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), [300, 360]),
                                                     0: False, 1: True, 2: False},
@@ -32,8 +32,8 @@ interventions = {  # Inter-mission AAR prompt
                    # Recommend phase-sensitive plan (late)
                    # Associated state: Game phase
                    'notify late phase': {'object': 'team',
-                                         'template': ['Team, the mission is nearing its end, it\'s time to work together in a more promising region and worry less about exploration!',
-                                                      'Team, time to worry less about exploring!'],
+                                         'template': ['Team, the mission is nearing its end; let\'s finish triaging and moving victims instead of trying to find more.',
+                                                      'Team, time to finish triaging and moving victims instead of trying to find more.'],
                                          'effects': {'systems monitoring': 1, 'cognitive load': 1},
                                          'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), [600, 660]),
                                                    0: False, 1: True, 2: False},
