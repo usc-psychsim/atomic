@@ -30,7 +30,7 @@ class TimePeriod:
 
     @property
     def has_ended(self):
-        return self.__end >= 0.0
+        return self.__end is not None and self.__end >= 0.0
 
     @property
     def ongoing(self):
