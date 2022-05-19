@@ -128,7 +128,7 @@ def _generate_trajectories():
     # logging.info('Set reward vector: {}'.format(dict(zip(rwd_vector.names, REWARD_WEIGHTS))))
 
     # randomize initial location
-    features = [stateKey(agent.name, 'pLoc')]
+    features = {stateKey(agent.name, 'pLoc'): None}
 
     # generate trajectories
     n_procs = args['processes'] if args['processes'] > 0 else mp.cpu_count()
@@ -137,8 +137,8 @@ def _generate_trajectories():
     start = timer()
     trajectories = generate_trajectories(
         agent, args['trajectories'], args['length'],
-        features=features,
-        select=None,
+        init_feats=features,
+        select=None,  # do not select, ie get distribution over worlds/states
         threshold=args['prune'],
         processes=n_procs,
         seed=args['seed'],
