@@ -281,10 +281,10 @@ def find_trial(trial, log_dir):
         raise ValueError(f'Unable to find a file for log {trial} in {log_dir}')
 
 
-def replay_parser():
+def replay_parser(files_optional=False):
     parser = ArgumentParser()
     parser.add_argument('--config', help='Config file specifying execution parameters')
-    parser.add_argument('fname', nargs='+',
+    parser.add_argument('fname', nargs='*' if files_optional else '+',
                         help='Log file(s) (or directory of log files) to process')
     parser.add_argument('-1', '--1', action='store_true', help='Exit after the first run-through')
     parser.add_argument('-n', '--number', type=int, default=0,

@@ -69,7 +69,8 @@ AC_specs = {
             {'wrapper': JAGWrapper},
             'AC_Rutgers_TA2_Utility':
             {'wrapper': BeliefDiffWrapper,
-             'variables': {'indiv entropy': {'values': float, 'object': 'player'},
+             'variables': {'wait_time': {'values': bool, 'threshold': 15, 'object': 'player'},
+                           'indiv entropy': {'values': float, 'object': 'player'},
                            'marker entropy': {'values': float, 'object': 'player'},
                            'shared entropy': {'values': float, 'object': 'player'}}},
             'ac_ucf_ta2_playerprofiler':
@@ -79,9 +80,6 @@ AC_specs = {
                            'task-potential-category': {'values': bool, 'object': 'player',
                                                        'influences': {'systems monitoring': 1}}}},
             }
-
-AC_patches = [[['AC_Rutgers_TA2_Utility', 'variables', 
-                {'wait_time': {'values': bool, 'threshold': 15, 'object': 'player'}}]]]
 
 
 def apply_AC_patch(spec, patch):
