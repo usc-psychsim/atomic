@@ -383,6 +383,13 @@ class Jag:
 
         return f"{short_id}{inputs}{elapsed_time}{completion_status}"
 
+    def tiny_string(self):
+        """
+        USC
+        """
+        short_id = self.__urn.replace("urn:ihmc:asist:", "")
+        return f'{short_id}/{"/".join(map(str, self.__inputs.values()))}'
+
     def test_string(self):
         data = {
             'id': self.id_string,

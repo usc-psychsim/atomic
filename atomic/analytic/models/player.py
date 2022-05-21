@@ -56,6 +56,9 @@ class Player:
         self.__last_activity_completion_time = 0
         self.__last_rubble_activity_time = 0
 
+        # USC: stuff to track what is currently being done
+        self.activity = {}
+
     @staticmethod
     def __get_horizontal_fov(vertical_fov, window_dimensions):
         ratio = window_dimensions[0] / window_dimensions[1]
@@ -278,3 +281,20 @@ class Player:
                         rescue_jag = self.joint_activity_model.get(aj.RESCUE_VICTIM['urn'], jag_instance.inputs)
                         drop_off_jag = rescue_jag.get_by_urn(aj.DROP_OFF_VICTIM['urn'], jag_instance.inputs)
                         drop_off_jag.set_estimated_addressing_duration(travel_time)
+
+    def update_activity(self, actor, uid, status):
+        """
+        USC
+        :return: True iff this represents a status change
+        """
+        if actor not in self.activity:
+            self.activity[actor] = {}
+        try:
+            current_status = self.activity[actor][uid]
+        except KeyError:
+            current_status = None
+            self.activity[actor][uid] = status
+        else:
+            if current_status < status:
+                self.activity[actor][uid] = status
+        return current_status is None or current_status < status
