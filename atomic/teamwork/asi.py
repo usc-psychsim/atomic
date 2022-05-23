@@ -1,4 +1,4 @@
-import itertools
+import pandas
 from string import Template
 
 from psychsim.pwl.keys import stateKey, makeFuture, isStateKey, state2agent, state2feature, key2relation
@@ -27,6 +27,7 @@ class ASI(Agent):
         self.team = None
         self.interventions = {}
         self.inactivity = 0
+        self.belief_data = pandas.DataFrame()
 
     def generate_message(self, action, sub={}, trial=1):
         if action == self.noop:
@@ -164,7 +165,8 @@ class ASI(Agent):
             if isStateKey(key) and state2feature(key) == 'ac_gallup_ta2_gelp Leadership':
                 leadership[state2agent(key)] = value
             elif key == stateKey(self.name, 'valid cheer'):
-                self.world.intervention_args['cheer'].update(value)
+                if isinstance(value, dict):
+                    self.world.intervention_args['cheer'].update(value)
                 change = True
             elif AC.name == 'AC_CORNELL_TA2_TEAMTRUST':
                 rel = key2relation(key)
@@ -219,6 +221,8 @@ class ASI(Agent):
             self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
             change = True
         beliefs = self.getBelief(model=self.get_true_model())
+        record = {'timestamp': self.world.now, 
+                  'trial': self.world.info['trial_number']}
         for process, value in influence.items():
             old_dist = self.world.getState(self.team.name, process, beliefs)
             expected = value > 0
@@ -228,8 +232,11 @@ class ASI(Agent):
             new_dist = Distribution(new_dist)
             new_dist.normalize()
             self.world.setState(self.team.name, process, new_dist, beliefs)
+            record[process] = new_dist[True]
             change = True
         beliefs.select(True)
+        self.belief_data = pandas.concat([self.belief_data, pandas.DataFrame([record])], ignore_index=True)
+        # print(AC.name, influence)
 
 
 def make_asi(world, team_agent, players, acs={}, config=None):
