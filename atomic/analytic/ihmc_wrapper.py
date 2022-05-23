@@ -12,6 +12,7 @@ from atomic.analytic.models.joint_activity_model import JointActivityModel
 from atomic.analytic.models.jags import asist_jags as aj
 from .utils.jag_utils import merge_jags
 from .models.jags.jag import Jag
+from .models.events import JagEvent
 
 from atomic.analytic.models.player import Player
 from atomic.analytic.acwrapper import ACWrapper
@@ -46,6 +47,10 @@ class JAGWrapper(ACWrapper):
         self.role_to_urns = {k: [j['urn'] for j in v] for k,v in self.role_to_urns.items()}
         
         self.debug_discover = []
+
+        self.player_activity = {}
+
+        self.events = pd.DataFrame()
 
     def all_players_jag_ids(self):
         for pid in self.players.keys():
@@ -120,10 +125,8 @@ class JAGWrapper(ACWrapper):
         return []
         
     def handle_jag(self, message, data, mission_time):
-        jid = data['jag'].get('id', '')
-        if jid == 'b35361d2-ee24-4a43-a3e5-c1a43afa9f7a':
-            print('+++++++++', message['sub_type'], data)
-#        
+        transition = None
+        events = []
         try:
             if message['sub_type'] == 'Event:Discovered':
                 player_id = data['participant_id']
@@ -139,7 +142,6 @@ class JAGWrapper(ACWrapper):
                 self.look_back(jag_instance.id)
                 # if self.world:
                 #     add_joint_activity(self.world, player, jag_instance)
-                
             elif message['sub_type'] == 'Event:Awareness':
                 observer_player_id = data['participant_id']
                 player = self.players[observer_player_id]
@@ -162,6 +164,7 @@ class JAGWrapper(ACWrapper):
                 for aware_player_id in awareness.keys():
                     callsign = self.players[aware_player_id].callsign.lower()
                     jag_instance.update_awareness(observer_callsign, callsign, awareness[aware_player_id], elapsed_ms)
+                    player.update_activity(self.players[aware_player_id].callsign, uid, JagEvent.AWARENESS)
             elif message['sub_type'] == 'Event:Preparing':
                 # update individual
                 observer_player_id = data['participant_id']
@@ -187,7 +190,17 @@ class JAGWrapper(ACWrapper):
                     # update preparing based on last activity
                     if preparing[preparing_player_id] > 0.0:
                         jag_instance.update_preparing(observer_callsign, callsign, preparing[preparing_player_id], elapsed_ms)
-                        
+                        assert player.callsign == callsign.capitalize()
+                        if player.update_activity(self.players[preparing_player_id].callsign, uid, JagEvent.PREPARING):
+                            events.append({'team': self.world.info['experiment_name'], 
+                                           'asi': ','.join(self.world.info['intervention_agents']),
+                                           'trial': self.world.info['trial_number'],
+                                           'time': mission_time,
+                                           'score': self.world.current_score(),
+                                           'player': player.callsign,
+                                           'summary': 'preparing',
+                                           'activity': jag_instance.tiny_string()})
+
             elif message['sub_type'] == 'Event:Addressing':
                 # update individual
                 observer_player_id = data['participant_id']
@@ -222,8 +235,19 @@ class JAGWrapper(ACWrapper):
                             # print(self.callsign + " last activity = " + str(self.last_activity_completed.urn) + " so use last activity time " + str(self.last_activity_completion_time))
                             jag_instance.update_preparing(observer_player_id, callsign, 1.0, player.last_activity_completion_time)
                             jag_instance.update_preparing(observer_player_id, callsign, 0.0, player.last_activity_completion_time)
+                        if player.update_activity(self.players[preparing_player_id].callsign, uid, JagEvent.ADDRESSING):
+                            events.append({'team': self.world.info['experiment_name'], 
+                                           'asi': ','.join(self.world.info['intervention_agents']),
+                                           'trial': self.world.info['trial_number'],
+                                           'time': mission_time,
+                                           'score': self.world.current_score(),
+                                           'player': player.callsign,
+                                           'summary': 'addressing',
+                                           'activity': jag_instance.tiny_string()})
+
                     # update addressing
                     jag_instance.update_addressing(observer_callsign, callsign, addressing[preparing_player_id], elapsed_ms)
+                transition = ('addressing', jag_instance)
 
             elif message['sub_type'] == 'Event:Completion':
                 # update individual
@@ -251,6 +275,15 @@ class JAGWrapper(ACWrapper):
                 if jag_instance.urn != aj.SEARCH_AREA['urn'] and jag_instance.urn != aj.GET_IN_RANGE['urn']:
                     player.set_last_activity_completed(jag_instance)
                     player.set_last_activity_completion_time(elapsed_ms)
+                if player.update_activity(player.callsign, uid, JagEvent.COMPLETION):
+                    events.append({'team': self.world.info['experiment_name'], 
+                                   'asi': ','.join(self.world.info['intervention_agents']),
+                                   'trial': self.world.info['trial_number'],
+                                   'time': mission_time,
+                                   'score': self.world.current_score(),
+                                   'player': player.callsign,
+                                   'summary': 'completed',
+                                   'activity': jag_instance.tiny_string()})
             ########################################
             ######### USC addition
             ########################################
@@ -264,6 +297,10 @@ class JAGWrapper(ACWrapper):
         except Exception:
             print(traceback.format_exc())
         else:
+            if events:
+                self.events = pd.concat([self.events, pd.DataFrame.from_records(events)], ignore_index=True)
+            if transition is not None:
+                verb, jag_instance = transition
             value = message['sub_type'].split(':')[-1].lower()
             if value is not None and value != 'summary':
                 var = jag2variable(jag_instance, player)
@@ -277,7 +314,8 @@ class JAGWrapper(ACWrapper):
             for record in data:
                 if record.get('State', None) == 'completion':
                     if record['Activity'] in {'move-victim-to-triage-area'}:
-                        state_delta[stateKey(self.asi.name, 'valid cheer')] = record
+                        flag = stateKey(self.asi.name, 'valid cheer')
+                        state_delta[flag] = record
         return state_delta
     
     def __get_player_by_callsign(self, callsign):
