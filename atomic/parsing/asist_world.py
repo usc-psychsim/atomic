@@ -8,6 +8,8 @@ from psychsim.agent import Agent
 from atomic.analytic import make_ac_handlers
 from atomic.teamwork.asi import make_asi, make_team
 
+import matplotlib.pyplot as plt
+
 
 class ASISTWorld(World):
     TESTBED_SOURCES = {'metadata-web', 'gui', 'simulator'}
@@ -65,7 +67,7 @@ class ASISTWorld(World):
         # Create player
         self.participants = {name: self.create_participant(name) for name in self.player2participant}
         # Create AC handlers
-        self.acs = make_ac_handlers(self.config, world=self, logger=self.logger, version=1)
+        self.acs = make_ac_handlers(self.config, world=self, logger=self.logger, version=0)
         # Any AC handling of this start message?
         for AC in self.acs.values():
             AC.handle_message(msg)
@@ -105,6 +107,9 @@ class ASISTWorld(World):
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 # Run simulation to identify ASI action
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
+                interventions = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
+                interventions = [verb for verb in interventions if verb[:6] != 'notify' and verb != 'reflect']
+                print(sorted([verb for verb in interventions if self.asi.getState(f'valid {verb}', unique=True)]))
                 self.step(select='max')
                 self.state.normalize()
                 decision = self.getAction(self.asi.name, unique=True)
@@ -112,7 +117,10 @@ class ASISTWorld(World):
                 intervention = self.asi.generate_message(decision, self.intervention_args.get(decision['verb'], {}), self.run_count)
                 self.explainDecision(decision)
                 if intervention is not None:
-                    print(f'{self.info["trial_number"]},{self.now[0]},{self.now[1]},{self.asi.name},"{intervention}"')
+                    # TODO: log score, trigger condition
+                    # TODO: IRB
+                    score = self.current_score()
+                    print(f'{self.info["experiment_name"]},{",".join(self.info["intervention_agents"])},{self.info["trial_number"]},{15*60-self.now[0]*60-self.now[1]},{score},{self.asi.name},{decision["verb"]},"{intervention}"')
                 # Clear intervention content
                 if decision != self.asi.noop and decision['verb'] in self.intervention_args:
                     self.intervention_args[decision['verb']].clear()
@@ -125,6 +133,13 @@ class ASISTWorld(World):
                         else:
                             self.setFeature(var, 1, recurse=True)
         return intervention
+
+    def current_score(self):
+        if self.acs['ac_cmu_ta2_ted'].last is None:
+            score = 0
+        else:
+            score = self.acs['ac_cmu_ta2_ted'].last['team_score_agg'].iloc[-1]
+        return score
 
     def process_testbed_msg(self, msg):
         if msg['msg']['sub_type'] == 'trial' or msg['msg']['sub_type'] == 'replay':
@@ -185,9 +200,18 @@ class ASISTWorld(World):
             return (start[0]-self.now[0])*60 + start[1] - self.now[1]
 
     def process_stop(self, msg):
+        score = self.acs['ac_cmu_ta2_ted'].last['team_score_agg'].iloc[-1]
+        print(f'{self.info["experiment_name"]},{",".join(self.info["intervention_agents"])},{self.info["trial_number"]},{15*60-self.now[0]*60-self.now[1]},{score}')
         for AC in self.acs.values():
             if AC.ignored_topics:
                 print(AC.name, sorted(AC.ignored_topics))
+        # asi = self.asi
+        # team = self.team
+        # data = asi.belief_data.fillna(method='ffill')
+        # plot = data.plot(x='timestamp', y=team.processes)
+        # plt.show()
+
+        # Save state for subsequent trial with this team
         self.prior_beliefs = self.asi.getBelief(model=self.asi.get_true_model())
         self.prior_leader = self.team.leader
         self.initialize()
