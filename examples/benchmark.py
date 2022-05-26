@@ -68,7 +68,7 @@ class BenchmarkReplayer(Replayer):
         self.start = -1.
 
     def pre_step(self, world, parser, logger=logging):
-        self.prev_world = copy_world(world)  # todo change agent world cloning
+        # self.prev_world = copy_world(world)  # TODO change agent world cloning
         self.start = timer()
 
     def post_step(self, world, actions, t, parser, debug, logger=logging):
@@ -114,21 +114,18 @@ def _generate_trajectories():
 
     # set params to the first agent, other's decide at random
     agent = next(iter(world.agents.values()))
+    model = agent.n_level(1, rationality=args['rationality'], selection=args['selection'], horizon=args['horizon'])
+    world.setModel(agent.name, model)
     for ag in world.agents.values():
         if ag != agent:
-            ag.setAttribute('selection', 'random')
-            ag.setAttribute('horizon', 0)
-    agent.setAttribute('rationality', args['rationality'])
-    agent.setAttribute('selection', args['selection'])
-    agent.setAttribute('horizon', args['horizon'])
-
+            world.setModel(ag.name, next(iter(ag.get_nth_level(0))))
     # TODO set agent rwd function
     # rwd_vector = create_reward_vector(agent, map_table.rooms_list, world_map.moveActions[agent.name])
     # rwd_vector.set_rewards(agent, REWARD_WEIGHTS)
     # logging.info('Set reward vector: {}'.format(dict(zip(rwd_vector.names, REWARD_WEIGHTS))))
 
     # randomize initial location
-    features = [stateKey(agent.name, 'pLoc')]
+    features = {stateKey(agent.name, 'pLoc'): None}
 
     # generate trajectories
     n_procs = args['processes'] if args['processes'] > 0 else mp.cpu_count()
@@ -137,16 +134,16 @@ def _generate_trajectories():
     start = timer()
     trajectories = generate_trajectories(
         agent, args['trajectories'], args['length'],
-        features=features,
-        select=None,
+        init_feats=features,
+        select=True,  
         threshold=args['prune'],
         processes=n_procs,
         seed=args['seed'],
         verbose=True)
     elapsed = (timer() - start) * n_procs
 
-    logging.info('(mean: {:.3f}s per trajectory, {:.3f}s per step)'.format(
-        elapsed / args['trajectories'], elapsed / (args['trajectories'] * args['length'])))
+    logging.info(f'(mean: {elapsed / args["trajectories"]:.3f}s per trajectory, '
+                 f'{elapsed / (args["trajectories"] * args["length"]):.3f}s per step)')
 
 
 def _process_files():
