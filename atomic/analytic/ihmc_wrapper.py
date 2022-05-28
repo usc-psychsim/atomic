@@ -311,11 +311,15 @@ class JAGWrapper(ACWrapper):
     def compute_state_delta(self, data):
         state_delta = super().compute_state_delta(data)
         if data:
+            flag = stateKey(self.asi.name, 'valid cheer')
+            time_since = 0
             for record in data:
+                time_since = max(time_since, record['Timestamp']-self.world.intervention_args.get('cheer', {}).get('Timestamp', 0))
                 if record.get('State', None) == 'completion':
                     if record['Activity'] in {'move-victim-to-triage-area'}:
-                        flag = stateKey(self.asi.name, 'valid cheer')
                         state_delta[flag] = record
+            if flag not in state_delta and time_since > 5:
+                state_delta[flag] = False
         return state_delta
     
     def __get_player_by_callsign(self, callsign):
