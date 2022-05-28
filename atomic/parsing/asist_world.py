@@ -8,6 +8,7 @@ from psychsim.agent import Agent
 from atomic.analytic import make_ac_handlers
 from atomic.teamwork.asi import make_asi, make_team
 
+import pandas as pd
 import matplotlib.pyplot as plt
 
 
@@ -51,6 +52,7 @@ class ASISTWorld(World):
         self.setState(WORLD, 'clock', 0)
 
         self.run_count = 0
+        self.log_data = pd.DataFrame()
 
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
@@ -107,20 +109,13 @@ class ASISTWorld(World):
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 # Run simulation to identify ASI action
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
-                interventions = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
-                interventions = [verb for verb in interventions if verb[:6] != 'notify' and verb != 'reflect']
-                print(sorted([verb for verb in interventions if self.asi.getState(f'valid {verb}', unique=True)]))
                 self.step(select='max')
                 self.state.normalize()
                 decision = self.getAction(self.asi.name, unique=True)
                 # Generate chat message
                 intervention = self.asi.generate_message(decision, self.intervention_args.get(decision['verb'], {}), self.run_count)
                 self.explainDecision(decision)
-                if intervention is not None:
-                    # TODO: log score, trigger condition
-                    # TODO: IRB
-                    score = self.current_score()
-                    print(f'{self.info["experiment_name"]},{",".join(self.info["intervention_agents"])},{self.info["trial_number"]},{15*60-self.now[0]*60-self.now[1]},{score},{self.asi.name},{decision["verb"]},"{intervention}"')
+                self.log_decision(decision, intervention)
                 # Clear intervention content
                 if decision != self.asi.noop and decision['verb'] in self.intervention_args:
                     self.intervention_args[decision['verb']].clear()
@@ -133,6 +128,21 @@ class ASISTWorld(World):
                         else:
                             self.setFeature(var, 1, recurse=True)
         return intervention
+
+    def log_decision(self, decision, intervention):
+        record = {'team': self.info['experiment_name'],
+                  'ASI': ','.join(self.info["intervention_agents"]),
+                  'trial': self.info["trial_number"],
+                  'timestamp': 15*60-self.now[0]*60-self.now[1],
+                  'score': self.current_score(),
+                  'intervention': decision['verb'] if intervention is not None else None,
+                  'message': intervention,
+                  }
+        interventions = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
+        interventions = [verb for verb in interventions if verb[:6] != 'notify' and verb != 'reflect']
+        record.update({f'valid {verb}': self.asi.getState(f'valid {verb}', unique=True) for verb in interventions})
+        self.log_data = pd.concat([self.log_data, pd.DataFrame.from_records([record])], ignore_index=True)
+        return record
 
     def current_score(self):
         if self.acs['ac_cmu_ta2_ted'].last is None:
@@ -200,8 +210,7 @@ class ASISTWorld(World):
             return (start[0]-self.now[0])*60 + start[1] - self.now[1]
 
     def process_stop(self, msg):
-        score = self.acs['ac_cmu_ta2_ted'].last['team_score_agg'].iloc[-1]
-        print(f'{self.info["experiment_name"]},{",".join(self.info["intervention_agents"])},{self.info["trial_number"]},{15*60-self.now[0]*60-self.now[1]},{score}')
+        self.log_decision(self.asi.noop, None)
         for AC in self.acs.values():
             if AC.ignored_topics:
                 print(AC.name, sorted(AC.ignored_topics))
