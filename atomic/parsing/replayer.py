@@ -104,6 +104,8 @@ class Replayer(object):
         self.AC_data = {}
         self.AC_last = {}
 
+        self.log_data = pandas.DataFrame()
+
         self.pbar = None
 
     def process_files(self, num_steps=0, fname=None):
@@ -187,6 +189,7 @@ class Replayer(object):
                     self.AC_data[AC.name] = AC.data
                     self.AC_last[AC.name] = AC.last
 
+        self.log_data = pandas.concat([self.log_data, self.worlds[fname].log_data], ignore_index=True)
         self.worlds[fname].close()
 
     def pre_step(self, world):
@@ -196,6 +199,7 @@ class Replayer(object):
         pass
 
     def finish(self):
+        self.log_data.to_csv('/home/david/Downloads/interventions.csv', index=False)
         result = pandas.DataFrame()
         plot_data = {}
         non_stats = ['Requestor', 'Requestee', 'Timestamp', 'role', 'millis', 
