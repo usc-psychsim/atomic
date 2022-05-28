@@ -74,6 +74,8 @@ class BEARDWrapper(ACWrapper):
             if player != 'team':
                 new_data.append(table)
                 new_data[-1]['Player'] = player.split('_')[0].capitalize()
+                if new_data[-1]['Player'] not in self.world.agents:
+                    new_data[-1]['Player'] = self.world.participant2player[new_data[-1]['Player']]['callsign']
         self.last = pd.DataFrame(new_data)
         self.last['Timestamp'] = mission_time
         self.last['Trial'] = self.trial
