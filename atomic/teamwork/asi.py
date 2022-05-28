@@ -65,16 +65,16 @@ class ASI(Agent):
             elif isinstance(table['template'], list) and isinstance(table['template'][0], str):
                 table['template'] = [Template(t) for t in table['template']]
             # Create flag for tracking whether we've already done this intervention
-            flag = self.world.defineState(self.name, f'tried {verb}', bool)
+            flag = self.world.defineState(self.name, flag_feature(verb), bool)
             self.world.setFeature(flag, False)
-            valid = self.world.defineState(self.name, f'valid {verb}', bool)
+            valid = self.world.defineState(self.name, valid_feature(verb), bool)
             self.world.setFeature(valid, table.get('valid on start', False))
             # Figure out whether this intervention targets a single player or the whole team
             obj = table.get('object', 'team')
             if obj == 'player':
                 for player in players:
                     action = self.addAction({'verb': verb, 'object': player})
-                    self.add_dynamics(action, flag)
+                    self.add_dynamics(action, flag, valid)
                     tree = {'if': trueRow(flag), True: False, 
                             False: {'if': trueRow(valid), True: True, False: False}}
                     if 'legal' in table:
@@ -82,7 +82,7 @@ class ASI(Agent):
                     self.setLegal(action, makeTree(tree))
             elif obj == 'team':
                 action = self.addAction({'verb': verb})
-                self.add_dynamics(action, flag)
+                self.add_dynamics(action, flag, valid)
                 tree = {'if': trueRow(flag), True: False, 
                         False: {'if': trueRow(valid), True: True, False: False}}
                 if 'legal' in table:
@@ -95,7 +95,7 @@ class ASI(Agent):
             else:
                 self.interventions[verb] = {action}
 
-    def add_dynamics(self, action, flag=None):
+    def add_dynamics(self, action, flag=None, valid=None):
         """
         Automatically add dynamics of action on AC variables
         """
@@ -109,6 +109,8 @@ class ASI(Agent):
             self.world.setDynamics(var, action, makeTree(tree))
         if flag is not None:
             self.world.setDynamics(flag, action, makeTree(setTrueMatrix(flag)))
+        if valid is not None:
+            self.world.setDynamics(valid, action, makeTree(setFalseMatrix(valid)))
 
     def create_tree(self, var, action, effect):
         # Create condition branch
@@ -164,7 +166,7 @@ class ASI(Agent):
                 influence[process] = influence.get(process, 0) + change
             if isStateKey(key) and state2feature(key) == 'ac_gallup_ta2_gelp Leadership':
                 leadership[state2agent(key)] = value
-            elif key == stateKey(self.name, 'valid cheer'):
+            elif key == stateKey(self.name, valid_feature('cheer')):
                 if isinstance(value, dict):
                     self.world.intervention_args['cheer'].update(value)
                 change = True
@@ -237,6 +239,14 @@ class ASI(Agent):
         beliefs.select(True)
         self.belief_data = pandas.concat([self.belief_data, pandas.DataFrame([record])], ignore_index=True)
         # print(AC.name, influence)
+
+
+def flag_feature(verb):
+    return f'tried {verb}'
+
+
+def valid_feature(verb):
+    return f'valid {verb}'
 
 
 def make_asi(world, team_agent, players, acs={}, config=None):
