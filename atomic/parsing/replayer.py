@@ -56,9 +56,9 @@ def accumulate_files(files, include_trials=None, ext='.metadata', logger=logging
                 logger.warning(f'Unable to identify trial corresponding to {os.path.basename(fname)}')
                 continue
         if trial == 'Competency':
-            logging.warning(f'Ignoring competency trial {os.path.basename(trial)}')
+            logging.warning(f'Ignoring competency trial {os.path.basename(fname)}')
         elif trial == 'Training':
-            logging.warning(f'Ignoring training trial {os.path.basename(trial)}')
+            logging.warning(f'Ignoring training trial {os.path.basename(fname)}')
         elif include_trials is None or int(trial[1:]) in include_trials:
             trials[trial] = trials.get(trial, []) + [fname]
             teams[conditions['Team']] = teams.get(conditions['Team'], set()) | {trial}

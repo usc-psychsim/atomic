@@ -192,14 +192,9 @@ class JAGWrapper(ACWrapper):
                         jag_instance.update_preparing(observer_callsign, callsign, preparing[preparing_player_id], elapsed_ms)
                         assert player.callsign == callsign.capitalize()
                         if player.update_activity(self.players[preparing_player_id].callsign, uid, JagEvent.PREPARING):
-                            events.append({'team': self.world.info['experiment_name'], 
-                                           'asi': ','.join(self.world.info['intervention_agents']),
-                                           'trial': self.world.info['trial_number'],
-                                           'time': mission_time,
-                                           'score': self.world.current_score(),
-                                           'player': player.callsign,
-                                           'summary': 'preparing',
-                                           'activity': jag_instance.tiny_string()})
+                            events.append(self.world.make_record({'player': player.callsign,
+                                                                  'summary': 'preparing',
+                                                                  'activity': jag_instance.tiny_string()}))
 
             elif message['sub_type'] == 'Event:Addressing':
                 # update individual
@@ -236,14 +231,9 @@ class JAGWrapper(ACWrapper):
                             jag_instance.update_preparing(observer_player_id, callsign, 1.0, player.last_activity_completion_time)
                             jag_instance.update_preparing(observer_player_id, callsign, 0.0, player.last_activity_completion_time)
                         if player.update_activity(self.players[preparing_player_id].callsign, uid, JagEvent.ADDRESSING):
-                            events.append({'team': self.world.info['experiment_name'], 
-                                           'asi': ','.join(self.world.info['intervention_agents']),
-                                           'trial': self.world.info['trial_number'],
-                                           'time': mission_time,
-                                           'score': self.world.current_score(),
-                                           'player': player.callsign,
-                                           'summary': 'addressing',
-                                           'activity': jag_instance.tiny_string()})
+                            events.append(self.world.make_record({'player': player.callsign,
+                                                                  'summary': 'addressing',
+                                                                  'activity': jag_instance.tiny_string()}))
 
                     # update addressing
                     jag_instance.update_addressing(observer_callsign, callsign, addressing[preparing_player_id], elapsed_ms)
@@ -276,14 +266,9 @@ class JAGWrapper(ACWrapper):
                     player.set_last_activity_completed(jag_instance)
                     player.set_last_activity_completion_time(elapsed_ms)
                 if player.update_activity(player.callsign, uid, JagEvent.COMPLETION):
-                    events.append({'team': self.world.info['experiment_name'], 
-                                   'asi': ','.join(self.world.info['intervention_agents']),
-                                   'trial': self.world.info['trial_number'],
-                                   'time': mission_time,
-                                   'score': self.world.current_score(),
-                                   'player': player.callsign,
-                                   'summary': 'completed',
-                                   'activity': jag_instance.tiny_string()})
+                    events.append(self.world.make_record({'player': player.callsign,
+                                                          'summary': 'completed',
+                                                          'activity': jag_instance.tiny_string()}))
             ########################################
             ######### USC addition
             ########################################
@@ -295,6 +280,7 @@ class JAGWrapper(ACWrapper):
 #                self.player_stats()
                 
         except Exception:
+            print(self.world.info["trial_number"])
             print(traceback.format_exc())
         else:
             if events:

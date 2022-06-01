@@ -97,6 +97,8 @@ class ASISTWorld(World):
                                            for unique_id, client in self.participant2player.items()}
             elif key not in self.info:
                 self.info[key] = value
+        if self.info['condition'] == '2':
+            self.info['intervention_agents'][0] = 'Human'
         self.create_agents(msg)
 
     def process_msg(self, msg):
@@ -129,18 +131,24 @@ class ASISTWorld(World):
                             self.setFeature(var, 1, recurse=True)
         return intervention
 
-    def log_decision(self, decision, intervention):
+    def make_record(self, values=None):
         record = {'team': self.info['experiment_name'],
-                  'ASI': ','.join(self.info["intervention_agents"]),
+                  'ASI': ','.join(self.info.get('intervention_agents', [])),
                   'trial': self.info["trial_number"],
                   'timestamp': 15*60-self.now[0]*60-self.now[1],
                   'score': self.current_score(),
-                  'intervention': decision['verb'] if intervention is not None else None,
-                  'message': intervention,
                   }
+        if values:
+            record.update(values)
+        return record
+
+    def log_decision(self, decision, intervention):
+        record = self.make_record()
         interventions = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
         interventions = [verb for verb in interventions if verb[:6] != 'notify' and verb != 'reflect']
         record.update({f'valid {verb}': self.asi.getState(f'valid {verb}', unique=True) for verb in interventions})
+        record.update({'intervention': decision['verb'] if intervention is not None else None,
+                       'message': intervention})
         self.log_data = pd.concat([self.log_data, pd.DataFrame.from_records([record])], ignore_index=True)
         return record
 
