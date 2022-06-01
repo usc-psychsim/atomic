@@ -114,7 +114,11 @@ def _generate_trajectories():
 
     # set params to the first agent, other's decide at random
     agent = next(iter(world.agents.values()))
-    model = agent.n_level(1, rationality=args['rationality'], selection=args['selection'], horizon=args['horizon'])
+    null = {name: other.find_action({'verb': 'noop'}) for name, other in world.agents.items() 
+            if other.name != agent.name}
+    model = agent.n_level(1, rationality=args['rationality'], 
+                          selection=args['selection'], null=null,
+                          horizon=args['horizon'])
     world.setModel(agent.name, model)
     for ag in world.agents.values():
         if ag != agent:
