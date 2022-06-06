@@ -6,7 +6,8 @@ from psychsim.world import World
 from psychsim.agent import Agent
 
 from atomic.analytic import make_ac_handlers
-from atomic.teamwork.asi import make_asi, make_team
+from atomic.teamwork.interventions import interventions
+from atomic.teamwork.asi import make_asi, make_team, Team
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -52,7 +53,12 @@ class ASISTWorld(World):
         self.setState(WORLD, 'clock', 0)
 
         self.run_count = 0
-        self.log_data = pd.DataFrame()
+        self.log_columns = ['team', 'trial', 'ASI', 'timestamp', 'score']
+        self.log_columns += sorted([f'valid {verb}' for verb in interventions.keys() - {'notify early phase', 'notify late phase', 'reflect'}])
+        self.log_columns += sorted([f'V({verb})' for verb in interventions | {'do nothing'}])
+        self.log_columns += sorted([f'B({var})' for var in Team.processes])
+        self.log_columns += ['intervention', 'message']
+        self.log_data = pd.DataFrame(columns=self.log_columns)
 
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
@@ -111,13 +117,24 @@ class ASISTWorld(World):
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 # Run simulation to identify ASI action
                 self.logger.debug(f'Evaluating interventions at time {self.now}')
-                self.step(select='max')
+                verbs = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
+                verbs = [verb for verb in verbs if verb[:6] != 'notify' and verb != 'reflect']
+                pre_state = {f'valid {verb}': self.asi.getState(f'valid {verb}', unique=True) for verb in verbs}
+                result = {self.asi.name: {}}
+                asi_model = self.asi.get_true_model()
+                self.step(debug=result, select='max')
                 self.state.normalize()
-                decision = self.getAction(self.asi.name, unique=True)
+                decision = result[self.asi.name]['__decision__'][asi_model]['action']
+                assert decision == self.getAction(self.asi.name, unique=True)
+                if 'V' in result[self.asi.name]['__decision__'][asi_model]:
+                    pre_state.update({f'V({a["verb"]})': table['__EV__'] 
+                                     for a, table in result[self.asi.name]['__decision__'][asi_model]['V'].items()})
+                beliefs = self.asi.belief_data.iloc[-1]
+                pre_state.update({f'B({var})': beliefs[var] for var in self.team.processes if var in beliefs})
                 # Generate chat message
-                intervention = self.asi.generate_message(decision, self.intervention_args.get(decision['verb'], {}), self.run_count)
-                self.explainDecision(decision)
-                self.log_decision(decision, intervention)
+                args = self.intervention_args.get(decision['verb'], {})
+                intervention = self.asi.generate_message(decision, args, self.run_count)
+                self.log_decision(decision, intervention, pre_state)
                 # Clear intervention content
                 if decision != self.asi.noop and decision['verb'] in self.intervention_args:
                     self.intervention_args[decision['verb']].clear()
@@ -135,18 +152,15 @@ class ASISTWorld(World):
         record = {'team': self.info['experiment_name'],
                   'ASI': ','.join(self.info.get('intervention_agents', [])),
                   'trial': self.info["trial_number"],
-                  'timestamp': 15*60-self.now[0]*60-self.now[1],
+                  'timestamp': None if self.now is None else 15*60-self.now[0]*60-self.now[1],
                   'score': self.current_score(),
                   }
         if values:
             record.update(values)
         return record
 
-    def log_decision(self, decision, intervention):
-        record = self.make_record()
-        interventions = [action['verb'] for action in self.asi.actions if action != self.asi.noop]
-        interventions = [verb for verb in interventions if verb[:6] != 'notify' and verb != 'reflect']
-        record.update({f'valid {verb}': self.asi.getState(f'valid {verb}', unique=True) for verb in interventions})
+    def log_decision(self, decision, intervention, additional=None):
+        record = self.make_record(additional)
         record.update({'intervention': decision['verb'] if intervention is not None else None,
                        'message': intervention})
         self.log_data = pd.concat([self.log_data, pd.DataFrame.from_records([record])], ignore_index=True)
@@ -249,6 +263,7 @@ class ASISTWorld(World):
         self.setState(WORLD, 'clock', 0)
 
     def close(self):
+        self.log_data = self.log_data[0:0]
         if self.msg_types:
             self.logger.warning(f'Unknown message types: {", ".join(sorted(self.msg_types))}')
 
