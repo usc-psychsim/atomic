@@ -75,6 +75,7 @@ class BEARDWrapper(ACWrapper):
                 new_data.append(table)
                 new_data[-1]['Player'] = player.split('_')[0].capitalize()
                 if new_data[-1]['Player'] not in self.world.agents:
+                    print(f'Invalid player {new_data[-1]["Player"]} in BEARD message in Trial {self.trial}')
                     new_data[-1]['Player'] = self.world.participant2player[new_data[-1]['Player']]['callsign']
         self.last = pd.DataFrame(new_data)
         self.last['Timestamp'] = mission_time
