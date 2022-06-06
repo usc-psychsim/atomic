@@ -223,8 +223,7 @@ class ASI(Agent):
             self.team.leader = [name for name, value in leadership.items() if value == max(leadership.values())]
             change = True
         beliefs = self.getBelief(model=self.get_true_model())
-        record = {'timestamp': self.world.now, 
-                  'trial': self.world.info['trial_number']}
+        record = self.world.make_record()
         for process, value in influence.items():
             old_dist = self.world.getState(self.team.name, process, beliefs)
             expected = value > 0
