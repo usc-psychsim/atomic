@@ -3,7 +3,8 @@ from psychsim.pwl.plane import thresholdRow
 
 interventions = {  # Inter-mission AAR prompt
                    # Associated state: Descriptors from situation to highlight (implies descriptors of current situation are being maintained)
-                   'reflect': {'object': 'team',
+                   'reflect': {'id': 1,
+                               'object': 'team',
                                'template': ['Good luck, team!',
                                             'Back at the ${time_minutes}-minute mark, ${Player} had to wait ${wait_time} seconds while frozen in ${threat_room}. Could you comment on a) what you think happened, b) how you could identify this the next time, and c) what to do when you identify this occuring?'],
                                'effects': {'coordination': 1},
@@ -11,17 +12,20 @@ interventions = {  # Inter-mission AAR prompt
                                'legal': {'if': thresholdRow(stateKey(WORLD, 'clock'), 0), True: False, False: True},
                                'valid on start': True},
                    # Cheerleading action
-                   'cheer': {'object': 'team',
+                   'cheer': {'id': 2,
+                             'object': 'team',
                              'template': 'Great job getting that victim into the triage area, ${Player}!',
                              'effects': {'motivating': 1, 'affect management': 1, 'cognitive load': 1}},
                    # Report performance change
                    # Associated state: Individual performance level, team leader
-                   'report drop': {'object': 'team',
+                   'report drop': {'id': 3,
+                                   'object': 'team',
                                    'template': '${Leader}, can you check on ${Player}? They haven\'t been responding to requests by ${Requestor}.',
                                    'effects': {'team monitoring': 1, 'cognitive load': 1}},
                    # Recommend phase-sensitive plan (early)
                    # Associated state: Game phase
-                   'notify early phase': {'object': 'team',
+                   'notify early phase': {'id': 4,
+                                          'object': 'team',
                                           'template': ['Team, it looks like you\'re working well to clear this section; however, the building is large, so spreading out may be more useful now.',
                                                        'Team, remember that there\'s a lot of building to search.'],
                                           'effects': {'systems monitoring': 1, 'cognitive load': 1},
@@ -31,7 +35,8 @@ interventions = {  # Inter-mission AAR prompt
                                           },
                    # Recommend phase-sensitive plan (late)
                    # Associated state: Game phase
-                   'notify late phase': {'object': 'team',
+                   'notify late phase': {'id': 4,
+                                         'object': 'team',
                                          'template': ['Team, the mission is nearing its end; let\'s finish triaging and moving victims instead of trying to find more.',
                                                       'Team, time to finish triaging and moving victims instead of trying to find more.'],
                                          'effects': {'systems monitoring': 1, 'cognitive load': 1},
@@ -41,12 +46,14 @@ interventions = {  # Inter-mission AAR prompt
                                          },
                    # Prompt for coordination best practices
                    # Associated state: Unassigned requests/goals
-                   'remind practices': {'object': 'team',
+                   'remind practices': {'id': 5,
+                                        'object': 'team',
                                         'template': 'No one has fulfilled ${Player}\'s requests. Can anyone help?',
                                         'effects': {'coordination': 1, 'cognitive load': 1}},
                    # Spread workload
                    # Associated state: workload of individual players
-                   'prompt activity': {'object': 'team',
+                   'prompt activity': {'id': 6,
+                                       'object': 'team',
                                        'template': 'There\'s not much activity. Is anyone stuck?',
                                        'effects': {'team monitoring': 1, 'coordination': 1, 'cognitive load': 1}},
                  }
