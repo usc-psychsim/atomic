@@ -47,7 +47,7 @@ class TEDWrapper(ACWrapper):
         # self.data = pd.DataFrame(columns=['millis'] + self.score_names)
 
     def handle_msg(self, message, data, mission_time):
-        new_data = [data]
+        new_data = [self.world.make_record(data)]
         self.last = pd.DataFrame(new_data)
         self.last['Timestamp'] = mission_time
         self.last['Trial'] = self.trial
@@ -72,13 +72,11 @@ class BEARDWrapper(ACWrapper):
         new_data = []
         for player, table in data.items():
             if player != 'team':
-                new_data.append(table)
+                new_data.append(self.world.make_record(table))
                 new_data[-1]['Player'] = player.split('_')[0].capitalize()
                 if new_data[-1]['Player'] not in self.world.agents:
                     print(f'Invalid player {new_data[-1]["Player"]} in BEARD message in Trial {self.trial}')
                     new_data[-1]['Player'] = self.world.participant2player[new_data[-1]['Player']]['callsign']
         self.last = pd.DataFrame(new_data)
-        self.last['Timestamp'] = mission_time
-        self.last['Trial'] = self.trial
         self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data        
