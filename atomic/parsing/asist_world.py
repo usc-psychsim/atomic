@@ -1,6 +1,7 @@
 import json
 import logging
 
+from psychsim.action import ActionSet
 from psychsim.pwl.keys import WORLD, isTurnKey, state2agent
 from psychsim.world import World
 from psychsim.agent import Agent
@@ -54,11 +55,13 @@ class ASISTWorld(World):
 
         self.run_count = 0
         self.log_columns = ['team', 'trial', 'ASI', 'timestamp', 'score']
-        self.log_columns += sorted([f'valid {verb}' for verb in interventions.keys() - {'notify early phase', 'notify late phase', 'reflect'}])
-        self.log_columns += sorted([f'V({verb})' for verb in interventions | {'do nothing'}])
-        self.log_columns += sorted([f'B({var})' for var in Team.processes])
-        self.log_columns += ['intervention', 'message']
-        self.log_data = pd.DataFrame(columns=self.log_columns)
+        if self.config.getboolean('output', 'decision', fallback=False):
+            self.log_columns += sorted([f'valid {verb}' for verb in interventions.keys() - {'notify early phase', 'notify late phase', 'reflect'}])
+            self.log_columns += sorted([f'V({verb})' for verb in interventions.keys() | {'do nothing'}])
+            self.log_columns += sorted([f'B({var})' for var in Team.processes])
+        self.log_columns += ['actor', 'intervention', 'message']
+        self.ac_columns = set()
+        self.log_data = pd.DataFrame()
 
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
@@ -129,12 +132,48 @@ class ASISTWorld(World):
                 if 'V' in result[self.asi.name]['__decision__'][asi_model]:
                     pre_state.update({f'V({a["verb"]})': table['__EV__'] 
                                      for a, table in result[self.asi.name]['__decision__'][asi_model]['V'].items()})
-                beliefs = self.asi.belief_data.iloc[-1]
-                pre_state.update({f'B({var})': beliefs[var] for var in self.team.processes if var in beliefs})
+                if self.config.getboolean('output', 'decision', fallback=False):
+                    # Add current ASI beliefs to log
+                    if len(self.asi.belief_data) == 0:
+                        self.logger.warning(f'No beliefs at intervention time {self.now}')
+                    try:
+                        beliefs = self.asi.belief_data.iloc[-1]
+                    except IndexError:
+                        return None
+                    pre_state.update({f'B({var})': beliefs[var] for var in self.team.processes if var in beliefs})
+                if self.config.getboolean('output', 'ac', fallback=False):
+                    # Add AC variables to log entry
+                    ignore = {'callsign', 'player', 'Player', 'team', 'ASI', 
+                              'trial', 'timestamp', 'Requestor', 'Requestee'}
+                    for ac in self.acs.values():
+                        if ac.last is not None:
+                            name_blocks = ac.name.split('_')
+                            name_prefix = '_'.join([name_blocks[1]]+name_blocks[3:]).lower()
+                            for index, row in ac.last.iterrows():
+                                player = 'Team'
+                                for field in ['Player', 'player', 'callsign']:
+                                    if field in row:
+                                        player = row[field]
+                                        break
+                                else:
+                                    if 'Requestor' in row:
+                                        player = f'{row["Requestor"]}_asks_{row["Requestee"]}'
+                                values = [(var, value) for var, value in row.items()
+                                          if var not in ignore]
+                                for var, value in values:
+                                    for color in ['RED', 'GREEN', 'BLUE']:
+                                        if color in var:
+                                            var = var.replace(f'{color}_', '')
+                                            player = color.capitalize()
+                                            break
+                                    label = f'{player}_{name_prefix}_{var}'
+                                    self.ac_columns.add(label)
+                                    pre_state[label] = value
                 # Generate chat message
                 args = self.intervention_args.get(decision['verb'], {})
                 intervention = self.asi.generate_message(decision, args, self.run_count)
-                self.log_decision(decision, intervention, pre_state)
+                if self.config.getboolean('output', 'decision', fallback=False) or intervention is not None:
+                    self.log_decision(decision, intervention, pre_state)
                 # Clear intervention content
                 if decision != self.asi.noop and decision['verb'] in self.intervention_args:
                     self.intervention_args[decision['verb']].clear()
@@ -161,7 +200,8 @@ class ASISTWorld(World):
 
     def log_decision(self, decision, intervention, additional=None):
         record = self.make_record(additional)
-        record.update({'intervention': decision['verb'] if intervention is not None else None,
+        record.update({'actor': self.asi.name,
+                       'intervention': interventions[decision['verb']]['id'] if intervention is not None else None,
                        'message': intervention})
         self.log_data = pd.concat([self.log_data, pd.DataFrame.from_records([record])], ignore_index=True)
         return record
@@ -234,8 +274,12 @@ class ASISTWorld(World):
     def process_stop(self, msg):
         self.log_decision(self.asi.noop, None)
         for AC in self.acs.values():
-            if AC.ignored_topics:
-                print(AC.name, sorted(AC.ignored_topics))
+            topic_list = [topic for topic in AC.ignored_topics
+                          if 'versioninfo' not in topic.split('/')
+                          and 'response' not in topic.split('/')
+                          and 'heartbeats' not in topic.split('/')]
+            if topic_list:
+                print(AC.name, sorted(topic_list))
         # asi = self.asi
         # team = self.team
         # data = asi.belief_data.fillna(method='ffill')
