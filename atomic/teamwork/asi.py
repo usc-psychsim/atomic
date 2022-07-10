@@ -17,7 +17,7 @@ class ASI(Agent):
     # Probability assigned to effects outlined in the AC_effects table
     base_probability = {'expected': 0.5, 'null': 0.4, 'unexpected': 0.1}
 
-    def __init__(self, world, acs={}, config=None, name='ATOMIC'):
+    def __init__(self, world, acs={}, config=None, name='atomic_agent'):
         self.acs = acs
         self.config = config
         super().__init__(name, world)
@@ -257,7 +257,6 @@ def make_asi(world, team_agent, players, acs={}, config=None):
     agent.setReward(minimizeFeature(stateKey(team_agent.name, 'cognitive load'), agent.name), 1)
     agent.setAttribute('horizon', 1)
     return agent
-
 
 class Team(Agent):
 
