@@ -13,6 +13,7 @@ AC_specs = {
             # 'AC_CMUFMS_TA2_Cognitive': {},
             'ac_cmu_ta2_ted': 
             {'wrapper': TEDWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/AC_CMU_TA2_TED/README.md',
              'variables': {'comms_equity': {'object': 'team', 'values': bool, 'threshold': 100,
                                             'influences': {'coordination': 1}},
                            'comms_total_words': {'object': 'team', 'values': bool, 'threshold': 100,
@@ -33,6 +34,7 @@ AC_specs = {
                            }},
             'ac_cmu_ta2_beard':
             {'wrapper': BEARDWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/AC_CMU_TA2_BEARD/README.md',
              'variables': {'anger': {'object': 'player', 'values': bool, 'threshold': 1.5,
                                      'influences': {'affect management': -1}},
                            'anxiety': {'object': 'player', 'values': bool, 'threshold': 2,
@@ -51,6 +53,7 @@ AC_specs = {
             # 'AC_CORNELL_TA2_ASI-FACEWORK': {},
             'AC_CORNELL_TA2_TEAMTRUST':
             {'wrapper': ComplianceWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/ac_cornell_ta2_teamtrust/README.md',
              'variables': {'open_requests': {'values': int, 'object': 'pair'},
                            'compliance_overall': {'values': int, 'object': 'pair'},
                            # 'response_start': {'values': int, 'hi': 1, 'object': 'pair'},
@@ -58,6 +61,7 @@ AC_specs = {
                            }},
             'ac_gallup_ta2_gelp': 
             {'wrapper': GelpWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/gallup_agent_gelp/README.md',
              'variables': {'Leadership': {'values': float, 'object': 'player'}}},
             # 'ac_gallup_ta2_gold':
             # {'wrapper': GOLDWrapper,
@@ -69,12 +73,14 @@ AC_specs = {
             {'wrapper': JAGWrapper},
             'AC_Rutgers_TA2_Utility':
             {'wrapper': BeliefDiffWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/RutgersUtilityAC/README.md',
              'variables': {'wait_time': {'values': bool, 'threshold': 15, 'object': 'player'},
                            'indiv entropy': {'values': float, 'object': 'player'},
                            'marker entropy': {'values': float, 'object': 'player'},
                            'shared entropy': {'values': float, 'object': 'player'}}},
             'ac_ucf_ta2_playerprofiler':
             {'wrapper': PlayerProfileWrapper,
+             'README': 'https://gitlab.asist.aptima.com/asist/testbed/-/blob/develop/Agents/AC_UCF_TA2_PlayerProfiler/README.md',
              'variables': {'team-potential-category': {'values': bool, 'object': 'player',
                                                        'influences': {'team monitoring': 1, 'coordination': 1}},
                            'task-potential-category': {'values': bool, 'object': 'player',
@@ -95,4 +101,4 @@ def make_ac_handlers(config=None, world=None, logger=logging, version=0):
     if version >= 1:
         apply_AC_patch(specs, AC_patches[0])
     return {name: AC_spec.get('wrapper', ACWrapper)(name, world, **AC_spec) for name, AC_spec in specs.items() 
-            if config is None or config.getboolean('teamwork', name, fallback=False)}
+            if config is None or config.getboolean('teamwork', name, fallback=True)}
