@@ -42,6 +42,7 @@ class ACWrapper:
         try:
             handler = self.topic_handlers[msg_topic]
         except KeyError:
+            self.ignored_topics.add(msg_topic)
             data = []
         else:
             data = handler(msg['msg'], msg['data'], 
