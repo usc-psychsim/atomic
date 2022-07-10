@@ -40,14 +40,12 @@ class GelpWrapper(ACWrapper):
         i = 0
         for result in data.get('gelp_results', {}):
             i += 1
-            record = {self.score_names[i]: value for i, value in enumerate(result['gelp_components'])}
+            record = self.world.make_record({self.score_names[i]: value for i, value in enumerate(result['gelp_components'])})
             record['Player'] = result['callsign']
             record[self.score_names[-1]] = result['gelp_overall']
             new_data.append(record)
         if new_data:
             self.last = pd.DataFrame(new_data)
-            self.last['Timestamp'] = mission_time
-            self.last['Trial'] = self.trial
             self.data = pd.concat([self.data, self.last], ignore_index=True)
         return new_data
     
