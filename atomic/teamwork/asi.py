@@ -61,8 +61,10 @@ class ASI(Agent):
         for verb, table in interventions.items():
             # Extract NLG template
             if isinstance(table['template'], str):
+                table['original template'] = table['template']
                 table['template'] = Template(table['template'])
             elif isinstance(table['template'], list) and isinstance(table['template'][0], str):
+                table['original template'] = table['template']
                 table['template'] = [Template(t) for t in table['template']]
             # Create flag for tracking whether we've already done this intervention
             flag = self.world.defineState(self.name, flag_feature(verb), bool)
