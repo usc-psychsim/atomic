@@ -39,7 +39,7 @@ class JAGWrapper(ACWrapper):
         self.started = False
         self.asi_completed_jags = []
         self.orphan_msgs = []
-        self.data = pd.DataFrame(columns=['millis'] + self.score_names)
+        self.data = pd.DataFrame()  # columns=['millis'] + self.score_names)
         common_tasks = [aj.AT_PROPER_TRIAGE_AREA, aj.CHECK_IF_UNLOCKED, aj.DROP_OFF_VICTIM, aj.PICK_UP_VICTIM,
                         aj.GET_IN_RANGE, aj.UNLOCK_VICTIM]
         self.role_to_urns = {clr: common_tasks for clr in ['red', 'blue', 'green']}
@@ -49,8 +49,6 @@ class JAGWrapper(ACWrapper):
         self.debug_discover = []
 
         self.player_activity = {}
-
-        self.events = pd.DataFrame()
 
     def all_players_jag_ids(self):
         for pid in self.players.keys():
@@ -127,6 +125,7 @@ class JAGWrapper(ACWrapper):
     def handle_jag(self, message, data, mission_time):
         transition = None
         events = []
+        player = None
         try:
             if message['sub_type'] == 'Event:Discovered':
                 player_id = data['participant_id']
@@ -284,7 +283,11 @@ class JAGWrapper(ACWrapper):
             print(traceback.format_exc())
         else:
             if events:
-                self.events = pd.concat([self.events, pd.DataFrame.from_records(events)], ignore_index=True)
+                assert player is not None
+#                print(events)
+#                print(player.joint_activity_model.get_ancestors(jag_instance))
+                self.last = pd.DataFrame.from_records(events)
+                self.data = pd.concat([self.data, self.last], ignore_index=True)
             if transition is not None:
                 verb, jag_instance = transition
             value = message['sub_type'].split(':')[-1].lower()
