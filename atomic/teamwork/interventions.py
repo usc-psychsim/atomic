@@ -1,3 +1,5 @@
+import difflib
+
 from psychsim.pwl.keys import stateKey, WORLD
 from psychsim.pwl.plane import thresholdRow
 
@@ -59,3 +61,20 @@ interventions = {  # Inter-mission AAR prompt
                  }
 
 intervention_patches = [[]]
+
+
+def text2intervention(text: str):
+    """
+    :return: An intervention label that would have generated the given text
+    """
+    matcher = difflib.SequenceMatcher()
+    matcher.set_seq1(text)
+    comps = []
+    for verb, intervention in interventions.items():
+        template = intervention['original template']
+        if not isinstance(template, list):
+            template = [template]
+        for t in template:
+            matcher.set_seq2(t)
+            comps.append((matcher.ratio(), verb))
+    return max(comps)
