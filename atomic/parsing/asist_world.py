@@ -7,7 +7,7 @@ from psychsim.world import World
 from psychsim.agent import Agent
 
 from atomic.analytic import make_ac_handlers
-from atomic.teamwork.interventions import interventions
+from atomic.teamwork.interventions import interventions, text2intervention
 from atomic.teamwork.asi import make_asi, make_team, Team
 
 import pandas as pd
@@ -37,6 +37,9 @@ class ASISTWorld(World):
         self.player2participant = None
         self.asi = None
         self.intervention_args = {}
+        self.actual_intervention = None
+        self.compliance = empty_compliance()
+        self.compliance_data = None
 
         # Team agent
         self.acs = {}
@@ -102,6 +105,8 @@ class ASISTWorld(World):
         for key, value in msg['data'].items():
             if key == 'client_info':
                 self.participant2player = {client['unique_id']: client for client in value if client['unique_id']}
+                if len(self.participant2player) < 3:
+                    raise ValueError(f'Duplicate unique_id for participant: {[(c["unique_id"], c["callsign"]) for c in value]}')
                 self.player2participant = {client['playername'].split('_')[0].capitalize(): unique_id 
                                            for unique_id, client in self.participant2player.items()}
             elif key not in self.info:
@@ -116,6 +121,12 @@ class ASISTWorld(World):
             self.process_testbed_msg(msg)
         elif msg['msg']['source'] in self.acs:
             self.process_AC_msg(msg)
+        elif self.asi is not None and msg['msg']['source'] == self.asi.name and msg['msg']['sub_type'] == 'Intervention:Chat':
+            actual_intervention = msg['data']['content']
+            ratio, verb = text2intervention(actual_intervention)
+            self.compliance[verb]['intervention'] = self.now                    
+            if self.config.getboolean('output', 'actual', fallback=True):
+                self.log_decision({'verb': verb}, actual_intervention)
         if self.now is not None:
             if self.last_decision is None or self.elapsed_time(self.last_decision) >= self.DECISION_INTERVAL:
                 # Run simulation to identify ASI action
@@ -139,8 +150,9 @@ class ASISTWorld(World):
                     try:
                         beliefs = self.asi.belief_data.iloc[-1]
                     except IndexError:
-                        return None
-                    pre_state.update({f'B({var})': beliefs[var] for var in self.team.processes if var in beliefs})
+                        beliefs = None
+                    if beliefs is not None:
+                        pre_state.update({f'B({var})': beliefs[var] for var in self.team.processes if var in beliefs})
                 if self.config.getboolean('output', 'ac', fallback=False):
                     # Add AC variables to log entry
                     ignore = {'callsign', 'player', 'Player', 'team', 'ASI', 
@@ -169,11 +181,16 @@ class ASISTWorld(World):
                                     label = f'{player}_{name_prefix}_{var}'
                                     self.ac_columns.add(label)
                                     pre_state[label] = value
+                # Update compliance stats
+                if self.config.get('output', 'compliance', fallback=False):
+                    for verb, entry in self.compliance.items():
+                        if pre_state.get(f'valid {verb}', False):
+                            entry[entry['intervention'] is not None] += 1
                 # Generate chat message
                 args = self.intervention_args.get(decision['verb'], {})
                 intervention = self.asi.generate_message(decision, args, self.run_count)
-                if self.config.getboolean('output', 'decision', fallback=False) or intervention is not None:
-                    self.log_decision(decision, intervention, pre_state)
+                if self.config.getboolean('output', 'decision', fallback=False) or (intervention is not None and self.config.getboolean('output', 'hypothetical', fallback=False)):
+                    self.log_decision(decision, intervention, pre_state, replay=True)
                 # Clear intervention content
                 if decision != self.asi.noop and decision['verb'] in self.intervention_args:
                     self.intervention_args[decision['verb']].clear()
@@ -198,16 +215,18 @@ class ASISTWorld(World):
             record.update(values)
         return record
 
-    def log_decision(self, decision, intervention, additional=None):
+    def log_decision(self, decision, intervention, additional=None, replay=False):
         record = self.make_record(additional)
-        record.update({'actor': self.asi.name,
+        record.update({'actor': 'replay' if replay else self.asi.name,
                        'intervention': interventions[decision['verb']]['id'] if intervention is not None else None,
                        'message': intervention})
         self.log_data = pd.concat([self.log_data, pd.DataFrame.from_records([record])], ignore_index=True)
         return record
 
     def current_score(self):
-        if self.acs['ac_cmu_ta2_ted'].last is None:
+        if 'ac_cmu_ta2_ted' not in self.acs:
+            score = None
+        elif self.acs['ac_cmu_ta2_ted'].last is None:
             score = 0
         else:
             score = self.acs['ac_cmu_ta2_ted'].last['team_score_agg'].iloc[-1]
@@ -280,12 +299,21 @@ class ASISTWorld(World):
                           and 'heartbeats' not in topic.split('/')]
             if topic_list:
                 print(AC.name, sorted(topic_list))
-        # asi = self.asi
-        # team = self.team
-        # data = asi.belief_data.fillna(method='ffill')
-        # plot = data.plot(x='timestamp', y=team.processes)
-        # plt.show()
 
+        if self.config.get('output', 'compliance', fallback=False):
+            for verb, entry in self.compliance.items():
+                entry['team'] = self.info['experiment_name']
+                entry['ASI'] = ','.join(self.info.get('intervention_agents', []))
+                entry['trial'] = self.info["trial_number"]
+                entry['before'] = entry[False]
+                entry['after'] = entry[True]
+                entry['when'] = 15*60 - (entry['intervention'][0]*60+entry['intervention'][1]) if entry['intervention'] is not None else None
+                entry['intervention'] = verb
+                del entry[False]
+                del entry[True]
+            self.compliance_data = pd.DataFrame.from_dict(self.compliance, orient='index')
+            self.compliance = empty_compliance()
+                  
         # Save state for subsequent trial with this team
         self.prior_beliefs = self.asi.getBelief(model=self.asi.get_true_model())
         self.prior_leader = self.team.leader
@@ -314,3 +342,7 @@ class ASISTWorld(World):
 
 class PlayerModel(Agent):
     pass
+
+
+def empty_compliance():
+    return {intervention: {False: 0, True: 0, 'intervention': None} for intervention in interventions}
