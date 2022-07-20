@@ -218,8 +218,6 @@ class Replayer(object):
         if self.worlds[fname].compliance_data is not None:
             self.compliance_data = pandas.concat([self.compliance_data, self.worlds[fname].compliance_data],
                                                  ignore_index=True)
-        if self.config.getboolean('output', 'psychsim', fallback=False):
-            self.worlds[fname].save(os.path.splitext(fname)[0])
         self.worlds[fname].close()
 
     def pre_step(self, world):
@@ -324,7 +322,7 @@ def replay_parser(files_optional=False):
     parser.add_argument('--decision', action='store_true', help='Add ASI decision inputs to the output')
     parser.add_argument('--hypothetical', action='store_true', help='Add ASI hypothetical interventions to the output')
     parser.add_argument('--compliance', action='store_true', help='Add compliance measures to the output')
-    parser.add_argument('--psychsim', action='store_true', help='Save initial PsychSim world')
+    parser.add_argument('--psychsim', help='Filename to save initial PsychSim world to')
     parser.add_argument('--noactual', action='store_true', help='Do not add actual interventions to the output')
     parser.add_argument('--off', choices=['ac_cmu_ta2_ted', 'ac_cmu_ta2_beard', 'AC_CORNELL_TA2_TEAMTRUST', 'ac_gallup_ta2_gelp',
                                           'ac_ihmc_ta2_joint-activity-interdependence', 'AC_Rutgers_TA2_Utility',
@@ -365,11 +363,13 @@ if __name__ == '__main__':
         config.read(config)
     if 'output' not in config:
         config['output'] = {'actual': 'yes'}
-    for field in ['ac', 'decision', 'hypothetical', 'compliance', 'psychsim']:
+    for field in ['ac', 'decision', 'hypothetical', 'compliance']:
         if args[field]:
             config['output'][field] = 'yes'
     if args['noactual']:
         config['output']['actual'] = 'no'
+    for field in ['psychsim']:
+        config['output'][field] = args[field]
     if args['output']:
         config['output']['file'] = args['output']
     if args['off'] is not None:

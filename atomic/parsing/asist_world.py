@@ -100,6 +100,8 @@ class ASISTWorld(World):
 
         self.setOrder([{self.asi.name}, set(self.agents.keys())-{self.asi.name}])
         self.asi.initialize_team_beliefs(self.prior_beliefs)
+        if self.config.get('output', 'psychsim', fallback=''):
+            self.save(self.config.get('output', 'psychsim'))
  
     def process_start(self, msg):
         for key, value in msg['data'].items():
@@ -338,6 +340,18 @@ class ASISTWorld(World):
         self.log_data = self.log_data[0:0]
         if self.msg_types:
             self.logger.warning(f'Unknown message types: {", ".join(sorted(self.msg_types))}')
+
+    def save(self, filename):
+        old_logger = self.logger
+        old_ac_loggers = {name: AC.logger for name, AC in self.acs.items()}
+        for AC in self.acs.values():
+            AC.logger = None
+        self.logger = None
+        result = super().save(filename)
+        self.logger = old_logger
+        for AC in self.acs.values():
+            AC.logger = old_ac_loggers[AC.name]
+        return result
 
 
 class PlayerModel(Agent):
