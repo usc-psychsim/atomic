@@ -11,6 +11,9 @@ from psychsim.agent import Agent
 
 from .interventions import interventions
 
+from PyQt5.QtGui import QColor
+asi_color = QColor(255, 204, 0)
+
 
 class ASI(Agent):
 
@@ -28,6 +31,8 @@ class ASI(Agent):
         self.interventions = {}
         self.inactivity = 0
         self.belief_data = pandas.DataFrame()
+        global asi_color
+        self.color = asi_color
 
     def generate_message(self, action, sub={}, trial=1):
         if action == self.noop:
@@ -276,6 +281,7 @@ class Team(Agent):
 
     def __init__(self, world, name='team'):
         super().__init__(name, world)
+        self.color = 'purple'
         self.leader = world.prior_leader
 
     def initialize_variables(self):

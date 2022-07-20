@@ -26,6 +26,7 @@ class ASISTWorld(World):
             self.logger = logging
         else:
             self.logger = logger
+        self.color = 'gray'
         self.info = {}
         self.msg_types = set()
         self.prior_beliefs = None
@@ -69,6 +70,7 @@ class ASISTWorld(World):
     def create_participant(self, name):
         agent = self.addAgent(PlayerModel(name))
         agent.noop = agent.addAction({'verb': 'do nothing'})
+        agent.color = name.lower()
         return agent
 
     def create_team(self):
